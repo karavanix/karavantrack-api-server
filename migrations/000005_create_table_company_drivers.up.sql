@@ -8,3 +8,6 @@ CREATE TABLE IF NOT EXISTS company_drivers (
     CONSTRAINT company_drivers_company_id_fkey FOREIGN KEY (company_id) REFERENCES companies(id),
     CONSTRAINT company_drivers_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES drivers(id)
 );
+
+CREATE INDEX IF NOT EXISTS company_drivers_company_id_created_at_idx
+  ON company_drivers (company_id, created_at DESC);

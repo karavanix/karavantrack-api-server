@@ -7,4 +7,4 @@ CREATE TABLE IF NOT EXISTS drivers (
     CONSTRAINT drivers_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS drivers_user_id_idx ON drivers(user_id);
+CREATE INDEX IF NOT EXISTS drivers_user_id_idx ON drivers(user_id);
