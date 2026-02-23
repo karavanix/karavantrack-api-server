@@ -78,7 +78,7 @@ func New() (*Config, error) {
 	c := &Config{}
 
 	// App & env
-	c.APP = getEnv("APP", "ewallet")
+	c.APP = getEnv("APP", "karavantruck-api-server")
 	c.Environment = app.Environment(getEnv("ENVIRONMENT", app.Local.String()))
 	if !c.Environment.IsValid() {
 		return nil, fmt.Errorf("invalid environment: %s", c.Environment)
@@ -90,7 +90,7 @@ func New() (*Config, error) {
 
 	// Server
 	c.Server.Host = getEnv("SERVER_HOST", "0.0.0.0")
-	c.Server.Port = getEnv("SERVER_PORT", "50051")
+	c.Server.Port = getEnv("SERVER_PORT", "8090")
 
 	var err error
 	if c.Server.ReadTimeout, err = getEnvDuration("SERVER_READ_TIMEOUT", "5s"); err != nil {
@@ -115,7 +115,7 @@ func New() (*Config, error) {
 	// Database
 	c.DB.Host = getEnv("DB_HOST", "localhost")
 	c.DB.Port = getEnv("DB_PORT", "5432")
-	c.DB.Name = getEnv("DB_DATABASE", "postgres")
+	c.DB.Name = getEnv("DB_DATABASE", "karavantruck")
 	c.DB.User = getEnv("DB_USERNAME", "postgres")
 	c.DB.Password = getEnv("DB_PASSWORD", "")
 	c.DB.Sslmode = getEnv("DB_SSLMODE", "disable")
@@ -138,7 +138,7 @@ func New() (*Config, error) {
 	}
 
 	// OTLP
-	c.OTEL.ServiceName = getEnv("OTEL_SERVICE_NAME", "ewallet")
+	c.OTEL.ServiceName = getEnv("OTEL_SERVICE_NAME", "karavantruck-api-server")
 	c.OTEL.Propagators = getEnv("OTEL_PROPAGATORS", "baggage,tracecontext")
 	c.OTEL.Exporter.Type = getEnv("OTEL_TRACES_EXPORTER", "otlp")
 	c.OTEL.Exporter.OTLP.Endpoint = getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")

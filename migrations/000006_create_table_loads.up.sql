@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS loads (
     id uuid,
     company_id uuid,
-    company_member_id uuid,
+    member_id uuid,
     driver_id uuid,
     reference_id varchar(255),
     title varchar(255),
@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS loads (
     PRIMARY KEY (id),
     CONSTRAINT loads_company_id_fkey FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT loads_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES drivers(id) ON DELETE SET NULL ON UPDATE CASCADE,
-    CONSTRAINT loads_company_member_id_fkey FOREIGN KEY (company_member_id) REFERENCES company_members(id) ON DELETE SET NULL ON UPDATE CASCADE
+    CONSTRAINT loads_member_id_fkey FOREIGN KEY (member_id) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS loads_company_id_status_created_at_idx ON loads(company_id, status, created_at DESC);

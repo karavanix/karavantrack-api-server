@@ -21,7 +21,7 @@ type Logger struct {
 	logFile *os.File
 }
 
-var once *sync.Once
+var once sync.Once
 var logger *Logger
 
 func NewLogger(filename string, logLevel app.LogLevel) (*Logger, error) {

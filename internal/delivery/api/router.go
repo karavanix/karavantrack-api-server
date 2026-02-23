@@ -10,6 +10,9 @@ import (
 	"github.com/go-chi/render"
 	"github.com/karavanix/karavantrack-api-server/internal/delivery"
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/handlers/auth"
+	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/handlers/companies"
+	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/handlers/drivers"
+	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/handlers/loads"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
 
@@ -48,15 +51,18 @@ func NewRouter(options *delivery.HandlerOptions) http.Handler {
 		MaxAge:           300, // Maximum value not ignored by any of major browsers
 	}))
 
-	// Mound the handlers under the /api/v1 path
+	// Mount the handlers under the /api/v1 path
 	router.Route("/api/v1", func(r chi.Router) {
 		r.Mount("/auth", auth.New(options))
+		r.Mount("/companies", companies.New(options))
+		r.Mount("/drivers", drivers.New(options))
+		r.Mount("/loads", loads.New(options))
 	})
 
 	// Set swagger
 	router.Get("/api/swagger/*", httpSwagger.Handler())
 
-	// Helthcheck
+	// Healthcheck
 	router.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		render.JSON(w, r, map[string]any{
 			"status":    "healthy",

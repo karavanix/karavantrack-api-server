@@ -48,12 +48,16 @@ func New(opt ...Options) (*RedisClient, error) {
 	}, nil
 }
 
+func (c *RedisClient) GetRedisClient() *redis.Client {
+	return c.client
+}
+
 func (c *RedisClient) Close() error {
 	return c.client.Close()
 }
 
 func (c *RedisClient) prefixer(key string) string {
-	return c.keyPrefix + key
+	return c.keyPrefix + ":" + key
 }
 
 func (c *RedisClient) Get(ctx context.Context, key string) (string, error) {
