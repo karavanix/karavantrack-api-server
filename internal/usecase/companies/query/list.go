@@ -31,7 +31,7 @@ func NewListByUserUsecase(
 	}
 }
 
-func (u *ListByUserUsecase) List(ctx context.Context, userIDStr string) (_ []*CompanyResponse, err error) {
+func (u *ListByUserUsecase) ListByUser(ctx context.Context, userIDStr string) (_ []*CompanyResponse, err error) {
 	ctx, cancel := context.WithTimeout(ctx, u.contextDuration)
 	defer cancel()
 

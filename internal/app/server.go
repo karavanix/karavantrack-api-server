@@ -18,6 +18,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/companies"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/drivers"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/loads"
+	"github.com/karavanix/karavantrack-api-server/internal/usecase/users"
 	"github.com/karavanix/karavantrack-api-server/pkg/app"
 	"github.com/karavanix/karavantrack-api-server/pkg/config"
 	"github.com/karavanix/karavantrack-api-server/pkg/database/postgres"
@@ -110,7 +111,6 @@ func (s *ServerApp) Run() error {
 	usersRepo := repository.NewUsersRepo(s.db)
 	companiesRepo := repository.NewCompaniesRepo(s.db)
 	companyMembersRepo := repository.NewCompanyMembersRepo(s.db)
-	driversRepo := repository.NewDriversRepo(s.db)
 	companyDriversRepo := repository.NewCompanyDriversRepo(s.db)
 	loadsRepo := repository.NewLoadsRepo(s.db)
 	locationsPointsRepo := repository.NewLocationPointsRepo(s.db)
@@ -120,9 +120,10 @@ func (s *ServerApp) Run() error {
 
 	// usecase
 	authUsecase := auth.NewUsecase(s.config.Context.Timeout, jwtProvider, usersRepo)
+	usersUsecase := users.NewUsecase(s.config.Context.Timeout, usersRepo)
 	companiesUsecase := companies.NewUsecase(s.config.Context.Timeout, txManager, companiesRepo, companyMembersRepo, usersRepo)
-	driversUsecase := drivers.NewUsecase(s.config.Context.Timeout, driversRepo, companyDriversRepo, usersRepo)
-	loadsUsecase := loads.NewUsecase(s.config.Context.Timeout, loadsRepo, driversRepo, locationsPointsRepo)
+	driversUsecase := drivers.NewUsecase(s.config.Context.Timeout, companyDriversRepo, usersRepo)
+	loadsUsecase := loads.NewUsecase(s.config.Context.Timeout, loadsRepo, usersRepo, locationsPointsRepo)
 
 	// init handlers options
 	opts := &delivery.HandlerOptions{
@@ -131,6 +132,7 @@ func (s *ServerApp) Run() error {
 		JWTProvider:      jwtProvider,
 		PresenceService:  presenceService,
 		AuthUsecase:      authUsecase,
+		UsersUsecase:     usersUsecase,
 		CompaniesUsecase: companiesUsecase,
 		DriversUsecase:   driversUsecase,
 		LoadsUsecase:     loadsUsecase,

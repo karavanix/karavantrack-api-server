@@ -84,7 +84,8 @@ func (l *LoginUsecase) Login(ctx context.Context, req *LoginRequest) (_ *LoginRe
 		return nil, inerr.ErrorPermissionDenied
 	}
 
-	creds, err := l.jwtProvider.GenerateTokens(user.ID.String())
+	// Role comes directly from the user record
+	creds, err := l.jwtProvider.GenerateTokens(user.ID.String(), user.Role.String())
 	if err != nil {
 		logger.ErrorContext(ctx, "error generating tokens", err)
 		return nil, err

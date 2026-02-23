@@ -9,14 +9,13 @@ import (
 )
 
 type Command struct {
-	Create            *command.CreateUsecase
-	AddToCompany      *command.AddToCompanyUsecase
-	RemoveFromCompany *command.RemoveFromCompanyUsecase
+	*command.AddToCompanyUsecase
+	*command.RemoveFromCompanyUsecase
 }
 
 type Query struct {
-	Get           *query.GetUsecase
-	ListByCompany *query.ListByCompanyUsecase
+	*query.GetUsecase
+	*query.ListByCompanyUsecase
 }
 
 type Usecase struct {
@@ -26,19 +25,17 @@ type Usecase struct {
 
 func NewUsecase(
 	contextDuration time.Duration,
-	driversRepo domain.DriverRepository,
 	companyDriversRepo domain.CompanyDriverRepository,
 	usersRepo domain.UserRepository,
 ) *Usecase {
 	return &Usecase{
 		Command: Command{
-			Create:            command.NewCreateUsecase(contextDuration, driversRepo, usersRepo),
-			AddToCompany:      command.NewAddToCompanyUsecase(contextDuration, companyDriversRepo, driversRepo),
-			RemoveFromCompany: command.NewRemoveFromCompanyUsecase(contextDuration, companyDriversRepo),
+			AddToCompanyUsecase:      command.NewAddToCompanyUsecase(contextDuration, companyDriversRepo, usersRepo),
+			RemoveFromCompanyUsecase: command.NewRemoveFromCompanyUsecase(contextDuration, companyDriversRepo),
 		},
 		Query: Query{
-			Get:           query.NewGetUsecase(contextDuration, driversRepo),
-			ListByCompany: query.NewListByCompanyUsecase(contextDuration, companyDriversRepo, driversRepo),
+			GetUsecase:           query.NewGetUsecase(contextDuration, companyDriversRepo, usersRepo),
+			ListByCompanyUsecase: query.NewListByCompanyUsecase(contextDuration, companyDriversRepo, usersRepo),
 		},
 	}
 }

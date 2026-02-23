@@ -32,7 +32,7 @@ type MemberResponse struct {
 	CreatedAt string `json:"created_at"`
 }
 
-func (u *ListMembersUsecase) List(ctx context.Context, companyIDStr string) (_ []*MemberResponse, err error) {
+func (u *ListMembersUsecase) ListMembers(ctx context.Context, companyIDStr string) (_ []*MemberResponse, err error) {
 	ctx, cancel := context.WithTimeout(ctx, u.contextDuration)
 	defer cancel()
 

@@ -11,6 +11,7 @@ import (
 // AccessClaims defines JWT claims for access tokens.
 type AccessClaims struct {
 	jwt.RegisteredClaims
+	Role string `json:"role"`
 }
 
 // RefreshClaims defines JWT claims for refresh tokens, including JTI.
@@ -44,7 +45,7 @@ func NewJWTProvider(accessSecret, refreshSecret []byte, accessTTL, refreshTTL ti
 	}
 }
 
-func (m *JWTProvider) GenerateTokens(userID string) (*TokenDetails, error) {
+func (m *JWTProvider) GenerateTokens(userID string, role string) (*TokenDetails, error) {
 	now := time.Now()
 	jti := uuid.New().String()
 
@@ -56,6 +57,7 @@ func (m *JWTProvider) GenerateTokens(userID string) (*TokenDetails, error) {
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(accessExp),
 		},
+		Role: role,
 	}
 	at := jwt.NewWithClaims(m.SigningMethod, accessClaims)
 	accessToken, err := at.SignedString(m.AccessSecret)

@@ -13,45 +13,67 @@ import (
 )
 
 type GetUsecase struct {
-	contextDuration time.Duration
-	driversRepo     domain.DriverRepository
+	contextDuration    time.Duration
+	companyDriversRepo domain.CompanyDriverRepository
+	usersRepo          domain.UserRepository
 }
 
-func NewGetUsecase(contextDuration time.Duration, driversRepo domain.DriverRepository) *GetUsecase {
+func NewGetUsecase(contextDuration time.Duration, companyDriversRepo domain.CompanyDriverRepository, usersRepo domain.UserRepository) *GetUsecase {
 	return &GetUsecase{
-		contextDuration: contextDuration,
-		driversRepo:     driversRepo,
+		contextDuration:    contextDuration,
+		companyDriversRepo: companyDriversRepo,
+		usersRepo:          usersRepo,
 	}
 }
 
 type DriverResponse struct {
 	ID        string `json:"id"`
-	UserID    string `json:"user_id"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	Role      string `json:"role"`
 	CreatedAt string `json:"created_at"`
 }
 
-func (u *GetUsecase) Get(ctx context.Context, driverIDStr string) (_ *DriverResponse, err error) {
+func (u *GetUsecase) Get(ctx context.Context, requesterID string, driverID string) (_ *DriverResponse, err error) {
 	ctx, cancel := context.WithTimeout(ctx, u.contextDuration)
 	defer cancel()
 
 	ctx, end := otlp.Start(ctx, otel.Tracer("drivers"), "Get",
-		attribute.String("driver_id", driverIDStr),
+		attribute.String("requester_id", requesterID),
+		attribute.String("driver_id", driverID),
 	)
 	defer func() { end(err) }()
 
-	driverID, err := uuid.Parse(driverIDStr)
-	if err != nil {
-		return nil, inerr.NewErrValidation("driver_id", "invalid driver ID")
+	var input struct {
+		userID   uuid.UUID
+		driverID uuid.UUID
+	}
+	{
+		input.userID, err = uuid.Parse(requesterID)
+		if err != nil {
+			return nil, inerr.NewErrValidation("requester_id", "invalid user ID")
+		}
+		input.driverID, err = uuid.Parse(driverID)
+		if err != nil {
+			return nil, inerr.NewErrValidation("driver_id", "invalid driver ID")
+		}
 	}
 
-	driver, err := u.driversRepo.FindByID(ctx, driverID)
+	// Look up the user (who should be a driver)
+	user, err := u.usersRepo.FindByID(ctx, input.driverID)
 	if err != nil {
 		return nil, err
 	}
 
+	if !user.IsDriver() {
+		return nil, inerr.NewErrValidation("driver_id", "user is not a driver")
+	}
+
 	return &DriverResponse{
-		ID:        driver.ID.String(),
-		UserID:    driver.UserID.String(),
-		CreatedAt: driver.CreatedAt.Format(time.RFC3339),
+		ID:        user.ID.String(),
+		FirstName: user.FirstName,
+		LastName:  user.LastName,
+		Role:      user.Role.String(),
+		CreatedAt: user.CreatedAt.Format(time.RFC3339),
 	}, nil
 }

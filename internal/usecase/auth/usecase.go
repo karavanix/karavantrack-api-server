@@ -9,9 +9,9 @@ import (
 )
 
 type Command struct {
-	Register     *command.RegisterUsecase
-	Login        *command.LoginUsecase
-	RefreshToken *command.RefreshTokenUsecase
+	*command.RegisterUsecase
+	*command.LoginUsecase
+	*command.RefreshTokenUsecase
 }
 
 type Query struct {
@@ -25,9 +25,9 @@ type Usecase struct {
 func NewUsecase(contextDuration time.Duration, jwtProvider *security.JWTProvider, usersRepo domain.UserRepository) *Usecase {
 	return &Usecase{
 		Command: Command{
-			Register:     command.NewRegisterUsecase(contextDuration, jwtProvider, usersRepo),
-			Login:        command.NewLoginUsecase(contextDuration, jwtProvider, usersRepo),
-			RefreshToken: command.NewRefreshTokenUsecase(contextDuration, jwtProvider, usersRepo),
+			RegisterUsecase:     command.NewRegisterUsecase(contextDuration, jwtProvider, usersRepo),
+			LoginUsecase:        command.NewLoginUsecase(contextDuration, jwtProvider, usersRepo),
+			RefreshTokenUsecase: command.NewRefreshTokenUsecase(contextDuration, jwtProvider, usersRepo),
 		},
 		Query: Query{},
 	}

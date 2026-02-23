@@ -25,13 +25,13 @@ func NewRemoveMemberUsecase(contextDuration time.Duration, membersRepo domain.Co
 	}
 }
 
-func (u *RemoveMemberUsecase) RemoveMember(ctx context.Context, companyIDStr, userIDStr string) (err error) {
+func (u *RemoveMemberUsecase) RemoveMember(ctx context.Context, callerUserID, companyIDStr, targetUserIDStr string) (err error) {
 	ctx, cancel := context.WithTimeout(ctx, u.contextDuration)
 	defer cancel()
 
 	ctx, end := otlp.Start(ctx, otel.Tracer("companies"), "RemoveMember",
 		attribute.String("company_id", companyIDStr),
-		attribute.String("user_id", userIDStr),
+		attribute.String("user_id", targetUserIDStr),
 	)
 	defer func() { end(err) }()
 
@@ -40,21 +40,35 @@ func (u *RemoveMemberUsecase) RemoveMember(ctx context.Context, companyIDStr, us
 		return inerr.NewErrValidation("company_id", "invalid company ID")
 	}
 
-	userID, err := uuid.Parse(userIDStr)
+	callerID, err := uuid.Parse(callerUserID)
+	if err != nil {
+		return inerr.NewErrValidation("user_id", "invalid caller user ID")
+	}
+
+	targetUserID, err := uuid.Parse(targetUserIDStr)
 	if err != nil {
 		return inerr.NewErrValidation("user_id", "invalid user ID")
 	}
 
+	// Ownership check: only owner can remove members
+	callerMember, err := u.membersRepo.FindByCompanyAndUser(ctx, companyID, callerID)
+	if err != nil {
+		return inerr.ErrorPermissionDenied
+	}
+	if callerMember.Role != domain.MemberRoleOwner {
+		return inerr.ErrorPermissionDenied
+	}
+
 	// Check that we're not removing the owner
-	member, err := u.membersRepo.FindByCompanyAndUser(ctx, companyID, userID)
+	target, err := u.membersRepo.FindByCompanyAndUser(ctx, companyID, targetUserID)
 	if err != nil {
 		return err
 	}
-	if member.Role == domain.MemberRoleOwner {
+	if target.Role == domain.MemberRoleOwner {
 		return inerr.NewErrValidation("member", "cannot remove company owner")
 	}
 
-	if err := u.membersRepo.Delete(ctx, companyID, userID); err != nil {
+	if err := u.membersRepo.Delete(ctx, companyID, targetUserID); err != nil {
 		logger.ErrorContext(ctx, "failed to remove company member", err)
 		return err
 	}

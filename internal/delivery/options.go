@@ -7,6 +7,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/companies"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/drivers"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/loads"
+	"github.com/karavanix/karavantrack-api-server/internal/usecase/users"
 	"github.com/karavanix/karavantrack-api-server/pkg/config"
 	"github.com/karavanix/karavantrack-api-server/pkg/security"
 )
@@ -21,6 +22,7 @@ type HandlerOptions struct {
 
 	// Usecases
 	AuthUsecase      *auth.Usecase
+	UsersUsecase     *users.Usecase
 	CompaniesUsecase *companies.Usecase
 	DriversUsecase   *drivers.Usecase
 	LoadsUsecase     *loads.Usecase

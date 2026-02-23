@@ -16,14 +16,14 @@ import (
 type AssignUsecase struct {
 	contextDuration time.Duration
 	loadsRepo       domain.LoadRepository
-	driversRepo     domain.DriverRepository
+	usersRepo       domain.UserRepository
 }
 
-func NewAssignUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository, driversRepo domain.DriverRepository) *AssignUsecase {
+func NewAssignUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository, usersRepo domain.UserRepository) *AssignUsecase {
 	return &AssignUsecase{
 		contextDuration: contextDuration,
 		loadsRepo:       loadsRepo,
-		driversRepo:     driversRepo,
+		usersRepo:       usersRepo,
 	}
 }
 
@@ -46,15 +46,18 @@ func (u *AssignUsecase) Assign(ctx context.Context, loadIDStr string, req *Assig
 		return inerr.NewErrValidation("load_id", "invalid load ID")
 	}
 
-	driverID, err := uuid.Parse(req.DriverID)
+	driverUserID, err := uuid.Parse(req.DriverID)
 	if err != nil {
 		return inerr.NewErrValidation("driver_id", "invalid driver ID")
 	}
 
-	// Verify driver exists
-	_, err = u.driversRepo.FindByID(ctx, driverID)
+	// Verify user exists and is a driver
+	user, err := u.usersRepo.FindByID(ctx, driverUserID)
 	if err != nil {
 		return err
+	}
+	if !user.IsDriver() {
+		return inerr.NewErrValidation("driver_id", "user is not a driver")
 	}
 
 	load, err := u.loadsRepo.FindByID(ctx, loadID)
@@ -62,7 +65,7 @@ func (u *AssignUsecase) Assign(ctx context.Context, loadIDStr string, req *Assig
 		return err
 	}
 
-	if err := load.Assign(driverID); err != nil {
+	if err := load.Assign(driverUserID); err != nil {
 		return inerr.NewErrValidation("status", err.Error())
 	}
 

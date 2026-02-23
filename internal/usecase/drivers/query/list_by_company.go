@@ -7,7 +7,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
 	"github.com/karavanix/karavantrack-api-server/internal/inerr"
-	"github.com/karavanix/karavantrack-api-server/pkg/logger"
 	"github.com/karavanix/karavantrack-api-server/pkg/otlp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -16,58 +15,81 @@ import (
 type ListByCompanyUsecase struct {
 	contextDuration    time.Duration
 	companyDriversRepo domain.CompanyDriverRepository
-	driversRepo        domain.DriverRepository
+	usersRepo          domain.UserRepository
 }
 
 func NewListByCompanyUsecase(
 	contextDuration time.Duration,
 	companyDriversRepo domain.CompanyDriverRepository,
-	driversRepo domain.DriverRepository,
+	usersRepo domain.UserRepository,
 ) *ListByCompanyUsecase {
 	return &ListByCompanyUsecase{
 		contextDuration:    contextDuration,
 		companyDriversRepo: companyDriversRepo,
-		driversRepo:        driversRepo,
+		usersRepo:          usersRepo,
 	}
 }
 
 type CompanyDriverResponse struct {
 	DriverID  string `json:"driver_id"`
 	Alias     string `json:"alias"`
-	UserID    string `json:"user_id"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
 	CreatedAt string `json:"created_at"`
 }
 
-func (u *ListByCompanyUsecase) List(ctx context.Context, companyIDStr string) (_ []*CompanyDriverResponse, err error) {
+func (u *ListByCompanyUsecase) ListByCompany(ctx context.Context, requesterID string, companyID string) (_ []*CompanyDriverResponse, err error) {
 	ctx, cancel := context.WithTimeout(ctx, u.contextDuration)
 	defer cancel()
 
 	ctx, end := otlp.Start(ctx, otel.Tracer("drivers"), "ListByCompany",
-		attribute.String("company_id", companyIDStr),
+		attribute.String("requester_id", requesterID),
+		attribute.String("company_id", companyID),
 	)
 	defer func() { end(err) }()
 
-	companyID, err := uuid.Parse(companyIDStr)
-	if err != nil {
-		return nil, inerr.NewErrValidation("company_id", "invalid company ID")
+	var input struct {
+		companyID uuid.UUID
+		userID    uuid.UUID
+	}
+	{
+		input.companyID, err = uuid.Parse(companyID)
+		if err != nil {
+			return nil, inerr.NewErrValidation("company_id", "invalid company ID")
+		}
+		input.userID, err = uuid.Parse(requesterID)
+		if err != nil {
+			return nil, inerr.NewErrValidation("requester_id", "invalid user ID")
+		}
 	}
 
-	companyDrivers, err := u.companyDriversRepo.FindByCompanyID(ctx, companyID)
+	companyDrivers, err := u.companyDriversRepo.FindByCompanyID(ctx, input.companyID)
+	if err != nil {
+		return nil, err
+	}
+
+	driverUserIDs := make([]uuid.UUID, 0, len(companyDrivers))
+	for _, cd := range companyDrivers {
+		driverUserIDs = append(driverUserIDs, cd.DriverID)
+	}
+
+	users, err := u.usersRepo.FindByIDs(ctx, driverUserIDs)
 	if err != nil {
 		return nil, err
 	}
 
 	result := make([]*CompanyDriverResponse, 0, len(companyDrivers))
 	for _, cd := range companyDrivers {
-		driver, err := u.driversRepo.FindByID(ctx, cd.DriverID)
-		if err != nil {
-			logger.ErrorContext(ctx, "failed to find driver", err)
+		user, ok := users[cd.DriverID]
+		if !ok {
 			continue
 		}
+
 		result = append(result, &CompanyDriverResponse{
-			DriverID:  driver.ID.String(),
+			DriverID:  user.ID.String(),
 			Alias:     cd.Alias,
-			UserID:    driver.UserID.String(),
+			FirstName: user.FirstName,
+			LastName:  user.LastName,
 			CreatedAt: cd.CreatedAt.Format(time.RFC3339),
 		})
 	}

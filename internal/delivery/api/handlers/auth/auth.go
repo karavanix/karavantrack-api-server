@@ -64,7 +64,7 @@ func (h *authHander) Login() http.HandlerFunc {
 			return
 		}
 
-		resp, err := h.authUsecase.Command.Login.Login(r.Context(), &req)
+		resp, err := h.authUsecase.Command.Login(r.Context(), &req)
 		if err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
@@ -99,7 +99,7 @@ func (h *authHander) Register() http.HandlerFunc {
 			return
 		}
 
-		resp, err := h.authUsecase.Command.Register.Register(r.Context(), &req)
+		resp, err := h.authUsecase.Command.Register(r.Context(), &req)
 		if err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
@@ -116,16 +116,12 @@ func (h *authHander) Register() http.HandlerFunc {
 // @Tags         Auth
 // @Accept       json
 // @Produce      json
-// @Success      200  {object} map[string]string
+// @Success      200
 // @Router       /auth/logout [post]
 func (h *authHander) Logout() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		render.Status(r, http.StatusOK)
 	}
-}
-
-type refreshRequest struct {
-	RefreshToken string `json:"refresh_token" validate:"required"`
 }
 
 // Refresh godoc
@@ -134,8 +130,8 @@ type refreshRequest struct {
 // @Tags         Auth
 // @Accept       json
 // @Produce      json
-// @Param        body body refreshRequest true "Refresh token"
-// @Success      200  {object} security.TokenDetails
+// @Param        body body command.RefreshTokenRequest true "Refresh token"
+// @Success      200  {object} command.LoginResponse
 // @Failure      401  {object} outerr.Response
 // @Router       /auth/refresh [post]
 func (h *authHander) Refresh() http.HandlerFunc {
@@ -151,8 +147,7 @@ func (h *authHander) Refresh() http.HandlerFunc {
 			return
 		}
 
-		var resp *command.LoginResponse
-		resp, err := h.authUsecase.Command.RefreshToken.RefreshTokeb(r.Context(), &req)
+		resp, err := h.authUsecase.Command.RefreshTokeb(r.Context(), &req)
 		if err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
