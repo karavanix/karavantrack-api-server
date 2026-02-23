@@ -28,6 +28,7 @@ type User struct {
 	Email        shared.Email
 	Phone        shared.Phone
 	PasswordHash string
+	Role         shared.Role
 	Status       UserStatus
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
@@ -39,9 +40,14 @@ func NewUser(
 	email shared.Email,
 	phone shared.Phone,
 	password shared.Password,
+	role shared.Role,
 ) (*User, error) {
 	if email == "" && phone == "" {
 		return nil, errors.New("email or phone is required")
+	}
+
+	if !role.IsValid() {
+		return nil, errors.New("invalid role")
 	}
 
 	return &User{
@@ -51,10 +57,21 @@ func NewUser(
 		Email:        email,
 		Phone:        phone,
 		PasswordHash: password.Hash(),
+		Role:         role,
 		Status:       UserStatusActive,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}, nil
+}
+
+func (u *User) Update(firstName, lastName string) {
+	if firstName != "" {
+		u.FirstName = firstName
+	}
+	if lastName != "" {
+		u.LastName = lastName
+	}
+	u.UpdatedAt = time.Now()
 }
 
 func (u *User) ChangePassword(password shared.Password) error {
@@ -75,10 +92,16 @@ func (u *User) Deactivate() error {
 	return nil
 }
 
+func (u *User) IsDriver() bool {
+	return u.Role.IsDriver()
+}
+
 type UserRepository interface {
 	Save(ctx context.Context, user *User) error
+	Update(ctx context.Context, user *User) error
 	FindByEmail(ctx context.Context, email shared.Email) (*User, error)
 	FindByPhone(ctx context.Context, phone shared.Phone) (*User, error)
 	FindByEmailOrPhone(ctx context.Context, email shared.Email, phone shared.Phone) (*User, error)
 	FindByID(ctx context.Context, id uuid.UUID) (*User, error)
+	FindByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]*User, error)
 }

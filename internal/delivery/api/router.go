@@ -13,6 +13,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/handlers/companies"
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/handlers/drivers"
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/handlers/loads"
+	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/handlers/users"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
 
@@ -48,12 +49,13 @@ func NewRouter(options *delivery.HandlerOptions) http.Handler {
 		AllowedHeaders:   []string{"Accept", "Authorization", "Accept-Language", "Content-Type", "X-CSRF-Token", "X-Request-Id", "X-Client-Id"},
 		ExposedHeaders:   []string{"Link"},
 		AllowCredentials: true,
-		MaxAge:           300, // Maximum value not ignored by any of major browsers
+		MaxAge:           300,
 	}))
 
 	// Mount the handlers under the /api/v1 path
 	router.Route("/api/v1", func(r chi.Router) {
 		r.Mount("/auth", auth.New(options))
+		r.Mount("/users", users.New(options))
 		r.Mount("/companies", companies.New(options))
 		r.Mount("/drivers", drivers.New(options))
 		r.Mount("/loads", loads.New(options))

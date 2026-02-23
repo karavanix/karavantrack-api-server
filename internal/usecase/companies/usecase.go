@@ -10,16 +10,16 @@ import (
 )
 
 type Command struct {
-	Create       *command.CreateUsecase
-	Update       *command.UpdateUsecase
-	AddMember    *command.AddMemberUsecase
-	RemoveMember *command.RemoveMemberUsecase
+	*command.CreateUsecase
+	*command.UpdateUsecase
+	*command.AddMemberUsecase
+	*command.RemoveMemberUsecase
 }
 
 type Query struct {
-	Get         *query.GetUsecase
-	ListByUser  *query.ListByUserUsecase
-	ListMembers *query.ListMembersUsecase
+	*query.GetUsecase
+	*query.ListByUserUsecase
+	*query.ListMembersUsecase
 }
 
 type Usecase struct {
@@ -36,15 +36,15 @@ func NewUsecase(
 ) *Usecase {
 	return &Usecase{
 		Command: Command{
-			Create:       command.NewCreateUsecase(contextDuration, txManager, companiesRepo, membersRepo),
-			Update:       command.NewUpdateUsecase(contextDuration, companiesRepo),
-			AddMember:    command.NewAddMemberUsecase(contextDuration, membersRepo, usersRepo),
-			RemoveMember: command.NewRemoveMemberUsecase(contextDuration, membersRepo),
+			CreateUsecase:       command.NewCreateUsecase(contextDuration, txManager, companiesRepo, membersRepo),
+			UpdateUsecase:       command.NewUpdateUsecase(contextDuration, companiesRepo, membersRepo),
+			AddMemberUsecase:    command.NewAddMemberUsecase(contextDuration, membersRepo, usersRepo),
+			RemoveMemberUsecase: command.NewRemoveMemberUsecase(contextDuration, membersRepo),
 		},
 		Query: Query{
-			Get:         query.NewGetUsecase(contextDuration, companiesRepo),
-			ListByUser:  query.NewListByUserUsecase(contextDuration, companiesRepo, membersRepo),
-			ListMembers: query.NewListMembersUsecase(contextDuration, membersRepo),
+			GetUsecase:         query.NewGetUsecase(contextDuration, companiesRepo),
+			ListByUserUsecase:  query.NewListByUserUsecase(contextDuration, companiesRepo, membersRepo),
+			ListMembersUsecase: query.NewListMembersUsecase(contextDuration, membersRepo),
 		},
 	}
 }

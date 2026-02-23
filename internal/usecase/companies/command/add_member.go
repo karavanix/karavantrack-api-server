@@ -37,7 +37,7 @@ type AddMemberRequest struct {
 	Role   string `json:"role" validate:"required,oneof=admin member"`
 }
 
-func (u *AddMemberUsecase) AddMember(ctx context.Context, companyIDStr string, req *AddMemberRequest) (err error) {
+func (u *AddMemberUsecase) AddMember(ctx context.Context, callerUserID, companyIDStr string, req *AddMemberRequest) (err error) {
 	ctx, cancel := context.WithTimeout(ctx, u.contextDuration)
 	defer cancel()
 
@@ -52,12 +52,26 @@ func (u *AddMemberUsecase) AddMember(ctx context.Context, companyIDStr string, r
 		return inerr.NewErrValidation("company_id", "invalid company ID")
 	}
 
+	callerID, err := uuid.Parse(callerUserID)
+	if err != nil {
+		return inerr.NewErrValidation("user_id", "invalid caller user ID")
+	}
+
+	// Ownership check: only owner or admin can add members
+	callerMember, err := u.membersRepo.FindByCompanyAndUser(ctx, companyID, callerID)
+	if err != nil {
+		return inerr.ErrorPermissionDenied
+	}
+	if callerMember.Role != domain.MemberRoleOwner && callerMember.Role != domain.MemberRoleAdmin {
+		return inerr.ErrorPermissionDenied
+	}
+
 	userID, err := uuid.Parse(req.UserID)
 	if err != nil {
 		return inerr.NewErrValidation("user_id", "invalid user ID")
 	}
 
-	// Verify user exists
+	// Verify target user exists
 	_, err = u.usersRepo.FindByID(ctx, userID)
 	if err != nil {
 		return err

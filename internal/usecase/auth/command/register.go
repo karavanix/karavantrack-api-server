@@ -34,11 +34,13 @@ type RegisterRequest struct {
 	Email     string `json:"email"`
 	Phone     string `json:"phone"`
 	Password  string `json:"password" validate:"required"`
+	Role      string `json:"role" validate:"required,oneof=driver cargo_owner"`
 }
 
 type RegisterResponse struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
+	Role         string `json:"role"`
 }
 
 func (r *RegisterUsecase) Register(ctx context.Context, req *RegisterRequest) (_ *RegisterResponse, err error) {
@@ -48,6 +50,7 @@ func (r *RegisterUsecase) Register(ctx context.Context, req *RegisterRequest) (_
 	ctx, end := otlp.Start(ctx, otel.Tracer("auth"), "Register",
 		attribute.String("email", req.Email),
 		attribute.String("phone", req.Phone),
+		attribute.String("role", req.Role),
 	)
 	defer func() { end(err) }()
 
@@ -55,6 +58,7 @@ func (r *RegisterUsecase) Register(ctx context.Context, req *RegisterRequest) (_
 		email    shared.Email
 		phone    shared.Phone
 		password shared.Password
+		role     shared.Role
 	}
 	{
 		if req.Email != "" {
@@ -75,9 +79,14 @@ func (r *RegisterUsecase) Register(ctx context.Context, req *RegisterRequest) (_
 		if err != nil {
 			return nil, inerr.NewErrValidation("password", err.Error())
 		}
+
+		input.role = shared.Role(req.Role)
+		if !input.role.IsValid() {
+			return nil, inerr.NewErrValidation("role", "invalid role")
+		}
 	}
 
-	user, err := domain.NewUser(req.FirstName, req.LastName, input.email, input.phone, input.password)
+	user, err := domain.NewUser(req.FirstName, req.LastName, input.email, input.phone, input.password, input.role)
 	if err != nil {
 		logger.ErrorContext(ctx, "failed to create user", err)
 		return nil, err
@@ -89,7 +98,7 @@ func (r *RegisterUsecase) Register(ctx context.Context, req *RegisterRequest) (_
 		return nil, err
 	}
 
-	creds, err := r.jwtProvider.GenerateTokens(user.ID.String())
+	creds, err := r.jwtProvider.GenerateTokens(user.ID.String(), input.role.String())
 	if err != nil {
 		logger.ErrorContext(ctx, "failed to generate tokens", err)
 		return nil, err
@@ -98,5 +107,6 @@ func (r *RegisterUsecase) Register(ctx context.Context, req *RegisterRequest) (_
 	return &RegisterResponse{
 		AccessToken:  creds.AccessToken,
 		RefreshToken: creds.RefreshToken,
+		Role:         req.Role,
 	}, nil
 }

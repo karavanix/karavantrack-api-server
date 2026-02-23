@@ -3,6 +3,7 @@ package companies
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
@@ -12,6 +13,11 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/outerr"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/companies"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/companies/command"
+	"github.com/karavanix/karavantrack-api-server/internal/usecase/drivers"
+	driverscmd "github.com/karavanix/karavantrack-api-server/internal/usecase/drivers/command"
+	driversquery "github.com/karavanix/karavantrack-api-server/internal/usecase/drivers/query"
+	"github.com/karavanix/karavantrack-api-server/internal/usecase/loads"
+	"github.com/karavanix/karavantrack-api-server/internal/usecase/loads/query"
 	"github.com/karavanix/karavantrack-api-server/pkg/app"
 	"github.com/karavanix/karavantrack-api-server/pkg/config"
 )
@@ -20,6 +26,8 @@ type handler struct {
 	cfg              *config.Config
 	validator        *validation.Validator
 	companiesUsecase *companies.Usecase
+	driversUsecase   *drivers.Usecase
+	loadsUsecase     *loads.Usecase
 }
 
 func New(opts *delivery.HandlerOptions) http.Handler {
@@ -27,6 +35,8 @@ func New(opts *delivery.HandlerOptions) http.Handler {
 		cfg:              opts.Config,
 		validator:        opts.Validator,
 		companiesUsecase: opts.CompaniesUsecase,
+		driversUsecase:   opts.DriversUsecase,
+		loadsUsecase:     opts.LoadsUsecase,
 	}
 
 	r := chi.NewRouter()
@@ -41,6 +51,11 @@ func New(opts *delivery.HandlerOptions) http.Handler {
 	r.Post("/{id}/members", h.AddMember())
 	r.Get("/{id}/members", h.ListMembers())
 	r.Delete("/{id}/members/{userId}", h.RemoveMember())
+
+	// Company-scoped loads and drivers
+	r.Get("/{id}/loads", h.ListLoads())
+	r.Get("/{id}/drivers", h.ListDrivers())
+	r.Post("/{id}/drivers", h.AddDriver())
 
 	return r
 }
@@ -76,7 +91,7 @@ func (h *handler) Create() http.HandlerFunc {
 			return
 		}
 
-		resp, err := h.companiesUsecase.Command.Create.Create(r.Context(), userID, &req)
+		resp, err := h.companiesUsecase.Command.Create(r.Context(), userID, &req)
 		if err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
@@ -105,7 +120,7 @@ func (h *handler) List() http.HandlerFunc {
 			return
 		}
 
-		resp, err := h.companiesUsecase.Query.ListByUser.List(r.Context(), userID)
+		resp, err := h.companiesUsecase.Query.ListByUser(r.Context(), userID)
 		if err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
@@ -130,7 +145,7 @@ func (h *handler) Get() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		companyID := chi.URLParam(r, "id")
 
-		resp, err := h.companiesUsecase.Query.Get.Get(r.Context(), companyID)
+		resp, err := h.companiesUsecase.Query.Get(r.Context(), companyID)
 		if err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
@@ -142,7 +157,7 @@ func (h *handler) Get() http.HandlerFunc {
 
 // Update godoc
 // @Summary      Update company
-// @Description  Update company details by ID
+// @Description  Update company details by ID (owner/admin only)
 // @Tags         Companies
 // @Accept       json
 // @Produce      json
@@ -151,11 +166,17 @@ func (h *handler) Get() http.HandlerFunc {
 // @Success      200  {object} map[string]string
 // @Failure      400  {object} outerr.Response
 // @Failure      401  {object} outerr.Response
-// @Failure      404  {object} outerr.Response
+// @Failure      403  {object} outerr.Response
 // @Security     BearerAuth
 // @Router       /companies/{id} [put]
 func (h *handler) Update() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := app.UserID[string](r.Context())
+		if !ok {
+			outerr.Forbidden(w, r, "missing user context")
+			return
+		}
+
 		companyID := chi.URLParam(r, "id")
 
 		var req command.UpdateRequest
@@ -168,19 +189,18 @@ func (h *handler) Update() http.HandlerFunc {
 			return
 		}
 
-		if err := h.companiesUsecase.Command.Update.Update(r.Context(), companyID, &req); err != nil {
+		if err := h.companiesUsecase.Command.Update(r.Context(), userID, companyID, &req); err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
 		}
 
 		render.Status(r, http.StatusOK)
-		render.JSON(w, r, map[string]string{"status": "updated"})
 	}
 }
 
 // AddMember godoc
 // @Summary      Add member
-// @Description  Add a new member to the company
+// @Description  Add a new member to the company (owner/admin only)
 // @Tags         Companies
 // @Accept       json
 // @Produce      json
@@ -189,10 +209,17 @@ func (h *handler) Update() http.HandlerFunc {
 // @Success      201  {object} map[string]string
 // @Failure      400  {object} outerr.Response
 // @Failure      401  {object} outerr.Response
+// @Failure      403  {object} outerr.Response
 // @Security     BearerAuth
 // @Router       /companies/{id}/members [post]
 func (h *handler) AddMember() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := app.UserID[string](r.Context())
+		if !ok {
+			outerr.Forbidden(w, r, "missing user context")
+			return
+		}
+
 		companyID := chi.URLParam(r, "id")
 
 		var req command.AddMemberRequest
@@ -205,13 +232,12 @@ func (h *handler) AddMember() http.HandlerFunc {
 			return
 		}
 
-		if err := h.companiesUsecase.Command.AddMember.AddMember(r.Context(), companyID, &req); err != nil {
+		if err := h.companiesUsecase.Command.AddMember(r.Context(), userID, companyID, &req); err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
 		}
 
 		render.Status(r, http.StatusCreated)
-		render.JSON(w, r, map[string]string{"status": "added"})
 	}
 }
 
@@ -229,7 +255,7 @@ func (h *handler) ListMembers() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		companyID := chi.URLParam(r, "id")
 
-		resp, err := h.companiesUsecase.Query.ListMembers.List(r.Context(), companyID)
+		resp, err := h.companiesUsecase.Query.ListMembers(r.Context(), companyID)
 		if err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
@@ -241,26 +267,135 @@ func (h *handler) ListMembers() http.HandlerFunc {
 
 // RemoveMember godoc
 // @Summary      Remove member
-// @Description  Remove a member from the company
+// @Description  Remove a member from the company (owner only)
 // @Tags         Companies
 // @Produce      json
 // @Param        id   path      string  true  "Company ID"
 // @Param        userId path    string  true  "User ID"
 // @Success      200  {object} map[string]string
 // @Failure      401  {object} outerr.Response
+// @Failure      403  {object} outerr.Response
 // @Security     BearerAuth
 // @Router       /companies/{id}/members/{userId} [delete]
 func (h *handler) RemoveMember() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		companyID := chi.URLParam(r, "id")
-		userID := chi.URLParam(r, "userId")
+		userID, ok := app.UserID[string](r.Context())
+		if !ok {
+			outerr.Forbidden(w, r, "missing user context")
+			return
+		}
 
-		if err := h.companiesUsecase.Command.RemoveMember.RemoveMember(r.Context(), companyID, userID); err != nil {
+		companyID := chi.URLParam(r, "id")
+		targetUserID := chi.URLParam(r, "userId")
+
+		if err := h.companiesUsecase.Command.RemoveMember(r.Context(), userID, companyID, targetUserID); err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
 		}
 
 		render.Status(r, http.StatusOK)
-		render.JSON(w, r, map[string]string{"status": "removed"})
+	}
+}
+
+// ListLoads godoc
+// @Summary      List company loads
+// @Description  List loads for a specific company with filters
+// @Tags         Companies
+// @Produce      json
+// @Param        id     path  string false "Company ID"
+// @Param        status query string false "Status filter"
+// @Param        limit  query int    false "Pagination Limit"
+// @Param        offset query int    false "Pagination Offset"
+// @Success      200  {array} query.LoadResponse
+// @Failure      401  {object} outerr.Response
+// @Security     BearerAuth
+// @Router       /companies/{id}/loads [get]
+func (h *handler) ListLoads() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		companyID := chi.URLParam(r, "id")
+		limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+		offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+
+		req := &query.ListRequest{
+			CompanyID: companyID,
+			Status:    r.URL.Query().Get("status"),
+			Limit:     limit,
+			Offset:    offset,
+		}
+
+		resp, err := h.loadsUsecase.Query.List.List(r.Context(), req)
+		if err != nil {
+			outerr.HandleHTTP(w, r, err)
+			return
+		}
+
+		render.JSON(w, r, resp)
+	}
+}
+
+// ListDrivers godoc
+// @Summary      List company drivers
+// @Description  List drivers for a specific company
+// @Tags         Companies
+// @Produce      json
+// @Param        id   path      string  true  "Company ID"
+// @Success      200  {array} driversquery.CompanyDriverResponse
+// @Failure      401  {object} outerr.Response
+// @Security     BearerAuth
+// @Router       /companies/{id}/drivers [get]
+func (h *handler) ListDrivers() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		companyID := chi.URLParam(r, "id")
+
+		userID, ok := app.UserID[string](r.Context())
+		if !ok {
+			outerr.Forbidden(w, r, "missing user context")
+			return
+		}
+
+		var resp []*driversquery.CompanyDriverResponse
+		resp, err := h.driversUsecase.Query.ListByCompany(r.Context(), userID, companyID)
+		if err != nil {
+			outerr.HandleHTTP(w, r, err)
+			return
+		}
+
+		render.JSON(w, r, resp)
+	}
+}
+
+// AddDriver godoc
+// @Summary      Add driver to company
+// @Description  Add an existing driver to the company
+// @Tags         Companies
+// @Accept       json
+// @Produce      json
+// @Param        id   path      string  true  "Company ID"
+// @Param        body body driverscmd.AddToCompanyRequest true "Add Driver Request"
+// @Success      201  {object} map[string]string
+// @Failure      400  {object} outerr.Response
+// @Failure      401  {object} outerr.Response
+// @Security     BearerAuth
+// @Router       /companies/{id}/drivers [post]
+func (h *handler) AddDriver() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		companyID := chi.URLParam(r, "id")
+
+		var req driverscmd.AddToCompanyRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			outerr.BadRequest(w, r, "invalid request body")
+			return
+		}
+		if err := h.validator.Validate(req); err != nil {
+			outerr.HandleHTTP(w, r, err)
+			return
+		}
+
+		if err := h.driversUsecase.Command.AddToCompany(r.Context(), companyID, &req); err != nil {
+			outerr.HandleHTTP(w, r, err)
+			return
+		}
+
+		render.Status(r, http.StatusCreated)
 	}
 }

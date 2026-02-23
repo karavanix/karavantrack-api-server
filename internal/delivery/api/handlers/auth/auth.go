@@ -116,7 +116,7 @@ func (h *authHander) Register() http.HandlerFunc {
 // @Tags         Auth
 // @Accept       json
 // @Produce      json
-// @Success      200  {object} map[string]string
+// @Success      200
 // @Router       /auth/logout [post]
 func (h *authHander) Logout() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -130,8 +130,8 @@ func (h *authHander) Logout() http.HandlerFunc {
 // @Tags         Auth
 // @Accept       json
 // @Produce      json
-// @Param        body body refreshRequest true "Refresh token"
-// @Success      200  {object} security.TokenDetails
+// @Param        body body command.RefreshTokenRequest true "Refresh token"
+// @Success      200  {object} command.LoginResponse
 // @Failure      401  {object} outerr.Response
 // @Router       /auth/refresh [post]
 func (h *authHander) Refresh() http.HandlerFunc {

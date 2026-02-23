@@ -31,13 +31,13 @@ type Usecase struct {
 func NewUsecase(
 	contextDuration time.Duration,
 	loadsRepo domain.LoadRepository,
-	driversRepo domain.DriverRepository,
+	usersRepo domain.UserRepository,
 	locationPointsRepo domain.LocationPointRepository,
 ) *Usecase {
 	return &Usecase{
 		Command: Command{
 			Create:   command.NewCreateUsecase(contextDuration, loadsRepo),
-			Assign:   command.NewAssignUsecase(contextDuration, loadsRepo, driversRepo),
+			Assign:   command.NewAssignUsecase(contextDuration, loadsRepo, usersRepo),
 			Accept:   command.NewAcceptUsecase(contextDuration, loadsRepo),
 			Start:    command.NewStartUsecase(contextDuration, loadsRepo),
 			Complete: command.NewCompleteUsecase(contextDuration, loadsRepo),

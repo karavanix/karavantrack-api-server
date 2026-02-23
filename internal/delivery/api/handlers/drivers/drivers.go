@@ -32,8 +32,7 @@ func New(opts *delivery.HandlerOptions) http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.AuthContext(opts.JWTProvider))
 
-	// Driver profile
-	r.Post("/", h.Create())
+	// Driver profile (user with driver role)
 	r.Get("/{id}", h.Get())
 
 	// Company drivers management
@@ -44,41 +43,12 @@ func New(opts *delivery.HandlerOptions) http.Handler {
 	return r
 }
 
-// Create godoc
-// @Summary      Create driver
-// @Description  Create a new driver profile for the current user
-// @Tags         Drivers
-// @Produce      json
-// @Success      201  {object} command.CreateResponse
-// @Failure      400  {object} outerr.Response
-// @Failure      401  {object} outerr.Response
-// @Security     BearerAuth
-// @Router       /drivers [post]
-func (h *handler) Create() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		userID, ok := app.UserID[string](r.Context())
-		if !ok {
-			outerr.Forbidden(w, r, "missing user context")
-			return
-		}
-
-		resp, err := h.driversUsecase.Command.Create.Create(r.Context(), userID)
-		if err != nil {
-			outerr.HandleHTTP(w, r, err)
-			return
-		}
-
-		render.Status(r, http.StatusCreated)
-		render.JSON(w, r, resp)
-	}
-}
-
 // Get godoc
 // @Summary      Get driver
-// @Description  Get driver profile by ID
+// @Description  Get driver profile by user ID (must be a driver-role user)
 // @Tags         Drivers
 // @Produce      json
-// @Param        id   path      string  true  "Driver ID"
+// @Param        id   path      string  true  "Driver User ID"
 // @Success      200  {object} query.DriverResponse
 // @Failure      401  {object} outerr.Response
 // @Failure      404  {object} outerr.Response
@@ -86,9 +56,15 @@ func (h *handler) Create() http.HandlerFunc {
 // @Router       /drivers/{id} [get]
 func (h *handler) Get() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := app.UserID[string](r.Context())
+		if !ok {
+			outerr.Forbidden(w, r, "missing user context")
+			return
+		}
+
 		driverID := chi.URLParam(r, "id")
 
-		resp, err := h.driversUsecase.Query.Get.Get(r.Context(), driverID)
+		resp, err := h.driversUsecase.Query.Get(r.Context(), userID, driverID)
 		if err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
@@ -100,7 +76,7 @@ func (h *handler) Get() http.HandlerFunc {
 
 // AddToCompany godoc
 // @Summary      Add driver to company
-// @Description  Add an existing driver to a company
+// @Description  Add an existing driver-role user to a company
 // @Tags         Drivers
 // @Accept       json
 // @Produce      json
@@ -125,19 +101,18 @@ func (h *handler) AddToCompany() http.HandlerFunc {
 			return
 		}
 
-		if err := h.driversUsecase.Command.AddToCompany.AddToCompany(r.Context(), companyID, &req); err != nil {
+		if err := h.driversUsecase.Command.AddToCompany(r.Context(), companyID, &req); err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
 		}
 
 		render.Status(r, http.StatusCreated)
-		render.JSON(w, r, map[string]string{"status": "added"})
 	}
 }
 
 // ListByCompany godoc
 // @Summary      List drivers by company
-// @Description  List drivers associated with a company
+// @Description  List driver-role users associated with a company
 // @Tags         Drivers
 // @Produce      json
 // @Param        companyId   path      string  true  "Company ID"
@@ -147,9 +122,15 @@ func (h *handler) AddToCompany() http.HandlerFunc {
 // @Router       /drivers/company/{companyId} [get]
 func (h *handler) ListByCompany() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := app.UserID[string](r.Context())
+		if !ok {
+			outerr.Forbidden(w, r, "missing user context")
+			return
+		}
+
 		companyID := chi.URLParam(r, "companyId")
 
-		resp, err := h.driversUsecase.Query.ListByCompany.List(r.Context(), companyID)
+		resp, err := h.driversUsecase.Query.ListByCompany(r.Context(), userID, companyID)
 		if err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
@@ -161,11 +142,11 @@ func (h *handler) ListByCompany() http.HandlerFunc {
 
 // RemoveFromCompany godoc
 // @Summary      Remove driver from company
-// @Description  Remove a driver from a company
+// @Description  Remove a driver-role user from a company
 // @Tags         Drivers
 // @Produce      json
 // @Param        companyId   path      string  true  "Company ID"
-// @Param        driverId    path      string  true  "Driver ID"
+// @Param        driverId    path      string  true  "Driver User ID"
 // @Success      200  {object} map[string]string
 // @Failure      401  {object} outerr.Response
 // @Security     BearerAuth
@@ -175,12 +156,11 @@ func (h *handler) RemoveFromCompany() http.HandlerFunc {
 		companyID := chi.URLParam(r, "companyId")
 		driverID := chi.URLParam(r, "driverId")
 
-		if err := h.driversUsecase.Command.RemoveFromCompany.Remove(r.Context(), companyID, driverID); err != nil {
+		if err := h.driversUsecase.Command.Remove(r.Context(), companyID, driverID); err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
 		}
 
 		render.Status(r, http.StatusOK)
-		render.JSON(w, r, map[string]string{"status": "removed"})
 	}
 }

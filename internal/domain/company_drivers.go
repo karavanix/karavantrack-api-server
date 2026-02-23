@@ -8,20 +8,22 @@ import (
 	"github.com/google/uuid"
 )
 
+// CompanyDriver links a driver-role user to a company.
+// DriverID refers to users.id where the user has role = "driver".
 type CompanyDriver struct {
 	CompanyID uuid.UUID
-	DriverID  uuid.UUID
+	DriverID  uuid.UUID // references users(id) where role='driver'
 	Alias     string
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
 
-func NewCompanyDriver(companyID, driverID uuid.UUID, alias string) (*CompanyDriver, error) {
+func NewCompanyDriver(companyID, driverUserID uuid.UUID, alias string) (*CompanyDriver, error) {
 	if companyID == uuid.Nil {
 		return nil, errors.New("company ID cannot be nil")
 	}
-	if driverID == uuid.Nil {
-		return nil, errors.New("driver ID cannot be nil")
+	if driverUserID == uuid.Nil {
+		return nil, errors.New("driver user ID cannot be nil")
 	}
 	if alias == "" {
 		return nil, errors.New("alias is required")
@@ -29,7 +31,7 @@ func NewCompanyDriver(companyID, driverID uuid.UUID, alias string) (*CompanyDriv
 
 	return &CompanyDriver{
 		CompanyID: companyID,
-		DriverID:  driverID,
+		DriverID:  driverUserID,
 		Alias:     alias,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
