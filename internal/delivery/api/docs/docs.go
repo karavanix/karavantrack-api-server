@@ -692,7 +692,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/companies/{id}/members/{userId}": {
+        "/companies/{id}/members/{user_id}": {
             "delete": {
                 "security": [
                     {
@@ -718,7 +718,7 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "User ID",
-                        "name": "userId",
+                        "name": "user_id",
                         "in": "path",
                         "required": true
                     }

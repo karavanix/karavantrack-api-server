@@ -53,7 +53,7 @@ func New(opts *delivery.HandlerOptions) http.Handler {
 
 		r.Post("/{id}/members", h.AddMember())
 		r.Get("/{id}/members", h.ListMembers())
-		r.Delete("/{id}/members/{userId}", h.RemoveMember())
+		r.Delete("/{id}/members/{user_id}", h.RemoveMember())
 
 		r.Get("/{id}/carriers", h.ListCarriers())
 		r.Post("/{id}/carriers", h.AddCarrier())
@@ -275,11 +275,11 @@ func (h *handler) ListMembers() http.HandlerFunc {
 // @Tags         Companies
 // @Produce      json
 // @Param        id   path      string  true  "Company ID"
-// @Param        userId path    string  true  "User ID"
+// @Param        user_id path    string  true  "User ID"
 // @Success      200  {object} map[string]string
 // @Failure      401  {object} outerr.Response
 // @Failure      403  {object} outerr.Response
-// @Router       /companies/{id}/members/{userId} [delete]
+// @Router       /companies/{id}/members/{user_id} [delete]
 func (h *handler) RemoveMember() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, ok := app.UserID[string](r.Context())
@@ -289,7 +289,7 @@ func (h *handler) RemoveMember() http.HandlerFunc {
 		}
 
 		companyID := chi.URLParam(r, "id")
-		targetUserID := chi.URLParam(r, "userId")
+		targetUserID := chi.URLParam(r, "user_id")
 
 		if err := h.companiesUsecase.Command.RemoveMember(r.Context(), userID, companyID, targetUserID); err != nil {
 			outerr.HandleHTTP(w, r, err)

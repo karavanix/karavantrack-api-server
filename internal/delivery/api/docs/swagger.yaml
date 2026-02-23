@@ -677,7 +677,7 @@ paths:
       summary: Add member
       tags:
       - Companies
-  /companies/{id}/members/{userId}:
+  /companies/{id}/members/{user_id}:
     delete:
       description: Remove a member from the company (owner only)
       parameters:
@@ -688,7 +688,7 @@ paths:
         type: string
       - description: User ID
         in: path
-        name: userId
+        name: user_id
         required: true
         type: string
       produces:

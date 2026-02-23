@@ -685,7 +685,7 @@
                 }
             }
         },
-        "/companies/{id}/members/{userId}": {
+        "/companies/{id}/members/{user_id}": {
             "delete": {
                 "security": [
                     {
@@ -711,7 +711,7 @@
                     {
                         "type": "string",
                         "description": "User ID",
-                        "name": "userId",
+                        "name": "user_id",
                         "in": "path",
                         "required": true
                     }
