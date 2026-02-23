@@ -49,7 +49,7 @@ func (r *loadsRepo) Save(ctx context.Context, load *domain.Load) error {
 	model := r.toModel(load)
 
 	_, err := db.NewInsert().Model(model).
-		On("CONFLICT (id) DO UPDATE SET").
+		On("CONFLICT (id) DO UPDATE").
 		Set("carrier_id = EXCLUDED.carrier_id").
 		Set("status = EXCLUDED.status").
 		Set("updated_at = EXCLUDED.updated_at").

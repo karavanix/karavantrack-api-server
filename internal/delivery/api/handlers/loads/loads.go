@@ -11,6 +11,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/middleware"
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/validation"
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/outerr"
+	"github.com/karavanix/karavantrack-api-server/internal/domain/shared"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/loads"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/loads/command"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/loads/query"
@@ -32,24 +33,31 @@ func New(opts *delivery.HandlerOptions) http.Handler {
 	}
 
 	r := chi.NewRouter()
-	r.Use(middleware.AuthContext(opts.JWTProvider))
 
-	// CRUD
-	r.Post("/", h.Create())
-	r.Get("/", h.List())
-	r.Get("/{id}", h.Get())
+	r.Group(func(r chi.Router) {
+		r.Use(middleware.AuthorizeAny(opts.JWTProvider))
+		r.Get("/", h.List())
+		r.Get("/{id}", h.Get())
 
-	// Status transitions
-	r.Post("/{id}/assign", h.Assign())
-	r.Post("/{id}/accept", h.Accept())
-	r.Post("/{id}/start", h.Start())
-	r.Post("/{id}/complete", h.Complete())
-	r.Post("/{id}/confirm", h.Confirm())
-	r.Post("/{id}/cancel", h.Cancel())
+	})
 
-	// Location tracking REST endpoints
-	r.Get("/{id}/track", h.GetTrack())
-	r.Get("/{id}/position", h.GetPosition())
+	r.Group(func(r chi.Router) {
+		r.Use(middleware.AuthorizeByRole(opts.JWTProvider, shared.RoleShipper))
+		r.Post("/", h.Create())
+		r.Post("/{id}/assign", h.Assign())
+		r.Post("/{id}/confirm", h.Confirm())
+		r.Post("/{id}/cancel", h.Cancel())
+		r.Get("/{id}/track", h.GetTrack())
+		r.Get("/{id}/position", h.GetPosition())
+	})
+
+	r.Group(func(r chi.Router) {
+		r.Use(middleware.AuthorizeByRole(opts.JWTProvider, shared.RoleCarrier))
+		r.Post("/{id}/accept", h.Accept())
+		r.Post("/{id}/start", h.Start())
+		r.Post("/{id}/complete", h.Complete())
+
+	})
 
 	return r
 }

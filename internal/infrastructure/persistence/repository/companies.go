@@ -34,7 +34,7 @@ func (r *companiesRepo) Save(ctx context.Context, company *domain.Company) error
 	model := r.toModel(company)
 
 	_, err := db.NewInsert().Model(model).
-		On("CONFLICT (id) DO UPDATE SET").
+		On("CONFLICT (id) DO UPDATE").
 		Set("name = EXCLUDED.name").
 		Set("status = EXCLUDED.status").
 		Set("updated_at = EXCLUDED.updated_at").

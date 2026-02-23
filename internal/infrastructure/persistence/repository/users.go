@@ -58,7 +58,7 @@ func (r *usersRepo) Save(ctx context.Context, user *domain.User) error {
 	var model = r.toModel(user)
 
 	_, err := db.NewInsert().Model(model).
-		On("ON CONFLICT (id) DO UPDATE SET").
+		On("CONFLICT (id) DO UPDATE").
 		Set("first_name = EXCLUDED.first_name").
 		Set("last_name = EXCLUDED.last_name").
 		Set("email = EXCLUDED.email").

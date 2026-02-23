@@ -11,6 +11,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/middleware"
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/validation"
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/outerr"
+	"github.com/karavanix/karavantrack-api-server/internal/domain/shared"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/companies"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/companies/command"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/companies/query"
@@ -36,23 +37,28 @@ func New(opts *delivery.HandlerOptions) http.Handler {
 	}
 
 	r := chi.NewRouter()
-	r.Use(middleware.AuthContext(opts.JWTProvider))
+	r.Group(func(r chi.Router) {
+		r.Use(middleware.AuthorizeAny(opts.JWTProvider))
+		r.Get("/{id}", h.Get())
 
-	r.Post("/", h.Create())
-	r.Get("/mine", h.ListMine())
-	r.Get("/{id}", h.Get())
-	r.Put("/{id}", h.Update())
+	})
 
-	// Members sub-routes
-	r.Post("/{id}/members", h.AddMember())
-	r.Get("/{id}/members", h.ListMembers())
-	r.Delete("/{id}/members/{userId}", h.RemoveMember())
+	r.Group(func(r chi.Router) {
+		r.Use(middleware.AuthorizeByRole(opts.JWTProvider, shared.RoleShipper))
+		r.Post("/", h.Create())
+		r.Get("/mine", h.ListMine())
+		r.Put("/{id}", h.Update())
 
-	// Company-scoped loads and carriers
-	r.Get("/{id}/loads", h.ListLoads())
-	r.Get("/{id}/carriers", h.ListCarriers())
-	r.Post("/{id}/carriers", h.AddCarrier())
-	r.Delete("/{id}/carriers/{carrier_id}", h.RemoveCarrier())
+		r.Get("/{id}/loads", h.ListLoads())
+
+		r.Post("/{id}/members", h.AddMember())
+		r.Get("/{id}/members", h.ListMembers())
+		r.Delete("/{id}/members/{userId}", h.RemoveMember())
+
+		r.Get("/{id}/carriers", h.ListCarriers())
+		r.Post("/{id}/carriers", h.AddCarrier())
+		r.Delete("/{id}/carriers/{carrier_id}", h.RemoveCarrier())
+	})
 
 	return r
 }

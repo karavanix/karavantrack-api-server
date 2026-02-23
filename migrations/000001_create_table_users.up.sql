@@ -1,9 +1,9 @@
 CREATE TABLE IF NOT EXISTS users (
     id uuid,
-    first_name varchar(255) NOT NULL,
-    last_name varchar(255) NOT NULL,
-    email varchar(255) NOT NULL,
-    phone varchar(64) NOT NULL,
+    first_name varchar(255),
+    last_name varchar(255),
+    email varchar(255),
+    phone varchar(64),
     password_hash text NOT NULL,
     status varchar(64) NOT NULL,
     role varchar(64) NOT NULL CHECK (role IN ('shipper', 'carrier')),

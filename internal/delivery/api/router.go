@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/go-chi/render"
 	"github.com/karavanix/karavantrack-api-server/internal/delivery"
+	_ "github.com/karavanix/karavantrack-api-server/internal/delivery/api/docs"
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/handlers/auth"
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/handlers/companies"
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/handlers/loads"

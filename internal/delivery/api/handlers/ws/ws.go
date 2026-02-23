@@ -19,7 +19,7 @@ func New(opts *delivery.HandlerOptions) http.Handler {
 	}
 
 	r := chi.NewRouter()
-	r.Use(middleware.AuthContext(opts.JWTProvider))
+	r.Use(middleware.AuthorizeAny(opts.JWTProvider))
 
 	r.Get("/", wsHandler.WebSocketHandler)
 

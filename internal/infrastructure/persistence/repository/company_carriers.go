@@ -33,7 +33,7 @@ func (r *companyCarriersRepo) Save(ctx context.Context, cs *domain.CompanyCarrie
 	model := r.toModel(cs)
 
 	_, err := db.NewInsert().Model(model).
-		On("CONFLICT (company_id, carrier_id) DO UPDATE SET").
+		On("CONFLICT (company_id, carrier_id) DO UPDATE").
 		Set("alias = EXCLUDED.alias").
 		Set("updated_at = EXCLUDED.updated_at").
 		Exec(ctx)
