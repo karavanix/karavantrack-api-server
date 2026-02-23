@@ -25,28 +25,34 @@ func NewGetUsecase(contextDuration time.Duration, companiesRepo domain.CompanyRe
 }
 
 type CompanyResponse struct {
-	ID        string `json:"id"`
-	OwnerID   string `json:"owner_id"`
-	Name      string `json:"name"`
-	Status    string `json:"status"`
-	CreatedAt string `json:"created_at"`
+	ID        string    `json:"id"`
+	OwnerID   string    `json:"owner_id"`
+	Name      string    `json:"name"`
+	Status    string    `json:"status"`
+	Role      string    `json:"role"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
-func (u *GetUsecase) Get(ctx context.Context, companyIDStr string) (_ *CompanyResponse, err error) {
+func (u *GetUsecase) Get(ctx context.Context, companyID string) (_ *CompanyResponse, err error) {
 	ctx, cancel := context.WithTimeout(ctx, u.contextDuration)
 	defer cancel()
 
 	ctx, end := otlp.Start(ctx, otel.Tracer("companies"), "Get",
-		attribute.String("company_id", companyIDStr),
+		attribute.String("company_id", companyID),
 	)
 	defer func() { end(err) }()
 
-	companyID, err := uuid.Parse(companyIDStr)
-	if err != nil {
-		return nil, inerr.NewErrValidation("company_id", "invalid company ID")
+	var input struct {
+		companyID uuid.UUID
+	}
+	{
+		input.companyID, err = uuid.Parse(companyID)
+		if err != nil {
+			return nil, inerr.NewErrValidation("company_id", "invalid company ID")
+		}
 	}
 
-	company, err := u.companiesRepo.FindByID(ctx, companyID)
+	company, err := u.companiesRepo.FindByID(ctx, input.companyID)
 	if err != nil {
 		return nil, err
 	}
@@ -56,6 +62,6 @@ func (u *GetUsecase) Get(ctx context.Context, companyIDStr string) (_ *CompanyRe
 		OwnerID:   company.OwnerID.String(),
 		Name:      company.Name,
 		Status:    company.Status.String(),
-		CreatedAt: company.CreatedAt.Format(time.RFC3339),
+		CreatedAt: company.CreatedAt,
 	}, nil
 }

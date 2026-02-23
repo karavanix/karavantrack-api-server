@@ -31,21 +31,26 @@ func NewListByUserUsecase(
 	}
 }
 
-func (u *ListByUserUsecase) ListByUser(ctx context.Context, userIDStr string) (_ []*CompanyResponse, err error) {
+func (u *ListByUserUsecase) ListByUser(ctx context.Context, userID string) (_ []*CompanyResponse, err error) {
 	ctx, cancel := context.WithTimeout(ctx, u.contextDuration)
 	defer cancel()
 
 	ctx, end := otlp.Start(ctx, otel.Tracer("companies"), "ListByUser",
-		attribute.String("user_id", userIDStr),
+		attribute.String("user_id", userID),
 	)
 	defer func() { end(err) }()
 
-	userID, err := uuid.Parse(userIDStr)
-	if err != nil {
-		return nil, inerr.NewErrValidation("user_id", "invalid user ID")
+	var input struct {
+		userID uuid.UUID
+	}
+	{
+		input.userID, err = uuid.Parse(userID)
+		if err != nil {
+			return nil, inerr.NewErrValidation("user_id", "invalid user ID")
+		}
 	}
 
-	memberships, err := u.membersRepo.FindByUserID(ctx, userID)
+	memberships, err := u.membersRepo.FindByMemberID(ctx, input.userID)
 	if err != nil {
 		logger.ErrorContext(ctx, "failed to find memberships", err)
 		return nil, err
@@ -63,7 +68,8 @@ func (u *ListByUserUsecase) ListByUser(ctx context.Context, userIDStr string) (_
 			OwnerID:   company.OwnerID.String(),
 			Name:      company.Name,
 			Status:    company.Status.String(),
-			CreatedAt: company.CreatedAt.Format(time.RFC3339),
+			Role:      m.Role.String(),
+			CreatedAt: company.CreatedAt,
 		})
 	}
 

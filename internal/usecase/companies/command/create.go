@@ -53,12 +53,17 @@ func (u *CreateUsecase) Create(ctx context.Context, userID string, req *CreateRe
 	)
 	defer func() { end(err) }()
 
-	ownerID, err := uuid.Parse(userID)
-	if err != nil {
-		return nil, inerr.NewErrValidation("user_id", "invalid user ID")
+	var input struct {
+		ownerID uuid.UUID
+	}
+	{
+		input.ownerID, err = uuid.Parse(userID)
+		if err != nil {
+			return nil, inerr.NewErrValidation("user_id", "invalid user ID")
+		}
 	}
 
-	company, err := domain.NewCompany(ownerID, req.Name)
+	company, err := domain.NewCompany(input.ownerID, req.Name)
 	if err != nil {
 		return nil, inerr.NewErrValidation("company", err.Error())
 	}
@@ -69,7 +74,7 @@ func (u *CreateUsecase) Create(ctx context.Context, userID string, req *CreateRe
 			return err
 		}
 
-		member, err := domain.NewCompanyMember(company.ID, ownerID, req.Name, domain.MemberRoleOwner)
+		member, err := domain.NewCompanyMember(company.ID, input.ownerID, req.Name, domain.MemberRoleOwner)
 		if err != nil {
 			return err
 		}

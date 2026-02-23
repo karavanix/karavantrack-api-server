@@ -3,16 +3,16 @@ package shared
 type Role string
 
 const (
-	RoleDriver     Role = "driver"
-	RoleCargoOwner Role = "cargo_owner"
+	RoleShipper Role = "shipper"
+	RoleCarrier Role = "carrier"
 )
 
-func (r Role) IsDriver() bool {
-	return r == RoleDriver
+func (r Role) IsShipper() bool {
+	return r == RoleShipper
 }
 
-func (r Role) IsCargoOwner() bool {
-	return r == RoleCargoOwner
+func (r Role) IsCarrier() bool {
+	return r == RoleCarrier
 }
 
 func (r Role) String() string {
@@ -21,7 +21,7 @@ func (r Role) String() string {
 
 func (r Role) IsValid() bool {
 	switch r {
-	case RoleDriver, RoleCargoOwner:
+	case RoleShipper, RoleCarrier:
 		return true
 	default:
 		return false

@@ -155,6 +155,26 @@ func (r *usersRepo) FindByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UU
 	return result, nil
 }
 
+func (r *usersRepo) FindCarriersByQuery(ctx context.Context, query string) ([]*domain.User, error) {
+	db := postgres.FromContext(ctx, r.db)
+	var models []Users
+
+	err := db.NewSelect().Model(&models).
+		Where("role = ?", shared.RoleCarrier.String()).
+		Where("first_name ILIKE ? OR last_name ILIKE ? OR email ILIKE ? OR phone ILIKE ?", "%"+query+"%", "%"+query+"%", "%"+query+"%", "%"+query+"%").
+		Scan(ctx)
+	if err != nil {
+		return nil, postgres.Error(err, &Users{})
+	}
+
+	result := make([]*domain.User, len(models))
+	for i := range models {
+		result[i] = r.toDomain(&models[i])
+	}
+
+	return result, nil
+}
+
 func (r *usersRepo) toModel(e *domain.User) *Users {
 	if e == nil {
 		return nil

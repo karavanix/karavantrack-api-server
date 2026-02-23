@@ -33,7 +33,12 @@ func (r *companiesRepo) Save(ctx context.Context, company *domain.Company) error
 	db := postgres.FromContext(ctx, r.db)
 	model := r.toModel(company)
 
-	_, err := db.NewInsert().Model(model).Exec(ctx)
+	_, err := db.NewInsert().Model(model).
+		On("CONFLICT (id) DO UPDATE SET").
+		Set("name = EXCLUDED.name").
+		Set("status = EXCLUDED.status").
+		Set("updated_at = EXCLUDED.updated_at").
+		Exec(ctx)
 	if err != nil {
 		return postgres.Error(err, model)
 	}
@@ -66,27 +71,7 @@ func (r *companiesRepo) FindByOwnerID(ctx context.Context, ownerID uuid.UUID) ([
 	return result, nil
 }
 
-func (r *companiesRepo) Update(ctx context.Context, company *domain.Company) error {
-	db := postgres.FromContext(ctx, r.db)
-	model := r.toModel(company)
-
-	res, err := db.NewUpdate().Model(model).
-		Set("name = ?", model.Name).
-		Set("status = ?", model.Status).
-		Set("updated_at = ?", model.UpdatedAt).
-		Where("id = ?", model.ID).
-		Exec(ctx)
-	if err != nil {
-		return postgres.Error(err, model)
-	}
-	rows, _ := res.RowsAffected()
-	if rows == 0 {
-		return postgres.Error(err, model)
-	}
-	return nil
-}
-
-func (r *companiesRepo) Delete(ctx context.Context, id uuid.UUID) error {
+func (r *companiesRepo) DeleteByID(ctx context.Context, id uuid.UUID) error {
 	db := postgres.FromContext(ctx, r.db)
 	_, err := db.NewDelete().Model((*Companies)(nil)).Where("id = ?", id.String()).Exec(ctx)
 	if err != nil {

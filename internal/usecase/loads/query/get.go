@@ -21,21 +21,26 @@ func NewGetUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepositor
 	return &GetUsecase{contextDuration: contextDuration, loadsRepo: loadsRepo}
 }
 
-func (u *GetUsecase) Get(ctx context.Context, loadIDStr string) (_ *LoadResponse, err error) {
+func (u *GetUsecase) Get(ctx context.Context, loadID string) (_ *LoadResponse, err error) {
 	ctx, cancel := context.WithTimeout(ctx, u.contextDuration)
 	defer cancel()
 
 	ctx, end := otlp.Start(ctx, otel.Tracer("loads"), "Get",
-		attribute.String("load_id", loadIDStr),
+		attribute.String("load_id", loadID),
 	)
 	defer func() { end(err) }()
 
-	loadID, err := uuid.Parse(loadIDStr)
-	if err != nil {
-		return nil, inerr.NewErrValidation("load_id", "invalid load ID")
+	var input struct {
+		loadID uuid.UUID
+	}
+	{
+		input.loadID, err = uuid.Parse(loadID)
+		if err != nil {
+			return nil, inerr.NewErrValidation("load_id", "invalid load ID")
+		}
 	}
 
-	load, err := u.loadsRepo.FindByID(ctx, loadID)
+	load, err := u.loadsRepo.FindByID(ctx, input.loadID)
 	if err != nil {
 		return nil, err
 	}

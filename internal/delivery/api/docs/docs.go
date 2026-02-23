@@ -85,13 +85,7 @@ const docTemplate = `{
                 "summary": "Logout",
                 "responses": {
                     "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
+                        "description": "OK"
                     }
                 }
             }
@@ -116,7 +110,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/auth.refreshRequest"
+                            "$ref": "#/definitions/command.RefreshTokenRequest"
                         }
                     }
                 ],
@@ -124,7 +118,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/security.TokenDetails"
+                            "$ref": "#/definitions/command.LoginResponse"
                         }
                     },
                     "401": {
@@ -183,44 +177,6 @@ const docTemplate = `{
             }
         },
         "/companies": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "List companies for the current user",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Companies"
-                ],
-                "summary": "List companies",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/query.CompanyResponse"
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/outerr.Response"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/outerr.Response"
-                        }
-                    }
-                }
-            },
             "post": {
                 "security": [
                     {
@@ -260,6 +216,46 @@ const docTemplate = `{
                         "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/outerr.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/companies/mine": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "List companies for the current user",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Companies"
+                ],
+                "summary": "List companies",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/query.CompanyResponse"
+                            }
                         }
                     },
                     "401": {
@@ -328,7 +324,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Update company details by ID",
+                "description": "Update company details by ID (owner/admin only)",
                 "consumes": [
                     "application/json"
                 ],
@@ -353,7 +349,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/command.UpdateRequest"
+                            "$ref": "#/definitions/github_com_karavanix_karavantrack-api-server_internal_usecase_companies_command.UpdateRequest"
                         }
                     }
                 ],
@@ -379,8 +375,208 @@ const docTemplate = `{
                             "$ref": "#/definitions/outerr.Response"
                         }
                     },
-                    "404": {
-                        "description": "Not Found",
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/companies/{id}/carriers": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "List carriers for a specific company",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Companies"
+                ],
+                "summary": "List company carriers",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Company ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/query.ListCarriersResponse"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Add an existing carrier to the company",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Companies"
+                ],
+                "summary": "Add carrier to company",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Company ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Add Carrier Request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/command.AddCarrierRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/companies/{id}/carriers/{carrier_id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Remove a carrier from the company",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Companies"
+                ],
+                "summary": "Remove carrier from company",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Company ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Carrier ID",
+                        "name": "carrier_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/companies/{id}/loads": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "List loads for a specific company with filters",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Companies"
+                ],
+                "summary": "List company loads",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Company ID",
+                        "name": "id",
+                        "in": "path"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Status filter",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination Limit",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination Offset",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/query.LoadResponse"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/outerr.Response"
                         }
@@ -436,7 +632,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Add a new member to the company",
+                "description": "Add a new member to the company (owner/admin only)",
                 "consumes": [
                     "application/json"
                 ],
@@ -486,6 +682,12 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/outerr.Response"
                         }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
                     }
                 }
             }
@@ -497,7 +699,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Remove a member from the company",
+                "description": "Remove a member from the company (owner only)",
                 "produces": [
                     "application/json"
                 ],
@@ -536,238 +738,9 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/outerr.Response"
                         }
-                    }
-                }
-            }
-        },
-        "/drivers": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Create a new driver profile for the current user",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Drivers"
-                ],
-                "summary": "Create driver",
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_karavanix_karavantrack-api-server_internal_usecase_drivers_command.CreateResponse"
-                        }
                     },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/outerr.Response"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/outerr.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/drivers/company/{companyId}": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "List drivers associated with a company",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Drivers"
-                ],
-                "summary": "List drivers by company",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Company ID",
-                        "name": "companyId",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/query.CompanyDriverResponse"
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/outerr.Response"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Add an existing driver to a company",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Drivers"
-                ],
-                "summary": "Add driver to company",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Company ID",
-                        "name": "companyId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Add To Company Request",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/command.AddToCompanyRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/outerr.Response"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/outerr.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/drivers/company/{companyId}/{driverId}": {
-            "delete": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Remove a driver from a company",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Drivers"
-                ],
-                "summary": "Remove driver from company",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Company ID",
-                        "name": "companyId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Driver ID",
-                        "name": "driverId",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/outerr.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/drivers/{id}": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Get driver profile by ID",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Drivers"
-                ],
-                "summary": "Get driver",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Driver ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/query.DriverResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/outerr.Response"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/outerr.Response"
                         }
@@ -799,8 +772,8 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Driver ID filter",
-                        "name": "driver_id",
+                        "description": "Carrier ID filter",
+                        "name": "carrier_id",
                         "in": "query"
                     },
                     {
@@ -943,7 +916,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Accept an assigned load (by driver)",
+                "description": "Accept an assigned load (by carrier)",
                 "produces": [
                     "application/json"
                 ],
@@ -986,7 +959,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Assign load to a driver and truck",
+                "description": "Assign load to a carrier and truck",
                 "consumes": [
                     "application/json"
                 ],
@@ -1066,13 +1039,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
+                        "description": "OK"
                     },
                     "401": {
                         "description": "Unauthorized",
@@ -1090,7 +1057,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Complete a load (by driver)",
+                "description": "Complete a load (by carrier)",
                 "produces": [
                     "application/json"
                 ],
@@ -1109,13 +1076,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
+                        "description": "OK"
                     },
                     "401": {
                         "description": "Unauthorized",
@@ -1152,13 +1113,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
+                        "description": "OK"
                     },
                     "401": {
                         "description": "Unauthorized",
@@ -1195,13 +1150,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
+                        "description": "OK"
                     },
                     "401": {
                         "description": "Unauthorized",
@@ -1219,7 +1168,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Start a load (by driver, transitions to in-transit)",
+                "description": "Start a load (by carrier, transitions to in-transit)",
                 "produces": [
                     "application/json"
                 ],
@@ -1238,13 +1187,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
+                        "description": "OK"
                     },
                     "401": {
                         "description": "Unauthorized",
@@ -1281,12 +1224,89 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
+                        "description": "OK"
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/me": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get the profile of the authenticated user (includes role)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Get current user",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/query.MeResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update the profile of the authenticated user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Update current user",
+                "parameters": [
+                    {
+                        "description": "Update User Request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_karavanix_karavantrack-api-server_internal_usecase_users_command.UpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
                         "description": "OK",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
                         }
                     },
                     "401": {
@@ -1338,13 +1358,17 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "auth.refreshRequest": {
+        "command.AddCarrierRequest": {
             "type": "object",
             "required": [
-                "refresh_token"
+                "alias",
+                "carrier_id"
             ],
             "properties": {
-                "refresh_token": {
+                "alias": {
+                    "type": "string"
+                },
+                "carrier_id": {
                     "type": "string"
                 }
             }
@@ -1372,28 +1396,13 @@ const docTemplate = `{
                 }
             }
         },
-        "command.AddToCompanyRequest": {
-            "type": "object",
-            "required": [
-                "alias",
-                "driver_id"
-            ],
-            "properties": {
-                "alias": {
-                    "type": "string"
-                },
-                "driver_id": {
-                    "type": "string"
-                }
-            }
-        },
         "command.AssignRequest": {
             "type": "object",
             "required": [
-                "driver_id"
+                "carrier_id"
             ],
             "properties": {
-                "driver_id": {
+                "carrier_id": {
                     "type": "string"
                 }
             }
@@ -1423,10 +1432,22 @@ const docTemplate = `{
                 }
             }
         },
+        "command.RefreshTokenRequest": {
+            "type": "object",
+            "required": [
+                "refresh_token"
+            ],
+            "properties": {
+                "refresh_token": {
+                    "type": "string"
+                }
+            }
+        },
         "command.RegisterRequest": {
             "type": "object",
             "required": [
-                "password"
+                "password",
+                "role"
             ],
             "properties": {
                 "email": {
@@ -1443,6 +1464,13 @@ const docTemplate = `{
                 },
                 "phone": {
                     "type": "string"
+                },
+                "role": {
+                    "type": "string",
+                    "enum": [
+                        "shipper",
+                        "carrier"
+                    ]
                 }
             }
         },
@@ -1454,19 +1482,9 @@ const docTemplate = `{
                 },
                 "refresh_token": {
                     "type": "string"
-                }
-            }
-        },
-        "command.UpdateRequest": {
-            "type": "object",
-            "required": [
-                "name"
-            ],
-            "properties": {
-                "name": {
-                    "type": "string",
-                    "maxLength": 255,
-                    "minLength": 2
+                },
+                "role": {
+                    "type": "string"
                 }
             }
         },
@@ -1494,14 +1512,16 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_karavanix_karavantrack-api-server_internal_usecase_drivers_command.CreateResponse": {
+        "github_com_karavanix_karavantrack-api-server_internal_usecase_companies_command.UpdateRequest": {
             "type": "object",
+            "required": [
+                "name"
+            ],
             "properties": {
-                "id": {
-                    "type": "string"
-                },
-                "user_id": {
-                    "type": "string"
+                "name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 2
                 }
             }
         },
@@ -1558,6 +1578,17 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_karavanix_karavantrack-api-server_internal_usecase_users_command.UpdateRequest": {
+            "type": "object",
+            "properties": {
+                "first_name": {
+                    "type": "string"
+                },
+                "last_name": {
+                    "type": "string"
+                }
+            }
+        },
         "outerr.Response": {
             "type": "object",
             "properties": {
@@ -1566,23 +1597,6 @@ const docTemplate = `{
                 },
                 "details": {},
                 "message": {
-                    "type": "string"
-                }
-            }
-        },
-        "query.CompanyDriverResponse": {
-            "type": "object",
-            "properties": {
-                "alias": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "driver_id": {
-                    "type": "string"
-                },
-                "user_id": {
                     "type": "string"
                 }
             }
@@ -1602,21 +1616,30 @@ const docTemplate = `{
                 "owner_id": {
                     "type": "string"
                 },
+                "role": {
+                    "type": "string"
+                },
                 "status": {
                     "type": "string"
                 }
             }
         },
-        "query.DriverResponse": {
+        "query.ListCarriersResponse": {
             "type": "object",
             "properties": {
+                "alias": {
+                    "type": "string"
+                },
+                "carrier_id": {
+                    "type": "string"
+                },
                 "created_at": {
                     "type": "string"
                 },
-                "id": {
+                "first_name": {
                     "type": "string"
                 },
-                "user_id": {
+                "last_name": {
                     "type": "string"
                 }
             }
@@ -1624,6 +1647,9 @@ const docTemplate = `{
         "query.LoadResponse": {
             "type": "object",
             "properties": {
+                "carrier_id": {
+                    "type": "string"
+                },
                 "company_id": {
                     "type": "string"
                 },
@@ -1631,9 +1657,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "description": {
-                    "type": "string"
-                },
-                "driver_id": {
                     "type": "string"
                 },
                 "dropoff_address": {
@@ -1680,6 +1703,35 @@ const docTemplate = `{
                 }
             }
         },
+        "query.MeResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "first_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "last_name": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
         "query.MemberResponse": {
             "type": "object",
             "properties": {
@@ -1692,30 +1744,10 @@ const docTemplate = `{
                 "created_at": {
                     "type": "string"
                 },
+                "member_id": {
+                    "type": "string"
+                },
                 "role": {
-                    "type": "string"
-                },
-                "user_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "security.TokenDetails": {
-            "type": "object",
-            "properties": {
-                "accessExpiresAt": {
-                    "type": "string"
-                },
-                "accessToken": {
-                    "type": "string"
-                },
-                "refreshExpiresAt": {
-                    "type": "string"
-                },
-                "refreshJTI": {
-                    "type": "string"
-                },
-                "refreshToken": {
                     "type": "string"
                 }
             }

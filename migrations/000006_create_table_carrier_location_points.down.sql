@@ -1,0 +1,4 @@
+DROP INDEX IF EXISTS carrier_location_points_load_id_recorded_at_idx;
+DROP INDEX IF EXISTS carrier_location_points_carrier_id_recorded_at_idx;
+
+DROP TABLE IF EXISTS carrier_location_points;

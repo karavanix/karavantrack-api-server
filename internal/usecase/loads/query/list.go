@@ -22,17 +22,24 @@ func NewListUsecase(contextDuration time.Duration, loadsRepo domain.LoadReposito
 
 type ListRequest struct {
 	CompanyID string `json:"company_id"`
-	DriverID  string `json:"driver_id"`
+	CarrierID string `json:"carrier_id"`
 	Status    string `json:"status"`
 	Limit     int    `json:"limit"`
 	Offset    int    `json:"offset"`
+}
+
+type ListResponse struct {
+	Result []*LoadResponse `json:"result"`
+	Limit  int             `json:"limit"`
+	Offset int             `json:"offset"`
+	Total  int             `json:"count"`
 }
 
 type LoadResponse struct {
 	ID             string     `json:"id"`
 	CompanyID      string     `json:"company_id,omitempty"`
 	MemberID       string     `json:"member_id,omitempty"`
-	DriverID       string     `json:"driver_id,omitempty"`
+	CarrierID      string     `json:"carrier_id,omitempty"`
 	ReferenceID    string     `json:"reference_id,omitempty"`
 	Title          string     `json:"title"`
 	Description    string     `json:"description,omitempty"`
@@ -73,13 +80,13 @@ func loadToResponse(l *domain.Load) *LoadResponse {
 	if l.MemberID != uuid.Nil {
 		r.MemberID = l.MemberID.String()
 	}
-	if l.DriverID != uuid.Nil {
-		r.DriverID = l.DriverID.String()
+	if l.CarrierID != uuid.Nil {
+		r.CarrierID = l.CarrierID.String()
 	}
 	return r
 }
 
-func (u *ListUsecase) List(ctx context.Context, req *ListRequest) (_ []*LoadResponse, err error) {
+func (u *ListUsecase) List(ctx context.Context, req *ListRequest) (_ *ListResponse, err error) {
 	ctx, cancel := context.WithTimeout(ctx, u.contextDuration)
 	defer cancel()
 
@@ -99,12 +106,12 @@ func (u *ListUsecase) List(ctx context.Context, req *ListRequest) (_ []*LoadResp
 		filter.CompanyID = &id
 	}
 
-	if req.DriverID != "" {
-		id, err := uuid.Parse(req.DriverID)
+	if req.CarrierID != "" {
+		id, err := uuid.Parse(req.CarrierID)
 		if err != nil {
-			return nil, inerr.NewErrValidation("driver_id", "invalid driver ID")
+			return nil, inerr.NewErrValidation("carrier_id", "invalid carrier ID")
 		}
-		filter.DriverID = &id
+		filter.CarrierID = &id
 	}
 
 	if req.Status != "" {
@@ -112,14 +119,20 @@ func (u *ListUsecase) List(ctx context.Context, req *ListRequest) (_ []*LoadResp
 		filter.Status = &s
 	}
 
-	loads, err := u.loadsRepo.FindAll(ctx, filter)
+	loads, total, err := u.loadsRepo.FindAll(ctx, filter)
 	if err != nil {
 		return nil, err
 	}
 
-	result := make([]*LoadResponse, len(loads))
+	result := &ListResponse{
+		Result: make([]*LoadResponse, len(loads)),
+		Limit:  req.Limit,
+		Offset: req.Offset,
+		Total:  total,
+	}
+
 	for i, l := range loads {
-		result[i] = loadToResponse(l)
+		result.Result[i] = loadToResponse(l)
 	}
 
 	return result, nil

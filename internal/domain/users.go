@@ -92,8 +92,12 @@ func (u *User) Deactivate() error {
 	return nil
 }
 
-func (u *User) IsDriver() bool {
-	return u.Role.IsDriver()
+func (u *User) IsCarrier() bool {
+	return u.Role.IsCarrier()
+}
+
+func (u *User) IsShipper() bool {
+	return u.Role.IsShipper()
 }
 
 type UserRepository interface {
@@ -104,4 +108,5 @@ type UserRepository interface {
 	FindByEmailOrPhone(ctx context.Context, email shared.Email, phone shared.Phone) (*User, error)
 	FindByID(ctx context.Context, id uuid.UUID) (*User, error)
 	FindByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]*User, error)
+	FindCarriersByQuery(ctx context.Context, query string) ([]*User, error)
 }

@@ -22,21 +22,26 @@ func NewAcceptUsecase(contextDuration time.Duration, loadsRepo domain.LoadReposi
 	return &AcceptUsecase{contextDuration: contextDuration, loadsRepo: loadsRepo}
 }
 
-func (u *AcceptUsecase) Accept(ctx context.Context, loadIDStr string) (err error) {
+func (u *AcceptUsecase) Accept(ctx context.Context, loadID string) (err error) {
 	ctx, cancel := context.WithTimeout(ctx, u.contextDuration)
 	defer cancel()
 
 	ctx, end := otlp.Start(ctx, otel.Tracer("loads"), "Accept",
-		attribute.String("load_id", loadIDStr),
+		attribute.String("load_id", loadID),
 	)
 	defer func() { end(err) }()
 
-	loadID, err := uuid.Parse(loadIDStr)
-	if err != nil {
-		return inerr.NewErrValidation("load_id", "invalid load ID")
+	var input struct {
+		loadID uuid.UUID
+	}
+	{
+		input.loadID, err = uuid.Parse(loadID)
+		if err != nil {
+			return inerr.NewErrValidation("load_id", "invalid load ID")
+		}
 	}
 
-	load, err := u.loadsRepo.FindByID(ctx, loadID)
+	load, err := u.loadsRepo.FindByID(ctx, input.loadID)
 	if err != nil {
 		return err
 	}
@@ -45,7 +50,7 @@ func (u *AcceptUsecase) Accept(ctx context.Context, loadIDStr string) (err error
 		return inerr.NewErrValidation("status", err.Error())
 	}
 
-	if err := u.loadsRepo.Update(ctx, load); err != nil {
+	if err := u.loadsRepo.Save(ctx, load); err != nil {
 		logger.ErrorContext(ctx, "failed to update load", err)
 		return err
 	}

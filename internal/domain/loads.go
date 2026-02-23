@@ -11,13 +11,13 @@ import (
 type LoadStatus string
 
 const (
-	LoadStatusCreated           LoadStatus = "created"
-	LoadStatusAssigned          LoadStatus = "assigned"
-	LoadStatusAccepted          LoadStatus = "accepted"
-	LoadStatusInTransit         LoadStatus = "in_transit"
-	LoadStatusCompletedByDriver LoadStatus = "completed_by_driver"
-	LoadStatusConfirmed         LoadStatus = "confirmed"
-	LoadStatusCancelled         LoadStatus = "cancelled"
+	LoadStatusCreated   LoadStatus = "created"
+	LoadStatusAssigned  LoadStatus = "assigned"
+	LoadStatusAccepted  LoadStatus = "accepted"
+	LoadStatusInTransit LoadStatus = "in_transit"
+	LoadStatusCompleted LoadStatus = "completed"
+	LoadStatusConfirmed LoadStatus = "confirmed"
+	LoadStatusCancelled LoadStatus = "cancelled"
 )
 
 func (s LoadStatus) String() string {
@@ -28,7 +28,7 @@ type Load struct {
 	ID               uuid.UUID
 	CompanyID        uuid.UUID
 	MemberID         uuid.UUID
-	DriverID         uuid.UUID
+	CarrierID        uuid.UUID
 	ReferenceID      string
 	Title            string
 	Description      string
@@ -82,21 +82,21 @@ func NewLoad(
 	}, nil
 }
 
-// Assign assigns a driver to the load.
-func (l *Load) Assign(driverID uuid.UUID) error {
+// Assign assigns a carrier to the load.
+func (l *Load) Assign(carrierID uuid.UUID) error {
 	if l.Status != LoadStatusCreated {
-		return errors.New("can only assign driver to a created load")
+		return errors.New("can only assign carrier to a created load")
 	}
-	if driverID == uuid.Nil {
-		return errors.New("driver ID is required")
+	if carrierID == uuid.Nil {
+		return errors.New("carrier ID is required")
 	}
-	l.DriverID = driverID
+	l.CarrierID = carrierID
 	l.Status = LoadStatusAssigned
 	l.UpdatedAt = time.Now()
 	return nil
 }
 
-// Accept marks the load as accepted by the driver.
+// Accept marks the load as accepted by the carrier.
 func (l *Load) Accept() error {
 	if l.Status != LoadStatusAssigned {
 		return errors.New("can only accept an assigned load")
@@ -116,20 +116,20 @@ func (l *Load) StartTrip() error {
 	return nil
 }
 
-// CompleteByDriver marks the load as completed by the driver.
-func (l *Load) CompleteByDriver() error {
+// CompleteByCarrier marks the load as completed by the carrier.
+func (l *Load) CompleteByCarrier() error {
 	if l.Status != LoadStatusInTransit {
 		return errors.New("can only complete an in-transit load")
 	}
-	l.Status = LoadStatusCompletedByDriver
+	l.Status = LoadStatusCompleted
 	l.UpdatedAt = time.Now()
 	return nil
 }
 
 // ConfirmByOwner confirms the load completion by the cargo owner.
 func (l *Load) ConfirmByOwner() error {
-	if l.Status != LoadStatusCompletedByDriver {
-		return errors.New("can only confirm a driver-completed load")
+	if l.Status != LoadStatusCompleted {
+		return errors.New("can only confirm a carrier completed load")
 	}
 	l.Status = LoadStatusConfirmed
 	l.UpdatedAt = time.Now()
@@ -148,7 +148,7 @@ func (l *Load) Cancel() error {
 
 type LoadFilter struct {
 	CompanyID *uuid.UUID
-	DriverID  *uuid.UUID
+	CarrierID *uuid.UUID
 	Status    *LoadStatus
 	Limit     int
 	Offset    int
@@ -157,6 +157,5 @@ type LoadFilter struct {
 type LoadRepository interface {
 	Save(ctx context.Context, load *Load) error
 	FindByID(ctx context.Context, id uuid.UUID) (*Load, error)
-	FindAll(ctx context.Context, filter LoadFilter) ([]*Load, error)
-	Update(ctx context.Context, load *Load) error
+	FindAll(ctx context.Context, filter LoadFilter) ([]*Load, int, error)
 }

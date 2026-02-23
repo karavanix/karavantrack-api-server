@@ -17,7 +17,7 @@ type Loads struct {
 	ID               string     `bun:"id,type:uuid,pk"`
 	CompanyID        *string    `bun:"company_id,nullzero"`
 	MemberID         *string    `bun:"member_id,nullzero"`
-	DriverID         *string    `bun:"driver_id,nullzero"`
+	CarrierID        *string    `bun:"carrier_id,nullzero"`
 	ReferenceID      *string    `bun:"reference_id,nullzero"`
 	Title            *string    `bun:"title,nullzero"`
 	Description      *string    `bun:"description,nullzero"`
@@ -50,7 +50,7 @@ func (r *loadsRepo) Save(ctx context.Context, load *domain.Load) error {
 
 	_, err := db.NewInsert().Model(model).
 		On("CONFLICT (id) DO UPDATE SET").
-		Set("driver_id = EXCLUDED.driver_id").
+		Set("carrier_id = EXCLUDED.carrier_id").
 		Set("status = EXCLUDED.status").
 		Set("updated_at = EXCLUDED.updated_at").
 		Exec(ctx)
@@ -70,7 +70,7 @@ func (r *loadsRepo) FindByID(ctx context.Context, id uuid.UUID) (*domain.Load, e
 	return r.toDomain(&model), nil
 }
 
-func (r *loadsRepo) FindAll(ctx context.Context, filter domain.LoadFilter) ([]*domain.Load, error) {
+func (r *loadsRepo) FindAll(ctx context.Context, filter domain.LoadFilter) ([]*domain.Load, int, error) {
 	db := postgres.FromContext(ctx, r.db)
 	var models []Loads
 	q := db.NewSelect().Model(&models)
@@ -78,8 +78,8 @@ func (r *loadsRepo) FindAll(ctx context.Context, filter domain.LoadFilter) ([]*d
 	if filter.CompanyID != nil {
 		q = q.Where("company_id = ?", filter.CompanyID.String())
 	}
-	if filter.DriverID != nil {
-		q = q.Where("driver_id = ?", filter.DriverID.String())
+	if filter.CarrierID != nil {
+		q = q.Where("carrier_id = ?", filter.CarrierID.String())
 	}
 	if filter.Status != nil {
 		q = q.Where("status = ?", filter.Status.String())
@@ -98,25 +98,20 @@ func (r *loadsRepo) FindAll(ctx context.Context, filter domain.LoadFilter) ([]*d
 
 	err := q.Scan(ctx)
 	if err != nil {
-		return nil, postgres.Error(err, &Loads{})
+		return nil, 0, postgres.Error(err, &Loads{})
 	}
 
 	result := make([]*domain.Load, len(models))
 	for i := range models {
 		result[i] = r.toDomain(&models[i])
 	}
-	return result, nil
-}
 
-func (r *loadsRepo) Update(ctx context.Context, load *domain.Load) error {
-	db := postgres.FromContext(ctx, r.db)
-	model := r.toModel(load)
-
-	_, err := db.NewUpdate().Model(model).WherePK().Exec(ctx)
+	total, err := q.Count(ctx)
 	if err != nil {
-		return postgres.Error(err, model)
+		return nil, 0, postgres.Error(err, &Loads{})
 	}
-	return nil
+
+	return result, total, nil
 }
 
 func (r *loadsRepo) toModel(e *domain.Load) *Loads {
@@ -152,9 +147,9 @@ func (r *loadsRepo) toModel(e *domain.Load) *Loads {
 		s := e.MemberID.String()
 		m.MemberID = &s
 	}
-	if e.DriverID != uuid.Nil {
-		s := e.DriverID.String()
-		m.DriverID = &s
+	if e.CarrierID != uuid.Nil {
+		s := e.CarrierID.String()
+		m.CarrierID = &s
 	}
 
 	return m
@@ -193,8 +188,8 @@ func (r *loadsRepo) toDomain(m *Loads) *domain.Load {
 	if m.MemberID != nil {
 		e.MemberID, _ = uuid.Parse(*m.MemberID)
 	}
-	if m.DriverID != nil {
-		e.DriverID, _ = uuid.Parse(*m.DriverID)
+	if m.CarrierID != nil {
+		e.CarrierID, _ = uuid.Parse(*m.CarrierID)
 	}
 
 	return e

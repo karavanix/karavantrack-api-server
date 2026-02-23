@@ -42,7 +42,7 @@ type CreateResponse struct {
 	Status string `json:"status"`
 }
 
-func (u *CreateUsecase) Create(ctx context.Context, userIDStr string, req *CreateRequest) (_ *CreateResponse, err error) {
+func (u *CreateUsecase) Create(ctx context.Context, userID string, req *CreateRequest) (_ *CreateResponse, err error) {
 	ctx, cancel := context.WithTimeout(ctx, u.contextDuration)
 	defer cancel()
 
@@ -51,18 +51,23 @@ func (u *CreateUsecase) Create(ctx context.Context, userIDStr string, req *Creat
 	)
 	defer func() { end(err) }()
 
-	companyID, err := uuid.Parse(req.CompanyID)
-	if err != nil {
-		return nil, inerr.NewErrValidation("company_id", "invalid company ID")
+	var input struct {
+		companyID uuid.UUID
+		actorID   uuid.UUID
 	}
-
-	memberID, err := uuid.Parse(userIDStr)
-	if err != nil {
-		return nil, inerr.NewErrValidation("user_id", "invalid user ID")
+	{
+		input.companyID, err = uuid.Parse(req.CompanyID)
+		if err != nil {
+			return nil, inerr.NewErrValidation("user_id", "invalid user ID")
+		}
+		input.actorID, err = uuid.Parse(userID)
+		if err != nil {
+			return nil, inerr.NewErrValidation("user_id", "invalid user ID")
+		}
 	}
 
 	load, err := domain.NewLoad(
-		companyID, memberID,
+		input.companyID, input.actorID,
 		req.Title, req.Description,
 		req.PickupAddress, req.PickupLat, req.PickupLng,
 		req.DropoffAddress, req.DropoffLat, req.DropoffLng,

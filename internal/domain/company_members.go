@@ -22,7 +22,7 @@ func (r MemberRole) String() string {
 
 type CompanyMember struct {
 	CompanyID uuid.UUID
-	UserID    uuid.UUID
+	MemberID  uuid.UUID
 	Alias     string
 	Role      MemberRole
 	CreatedAt time.Time
@@ -42,7 +42,7 @@ func NewCompanyMember(companyID, userID uuid.UUID, alias string, role MemberRole
 
 	return &CompanyMember{
 		CompanyID: companyID,
-		UserID:    userID,
+		MemberID:  userID,
 		Alias:     alias,
 		Role:      role,
 		CreatedAt: time.Now(),
@@ -50,10 +50,22 @@ func NewCompanyMember(companyID, userID uuid.UUID, alias string, role MemberRole
 	}, nil
 }
 
+func (m *CompanyMember) IsOwner() bool {
+	return m.Role == MemberRoleOwner
+}
+
+func (m *CompanyMember) IsAdmin() bool {
+	return m.Role == MemberRoleAdmin
+}
+
+func (m *CompanyMember) IsMember() bool {
+	return m.Role == MemberRoleMember
+}
+
 type CompanyMemberRepository interface {
 	Save(ctx context.Context, member *CompanyMember) error
 	FindByCompanyID(ctx context.Context, companyID uuid.UUID) ([]*CompanyMember, error)
-	FindByUserID(ctx context.Context, userID uuid.UUID) ([]*CompanyMember, error)
-	FindByCompanyAndUser(ctx context.Context, companyID, userID uuid.UUID) (*CompanyMember, error)
-	Delete(ctx context.Context, companyID, userID uuid.UUID) error
+	FindByMemberID(ctx context.Context, memberID uuid.UUID) ([]*CompanyMember, error)
+	FindByCompanyIDAndMemberID(ctx context.Context, companyID, memberID uuid.UUID) (*CompanyMember, error)
+	DeleteByCompanyIDAndMemberID(ctx context.Context, companyID, memberID uuid.UUID) error
 }

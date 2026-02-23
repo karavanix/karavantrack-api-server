@@ -28,53 +28,60 @@ func NewAssignUsecase(contextDuration time.Duration, loadsRepo domain.LoadReposi
 }
 
 type AssignRequest struct {
-	DriverID string `json:"driver_id" validate:"required"`
+	CarrierID string `json:"carrier_id" validate:"required"`
 }
 
-func (u *AssignUsecase) Assign(ctx context.Context, loadIDStr string, req *AssignRequest) (err error) {
+func (u *AssignUsecase) Assign(ctx context.Context, loadID string, req *AssignRequest) (err error) {
 	ctx, cancel := context.WithTimeout(ctx, u.contextDuration)
 	defer cancel()
 
 	ctx, end := otlp.Start(ctx, otel.Tracer("loads"), "Assign",
-		attribute.String("load_id", loadIDStr),
-		attribute.String("driver_id", req.DriverID),
+		attribute.String("load_id", loadID),
+		attribute.String("carrier_id", req.CarrierID),
 	)
 	defer func() { end(err) }()
 
-	loadID, err := uuid.Parse(loadIDStr)
-	if err != nil {
-		return inerr.NewErrValidation("load_id", "invalid load ID")
+	var input struct {
+		loadID    uuid.UUID
+		carrierID uuid.UUID
+	}
+	{
+
+		input.loadID, err = uuid.Parse(loadID)
+		if err != nil {
+			return inerr.NewErrValidation("load_id", "invalid load ID")
+		}
+
+		input.carrierID, err = uuid.Parse(req.CarrierID)
+		if err != nil {
+			return inerr.NewErrValidation("carrier_id", "invalid carrier ID")
+		}
 	}
 
-	driverUserID, err := uuid.Parse(req.DriverID)
-	if err != nil {
-		return inerr.NewErrValidation("driver_id", "invalid driver ID")
-	}
-
-	// Verify user exists and is a driver
-	user, err := u.usersRepo.FindByID(ctx, driverUserID)
+	// Verify user exists and is a carrier
+	user, err := u.usersRepo.FindByID(ctx, input.carrierID)
 	if err != nil {
 		return err
 	}
-	if !user.IsDriver() {
-		return inerr.NewErrValidation("driver_id", "user is not a driver")
+	if !user.IsCarrier() {
+		return inerr.NewErrValidation("carrier_id", "user is not a carrier")
 	}
 
-	load, err := u.loadsRepo.FindByID(ctx, loadID)
+	load, err := u.loadsRepo.FindByID(ctx, input.loadID)
 	if err != nil {
 		return err
 	}
 
-	if err := load.Assign(driverUserID); err != nil {
+	if err := load.Assign(input.carrierID); err != nil {
 		return inerr.NewErrValidation("status", err.Error())
 	}
 
-	if err := u.loadsRepo.Update(ctx, load); err != nil {
+	if err := u.loadsRepo.Save(ctx, load); err != nil {
 		logger.ErrorContext(ctx, "failed to update load", err)
 		return err
 	}
 
-	// TODO: enqueue push notification to driver
+	// TODO: enqueue push notification to carrier
 
 	return nil
 }

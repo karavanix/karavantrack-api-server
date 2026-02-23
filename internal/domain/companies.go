@@ -62,6 +62,5 @@ type CompanyRepository interface {
 	Save(ctx context.Context, company *Company) error
 	FindByID(ctx context.Context, id uuid.UUID) (*Company, error)
 	FindByOwnerID(ctx context.Context, ownerID uuid.UUID) ([]*Company, error)
-	Update(ctx context.Context, company *Company) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	DeleteByID(ctx context.Context, id uuid.UUID) error
 }

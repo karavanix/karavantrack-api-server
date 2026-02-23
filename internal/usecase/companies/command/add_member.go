@@ -14,20 +14,20 @@ import (
 )
 
 type AddMemberUsecase struct {
-	contextDuration time.Duration
-	membersRepo     domain.CompanyMemberRepository
-	usersRepo       domain.UserRepository
+	contextDuration    time.Duration
+	companyMembersRepo domain.CompanyMemberRepository
+	usersRepo          domain.UserRepository
 }
 
 func NewAddMemberUsecase(
 	contextDuration time.Duration,
-	membersRepo domain.CompanyMemberRepository,
+	companyMembersRepo domain.CompanyMemberRepository,
 	usersRepo domain.UserRepository,
 ) *AddMemberUsecase {
 	return &AddMemberUsecase{
-		contextDuration: contextDuration,
-		membersRepo:     membersRepo,
-		usersRepo:       usersRepo,
+		contextDuration:    contextDuration,
+		companyMembersRepo: companyMembersRepo,
+		usersRepo:          usersRepo,
 	}
 }
 
@@ -37,52 +37,61 @@ type AddMemberRequest struct {
 	Role   string `json:"role" validate:"required,oneof=admin member"`
 }
 
-func (u *AddMemberUsecase) AddMember(ctx context.Context, callerUserID, companyIDStr string, req *AddMemberRequest) (err error) {
+func (u *AddMemberUsecase) AddMember(ctx context.Context, requesterID, companyID string, req *AddMemberRequest) (err error) {
 	ctx, cancel := context.WithTimeout(ctx, u.contextDuration)
 	defer cancel()
 
 	ctx, end := otlp.Start(ctx, otel.Tracer("companies"), "AddMember",
-		attribute.String("company_id", companyIDStr),
+		attribute.String("company_id", companyID),
+		attribute.String("requester_id", requesterID),
 		attribute.String("user_id", req.UserID),
 	)
 	defer func() { end(err) }()
 
-	companyID, err := uuid.Parse(companyIDStr)
-	if err != nil {
-		return inerr.NewErrValidation("company_id", "invalid company ID")
+	var input struct {
+		companyID uuid.UUID
+		actorID   uuid.UUID
+		userID    uuid.UUID
 	}
-
-	callerID, err := uuid.Parse(callerUserID)
-	if err != nil {
-		return inerr.NewErrValidation("user_id", "invalid caller user ID")
+	{
+		input.companyID, err = uuid.Parse(companyID)
+		if err != nil {
+			return inerr.NewErrValidation("company_id", "invalid company ID")
+		}
+		input.actorID, err = uuid.Parse(requesterID)
+		if err != nil {
+			return inerr.NewErrValidation("requester_id", "invalid requester ID")
+		}
+		input.userID, err = uuid.Parse(req.UserID)
+		if err != nil {
+			return inerr.NewErrValidation("user_id", "invalid user ID")
+		}
 	}
 
 	// Ownership check: only owner or admin can add members
-	callerMember, err := u.membersRepo.FindByCompanyAndUser(ctx, companyID, callerID)
+	actorMember, err := u.companyMembersRepo.FindByCompanyIDAndMemberID(ctx, input.companyID, input.actorID)
 	if err != nil {
-		return inerr.ErrorPermissionDenied
-	}
-	if callerMember.Role != domain.MemberRoleOwner && callerMember.Role != domain.MemberRoleAdmin {
 		return inerr.ErrorPermissionDenied
 	}
 
-	userID, err := uuid.Parse(req.UserID)
-	if err != nil {
-		return inerr.NewErrValidation("user_id", "invalid user ID")
+	if !actorMember.IsOwner() && !actorMember.IsAdmin() {
+		return inerr.ErrorPermissionDenied
 	}
 
 	// Verify target user exists
-	_, err = u.usersRepo.FindByID(ctx, userID)
+	_, err = u.usersRepo.FindByID(ctx, input.userID)
 	if err != nil {
+		logger.ErrorContext(ctx, "failed to find user", err)
 		return err
 	}
 
-	member, err := domain.NewCompanyMember(companyID, userID, req.Alias, domain.MemberRole(req.Role))
+	newMember, err := domain.NewCompanyMember(input.companyID, input.userID, req.Alias, domain.MemberRole(req.Role))
 	if err != nil {
+		logger.ErrorContext(ctx, "failed to create company member", err)
 		return inerr.NewErrValidation("member", err.Error())
 	}
 
-	if err := u.membersRepo.Save(ctx, member); err != nil {
+	if err := u.companyMembersRepo.Save(ctx, newMember); err != nil {
 		logger.ErrorContext(ctx, "failed to save company member", err)
 		return err
 	}

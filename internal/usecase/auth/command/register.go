@@ -34,7 +34,7 @@ type RegisterRequest struct {
 	Email     string `json:"email"`
 	Phone     string `json:"phone"`
 	Password  string `json:"password" validate:"required"`
-	Role      string `json:"role" validate:"required,oneof=driver cargo_owner"`
+	Role      string `json:"role" validate:"required,oneof=shipper carrier"`
 }
 
 type RegisterResponse struct {

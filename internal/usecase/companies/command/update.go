@@ -31,43 +31,48 @@ type UpdateRequest struct {
 	Name string `json:"name" validate:"required,min=2,max=255"`
 }
 
-func (u *UpdateUsecase) Update(ctx context.Context, callerUserID, companyIDStr string, req *UpdateRequest) (err error) {
+func (u *UpdateUsecase) Update(ctx context.Context, requesterID, companyID string, req *UpdateRequest) (err error) {
 	ctx, cancel := context.WithTimeout(ctx, u.contextDuration)
 	defer cancel()
 
 	ctx, end := otlp.Start(ctx, otel.Tracer("companies"), "Update",
-		attribute.String("company_id", companyIDStr),
+		attribute.String("company_id", companyID),
+		attribute.String("requester_id", requesterID),
 	)
 	defer func() { end(err) }()
 
-	companyID, err := uuid.Parse(companyIDStr)
-	if err != nil {
-		return inerr.NewErrValidation("company_id", "invalid company ID")
+	var input struct {
+		companyID   uuid.UUID
+		requesterID uuid.UUID
 	}
-
-	userID, err := uuid.Parse(callerUserID)
-	if err != nil {
-		return inerr.NewErrValidation("user_id", "invalid user ID")
+	{
+		input.companyID, err = uuid.Parse(companyID)
+		if err != nil {
+			return inerr.NewErrValidation("company_id", "invalid company ID")
+		}
+		input.requesterID, err = uuid.Parse(requesterID)
+		if err != nil {
+			return inerr.NewErrValidation("user_id", "invalid user ID")
+		}
 	}
 
 	// Ownership check: only owner or admin can update
-	member, err := u.membersRepo.FindByCompanyAndUser(ctx, companyID, userID)
+	member, err := u.membersRepo.FindByCompanyIDAndMemberID(ctx, input.companyID, input.requesterID)
 	if err != nil {
 		return inerr.ErrorPermissionDenied
 	}
-	if member.Role != domain.MemberRoleOwner && member.Role != domain.MemberRoleAdmin {
+	if !member.IsOwner() && !member.IsAdmin() {
 		return inerr.ErrorPermissionDenied
 	}
 
-	company, err := u.companiesRepo.FindByID(ctx, companyID)
+	company, err := u.companiesRepo.FindByID(ctx, input.companyID)
 	if err != nil {
 		logger.ErrorContext(ctx, "failed to find company", err)
 		return err
 	}
 
 	company.Update(req.Name)
-
-	if err := u.companiesRepo.Update(ctx, company); err != nil {
+	if err := u.companiesRepo.Save(ctx, company); err != nil {
 		logger.ErrorContext(ctx, "failed to update company", err)
 		return err
 	}

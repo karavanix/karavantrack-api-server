@@ -7,10 +7,10 @@ import (
 	"github.com/google/uuid"
 )
 
-type DriverLocationPoint struct {
+type CarrierLocationPoint struct {
 	ID         int64
 	LoadID     uuid.UUID
-	DriverID   uuid.UUID
+	CarrierID  uuid.UUID
 	Lat        float64
 	Lng        float64
 	AccuracyM  *float32
@@ -21,7 +21,7 @@ type DriverLocationPoint struct {
 }
 
 type LocationPointRepository interface {
-	BatchSave(ctx context.Context, points []*DriverLocationPoint) error
-	FindByLoadID(ctx context.Context, loadID uuid.UUID, limit, offset int) ([]*DriverLocationPoint, error)
-	FindLatestByLoadID(ctx context.Context, loadID uuid.UUID) (*DriverLocationPoint, error)
+	BatchSave(ctx context.Context, points []*CarrierLocationPoint) error
+	FindByLoadID(ctx context.Context, loadID uuid.UUID, limit, offset int) ([]*CarrierLocationPoint, error)
+	FindLatestByLoadID(ctx context.Context, loadID uuid.UUID) (*CarrierLocationPoint, error)
 }

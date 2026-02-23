@@ -25,31 +25,36 @@ func NewGetMeUsecase(contextDuration time.Duration, usersRepo domain.UserReposit
 }
 
 type MeResponse struct {
-	ID        string `json:"id"`
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
-	Email     string `json:"email,omitempty"`
-	Phone     string `json:"phone,omitempty"`
-	Status    string `json:"status"`
-	Role      string `json:"role"`
-	CreatedAt string `json:"created_at"`
+	ID        string    `json:"id"`
+	FirstName string    `json:"first_name"`
+	LastName  string    `json:"last_name"`
+	Email     string    `json:"email,omitempty"`
+	Phone     string    `json:"phone,omitempty"`
+	Status    string    `json:"status"`
+	Role      string    `json:"role"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
-func (u *GetMeUsecase) GetMe(ctx context.Context, userIDStr string) (_ *MeResponse, err error) {
+func (u *GetMeUsecase) GetMe(ctx context.Context, userID string) (_ *MeResponse, err error) {
 	ctx, cancel := context.WithTimeout(ctx, u.contextDuration)
 	defer cancel()
 
 	ctx, end := otlp.Start(ctx, otel.Tracer("users"), "GetMe",
-		attribute.String("user_id", userIDStr),
+		attribute.String("user_id", userID),
 	)
 	defer func() { end(err) }()
 
-	userID, err := uuid.Parse(userIDStr)
-	if err != nil {
-		return nil, inerr.NewErrValidation("user_id", "invalid user ID")
+	var input struct {
+		userID uuid.UUID
+	}
+	{
+		input.userID, err = uuid.Parse(userID)
+		if err != nil {
+			return nil, inerr.NewErrValidation("user_id", "invalid user ID")
+		}
 	}
 
-	user, err := u.usersRepo.FindByID(ctx, userID)
+	user, err := u.usersRepo.FindByID(ctx, input.userID)
 	if err != nil {
 		return nil, err
 	}
@@ -62,6 +67,6 @@ func (u *GetMeUsecase) GetMe(ctx context.Context, userIDStr string) (_ *MeRespon
 		Phone:     user.Phone.String(),
 		Status:    user.Status.String(),
 		Role:      user.Role.String(),
-		CreatedAt: user.CreatedAt.Format(time.RFC3339),
+		CreatedAt: user.CreatedAt,
 	}, nil
 }

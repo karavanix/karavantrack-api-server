@@ -9,18 +9,18 @@ import (
 )
 
 type Command struct {
-	Create   *command.CreateUsecase
-	Assign   *command.AssignUsecase
-	Accept   *command.AcceptUsecase
-	Start    *command.StartUsecase
-	Complete *command.CompleteUsecase
-	Confirm  *command.ConfirmUsecase
-	Cancel   *command.CancelUsecase
+	*command.CreateUsecase
+	*command.AssignUsecase
+	*command.AcceptUsecase
+	*command.StartUsecase
+	*command.CompleteUsecase
+	*command.ConfirmUsecase
+	*command.CancelUsecase
 }
 
 type Query struct {
-	Get  *query.GetUsecase
-	List *query.ListUsecase
+	*query.GetUsecase
+	*query.ListUsecase
 }
 
 type Usecase struct {
@@ -36,17 +36,17 @@ func NewUsecase(
 ) *Usecase {
 	return &Usecase{
 		Command: Command{
-			Create:   command.NewCreateUsecase(contextDuration, loadsRepo),
-			Assign:   command.NewAssignUsecase(contextDuration, loadsRepo, usersRepo),
-			Accept:   command.NewAcceptUsecase(contextDuration, loadsRepo),
-			Start:    command.NewStartUsecase(contextDuration, loadsRepo),
-			Complete: command.NewCompleteUsecase(contextDuration, loadsRepo),
-			Confirm:  command.NewConfirmUsecase(contextDuration, loadsRepo),
-			Cancel:   command.NewCancelUsecase(contextDuration, loadsRepo),
+			CreateUsecase:   command.NewCreateUsecase(contextDuration, loadsRepo),
+			AssignUsecase:   command.NewAssignUsecase(contextDuration, loadsRepo, usersRepo),
+			AcceptUsecase:   command.NewAcceptUsecase(contextDuration, loadsRepo),
+			StartUsecase:    command.NewStartUsecase(contextDuration, loadsRepo),
+			CompleteUsecase: command.NewCompleteUsecase(contextDuration, loadsRepo),
+			ConfirmUsecase:  command.NewConfirmUsecase(contextDuration, loadsRepo),
+			CancelUsecase:   command.NewCancelUsecase(contextDuration, loadsRepo),
 		},
 		Query: Query{
-			Get:  query.NewGetUsecase(contextDuration, loadsRepo),
-			List: query.NewListUsecase(contextDuration, loadsRepo),
+			GetUsecase:  query.NewGetUsecase(contextDuration, loadsRepo),
+			ListUsecase: query.NewListUsecase(contextDuration, loadsRepo),
 		},
 	}
 }

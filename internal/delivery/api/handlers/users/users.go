@@ -39,13 +39,13 @@ func New(opts *delivery.HandlerOptions) http.Handler {
 }
 
 // GetMe godoc
+// @Security     BearerAuth
 // @Summary      Get current user
 // @Description  Get the profile of the authenticated user (includes role)
 // @Tags         Users
 // @Produce      json
 // @Success      200  {object} query.MeResponse
 // @Failure      401  {object} outerr.Response
-// @Security     BearerAuth
 // @Router       /users/me [get]
 func (h *handler) GetMe() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -66,6 +66,7 @@ func (h *handler) GetMe() http.HandlerFunc {
 }
 
 // UpdateMe godoc
+// @Security     BearerAuth
 // @Summary      Update current user
 // @Description  Update the profile of the authenticated user
 // @Tags         Users
@@ -75,7 +76,6 @@ func (h *handler) GetMe() http.HandlerFunc {
 // @Success      200  {object} map[string]string
 // @Failure      400  {object} outerr.Response
 // @Failure      401  {object} outerr.Response
-// @Security     BearerAuth
 // @Router       /users/me [put]
 func (h *handler) UpdateMe() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

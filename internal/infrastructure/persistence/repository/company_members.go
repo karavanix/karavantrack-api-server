@@ -14,7 +14,7 @@ type CompanyMembers struct {
 	bun.BaseModel `bun:"table:company_members,alias:cm"`
 
 	CompanyID string    `bun:"company_id,type:uuid,pk"`
-	UserID    string    `bun:"user_id,type:uuid,pk"`
+	MemberID  string    `bun:"member_id,type:uuid,pk"`
 	Alias     string    `bun:"alias"`
 	Role      string    `bun:"role"`
 	CreatedAt time.Time `bun:"created_at"`
@@ -56,10 +56,10 @@ func (r *companyMembersRepo) FindByCompanyID(ctx context.Context, companyID uuid
 	return result, nil
 }
 
-func (r *companyMembersRepo) FindByUserID(ctx context.Context, userID uuid.UUID) ([]*domain.CompanyMember, error) {
+func (r *companyMembersRepo) FindByMemberID(ctx context.Context, memberID uuid.UUID) ([]*domain.CompanyMember, error) {
 	db := postgres.FromContext(ctx, r.db)
 	var models []CompanyMembers
-	err := db.NewSelect().Model(&models).Where("user_id = ?", userID.String()).
+	err := db.NewSelect().Model(&models).Where("member_id = ?", memberID.String()).
 		Order("created_at DESC").Scan(ctx)
 	if err != nil {
 		return nil, postgres.Error(err, &CompanyMembers{})
@@ -72,11 +72,11 @@ func (r *companyMembersRepo) FindByUserID(ctx context.Context, userID uuid.UUID)
 	return result, nil
 }
 
-func (r *companyMembersRepo) FindByCompanyAndUser(ctx context.Context, companyID, userID uuid.UUID) (*domain.CompanyMember, error) {
+func (r *companyMembersRepo) FindByCompanyIDAndMemberID(ctx context.Context, companyID, memberID uuid.UUID) (*domain.CompanyMember, error) {
 	db := postgres.FromContext(ctx, r.db)
 	var model CompanyMembers
 	err := db.NewSelect().Model(&model).
-		Where("company_id = ? AND user_id = ?", companyID.String(), userID.String()).
+		Where("company_id = ? AND member_id = ?", companyID.String(), memberID.String()).
 		Scan(ctx)
 	if err != nil {
 		return nil, postgres.Error(err, &model)
@@ -84,10 +84,10 @@ func (r *companyMembersRepo) FindByCompanyAndUser(ctx context.Context, companyID
 	return r.toDomain(&model), nil
 }
 
-func (r *companyMembersRepo) Delete(ctx context.Context, companyID, userID uuid.UUID) error {
+func (r *companyMembersRepo) DeleteByCompanyIDAndMemberID(ctx context.Context, companyID, memberID uuid.UUID) error {
 	db := postgres.FromContext(ctx, r.db)
 	_, err := db.NewDelete().Model((*CompanyMembers)(nil)).
-		Where("company_id = ? AND user_id = ?", companyID.String(), userID.String()).
+		Where("company_id = ? AND member_id = ?", companyID.String(), memberID.String()).
 		Exec(ctx)
 	if err != nil {
 		return postgres.Error(err, &CompanyMembers{})
@@ -101,7 +101,7 @@ func (r *companyMembersRepo) toModel(e *domain.CompanyMember) *CompanyMembers {
 	}
 	return &CompanyMembers{
 		CompanyID: e.CompanyID.String(),
-		UserID:    e.UserID.String(),
+		MemberID:  e.MemberID.String(),
 		Alias:     e.Alias,
 		Role:      e.Role.String(),
 		CreatedAt: e.CreatedAt,
@@ -114,10 +114,10 @@ func (r *companyMembersRepo) toDomain(m *CompanyMembers) *domain.CompanyMember {
 		return nil
 	}
 	companyID, _ := uuid.Parse(m.CompanyID)
-	userID, _ := uuid.Parse(m.UserID)
+	memberID, _ := uuid.Parse(m.MemberID)
 	return &domain.CompanyMember{
 		CompanyID: companyID,
-		UserID:    userID,
+		MemberID:  memberID,
 		Alias:     m.Alias,
 		Role:      domain.MemberRole(m.Role),
 		CreatedAt: m.CreatedAt,

@@ -16,7 +16,6 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/service/presence"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/auth"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/companies"
-	"github.com/karavanix/karavantrack-api-server/internal/usecase/drivers"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/loads"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/users"
 	"github.com/karavanix/karavantrack-api-server/pkg/app"
@@ -111,7 +110,7 @@ func (s *ServerApp) Run() error {
 	usersRepo := repository.NewUsersRepo(s.db)
 	companiesRepo := repository.NewCompaniesRepo(s.db)
 	companyMembersRepo := repository.NewCompanyMembersRepo(s.db)
-	companyDriversRepo := repository.NewCompanyDriversRepo(s.db)
+	companyCarriersRepo := repository.NewCompanyCarriersRepo(s.db)
 	loadsRepo := repository.NewLoadsRepo(s.db)
 	locationsPointsRepo := repository.NewLocationPointsRepo(s.db)
 
@@ -121,8 +120,7 @@ func (s *ServerApp) Run() error {
 	// usecase
 	authUsecase := auth.NewUsecase(s.config.Context.Timeout, jwtProvider, usersRepo)
 	usersUsecase := users.NewUsecase(s.config.Context.Timeout, usersRepo)
-	companiesUsecase := companies.NewUsecase(s.config.Context.Timeout, txManager, companiesRepo, companyMembersRepo, usersRepo)
-	driversUsecase := drivers.NewUsecase(s.config.Context.Timeout, companyDriversRepo, usersRepo)
+	companiesUsecase := companies.NewUsecase(s.config.Context.Timeout, txManager, companiesRepo, companyMembersRepo, companyCarriersRepo, usersRepo)
 	loadsUsecase := loads.NewUsecase(s.config.Context.Timeout, loadsRepo, usersRepo, locationsPointsRepo)
 
 	// init handlers options
@@ -134,7 +132,6 @@ func (s *ServerApp) Run() error {
 		AuthUsecase:      authUsecase,
 		UsersUsecase:     usersUsecase,
 		CompaniesUsecase: companiesUsecase,
-		DriversUsecase:   driversUsecase,
 		LoadsUsecase:     loadsUsecase,
 	}
 

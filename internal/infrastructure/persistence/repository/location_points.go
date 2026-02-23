@@ -10,12 +10,12 @@ import (
 	"github.com/uptrace/bun"
 )
 
-type DriverLocationPoints struct {
-	bun.BaseModel `bun:"table:driver_location_points,alias:dlp"`
+type CarrierLocationPoints struct {
+	bun.BaseModel `bun:"table:carrier_location_points,alias:clp"`
 
 	ID         int64     `bun:"id,pk,autoincrement"`
 	LoadID     string    `bun:"load_id,type:uuid"`
-	DriverID   string    `bun:"driver_id,type:uuid"`
+	CarrierID  string    `bun:"carrier_id,type:uuid"`
 	Lat        float64   `bun:"lat"`
 	Lng        float64   `bun:"lng"`
 	AccuracyM  *float32  `bun:"accuracy_m"`
@@ -33,26 +33,26 @@ func NewLocationPointsRepo(db bun.IDB) domain.LocationPointRepository {
 	return &locationPointsRepo{db: db}
 }
 
-func (r *locationPointsRepo) BatchSave(ctx context.Context, points []*domain.DriverLocationPoint) error {
+func (r *locationPointsRepo) BatchSave(ctx context.Context, points []*domain.CarrierLocationPoint) error {
 	if len(points) == 0 {
 		return nil
 	}
 	db := postgres.FromContext(ctx, r.db)
-	models := make([]DriverLocationPoints, len(points))
+	models := make([]*CarrierLocationPoints, len(points))
 	for i, p := range points {
-		models[i] = *r.toModel(p)
+		models[i] = r.toModel(p)
 	}
 
 	_, err := db.NewInsert().Model(&models).Exec(ctx)
 	if err != nil {
-		return postgres.Error(err, &DriverLocationPoints{})
+		return postgres.Error(err, &CarrierLocationPoints{})
 	}
 	return nil
 }
 
-func (r *locationPointsRepo) FindByLoadID(ctx context.Context, loadID uuid.UUID, limit, offset int) ([]*domain.DriverLocationPoint, error) {
+func (r *locationPointsRepo) FindByLoadID(ctx context.Context, loadID uuid.UUID, limit, offset int) ([]*domain.CarrierLocationPoint, error) {
 	db := postgres.FromContext(ctx, r.db)
-	var models []DriverLocationPoints
+	var models []CarrierLocationPoints
 	q := db.NewSelect().Model(&models).
 		Where("load_id = ?", loadID.String()).
 		Order("recorded_at DESC")
@@ -68,19 +68,19 @@ func (r *locationPointsRepo) FindByLoadID(ctx context.Context, loadID uuid.UUID,
 
 	err := q.Scan(ctx)
 	if err != nil {
-		return nil, postgres.Error(err, &DriverLocationPoints{})
+		return nil, postgres.Error(err, &CarrierLocationPoints{})
 	}
 
-	result := make([]*domain.DriverLocationPoint, len(models))
+	result := make([]*domain.CarrierLocationPoint, len(models))
 	for i := range models {
 		result[i] = r.toDomain(&models[i])
 	}
 	return result, nil
 }
 
-func (r *locationPointsRepo) FindLatestByLoadID(ctx context.Context, loadID uuid.UUID) (*domain.DriverLocationPoint, error) {
+func (r *locationPointsRepo) FindLatestByLoadID(ctx context.Context, loadID uuid.UUID) (*domain.CarrierLocationPoint, error) {
 	db := postgres.FromContext(ctx, r.db)
-	var model DriverLocationPoints
+	var model CarrierLocationPoints
 	err := db.NewSelect().Model(&model).
 		Where("load_id = ?", loadID.String()).
 		Order("recorded_at DESC").
@@ -92,13 +92,13 @@ func (r *locationPointsRepo) FindLatestByLoadID(ctx context.Context, loadID uuid
 	return r.toDomain(&model), nil
 }
 
-func (r *locationPointsRepo) toModel(e *domain.DriverLocationPoint) *DriverLocationPoints {
+func (r *locationPointsRepo) toModel(e *domain.CarrierLocationPoint) *CarrierLocationPoints {
 	if e == nil {
 		return nil
 	}
-	return &DriverLocationPoints{
+	return &CarrierLocationPoints{
 		LoadID:     e.LoadID.String(),
-		DriverID:   e.DriverID.String(),
+		CarrierID:  e.CarrierID.String(),
 		Lat:        e.Lat,
 		Lng:        e.Lng,
 		AccuracyM:  e.AccuracyM,
@@ -109,16 +109,16 @@ func (r *locationPointsRepo) toModel(e *domain.DriverLocationPoint) *DriverLocat
 	}
 }
 
-func (r *locationPointsRepo) toDomain(m *DriverLocationPoints) *domain.DriverLocationPoint {
+func (r *locationPointsRepo) toDomain(m *CarrierLocationPoints) *domain.CarrierLocationPoint {
 	if m == nil {
 		return nil
 	}
 	loadID, _ := uuid.Parse(m.LoadID)
-	driverID, _ := uuid.Parse(m.DriverID)
-	return &domain.DriverLocationPoint{
+	carrierID, _ := uuid.Parse(m.CarrierID)
+	return &domain.CarrierLocationPoint{
 		ID:         m.ID,
 		LoadID:     loadID,
-		DriverID:   driverID,
+		CarrierID:  carrierID,
 		Lat:        m.Lat,
 		Lng:        m.Lng,
 		AccuracyM:  m.AccuracyM,
