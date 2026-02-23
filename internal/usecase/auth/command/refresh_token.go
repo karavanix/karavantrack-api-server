@@ -29,7 +29,7 @@ type RefreshTokenRequest struct {
 	RefreshToken string `json:"refresh_token" validate:"required"`
 }
 
-func (r *RefreshTokenUsecase) RefreshTokeb(ctx context.Context, req *RefreshTokenRequest) (_ *LoginResponse, err error) {
+func (r *RefreshTokenUsecase) RefreshToken(ctx context.Context, req *RefreshTokenRequest) (_ *LoginResponse, err error) {
 	ctx, cancel := context.WithTimeout(ctx, r.contextTDuration)
 	defer cancel()
 

@@ -64,7 +64,7 @@ func (h *authHander) Login() http.HandlerFunc {
 			return
 		}
 
-		resp, err := h.authUsecase.Command.Login.Login(r.Context(), &req)
+		resp, err := h.authUsecase.Command.Login(r.Context(), &req)
 		if err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
@@ -99,7 +99,7 @@ func (h *authHander) Register() http.HandlerFunc {
 			return
 		}
 
-		resp, err := h.authUsecase.Command.Register.Register(r.Context(), &req)
+		resp, err := h.authUsecase.Command.Register(r.Context(), &req)
 		if err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
@@ -122,10 +122,6 @@ func (h *authHander) Logout() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		render.Status(r, http.StatusOK)
 	}
-}
-
-type refreshRequest struct {
-	RefreshToken string `json:"refresh_token" validate:"required"`
 }
 
 // Refresh godoc
@@ -152,7 +148,7 @@ func (h *authHander) Refresh() http.HandlerFunc {
 		}
 
 		var resp *command.LoginResponse
-		resp, err := h.authUsecase.Command.RefreshToken.RefreshTokeb(r.Context(), &req)
+		resp, err := h.authUsecase.Command.RefreshToken(r.Context(), &req)
 		if err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
