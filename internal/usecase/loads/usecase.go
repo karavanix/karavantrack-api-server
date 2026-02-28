@@ -32,7 +32,7 @@ func NewUsecase(
 	contextDuration time.Duration,
 	loadsRepo domain.LoadRepository,
 	usersRepo domain.UserRepository,
-	locationPointsRepo domain.LocationPointRepository,
+	loadLocationPointRepo domain.LoadLocationPointRepository,
 ) *Usecase {
 	return &Usecase{
 		Command: Command{

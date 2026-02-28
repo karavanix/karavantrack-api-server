@@ -72,6 +72,18 @@ type Config struct {
 			SamplerArg string
 		}
 	}
+
+	Nats struct {
+		Host            string
+		Port            string
+		Username        string
+		Password        string
+		StaticSubjects  struct{}
+		DynamicSubjects struct {
+			WebsocketConnection      string
+			LoadLocationPointCreated string
+		}
+	}
 }
 
 func New() (*Config, error) {
@@ -145,6 +157,14 @@ func New() (*Config, error) {
 	c.OTEL.Exporter.OTLP.Protocol = getEnv("OTEL_EXPORTER_OTLP_PROTOCOL", "grpc")
 	c.OTEL.Traces.Sampler = getEnv("OTEL_TRACES_SAMPLER", "traceidratio")
 	c.OTEL.Traces.SamplerArg = getEnv("OTEL_TRACES_SAMPLER_ARG", "1.0")
+
+	c.Nats.Host = getEnv("NATS_HOST", "localhost")
+	c.Nats.Port = getEnv("NATS_PORT", "4222")
+	c.Nats.Username = getEnv("NATS_USERNAME", "karavantruck")
+	c.Nats.Password = getEnv("NATS_PASSWORD", "karavantrack-password")
+
+	c.Nats.DynamicSubjects.WebsocketConnection = "websocket.connection.%s"
+	c.Nats.DynamicSubjects.LoadLocationPointCreated = "load.location.point.%s"
 
 	return c, nil
 }

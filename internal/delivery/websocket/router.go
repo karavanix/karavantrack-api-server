@@ -17,5 +17,9 @@ func NewRouter(opts *delivery.HandlerOptions) http.Handler {
 	r.OnDisconnect(handler.Disconnect())
 	r.OnPong(handler.Pong())
 
+	r.On("join", handler.Join())
+	r.On("leave", handler.Leave())
+	r.On("location", handler.Location())
+
 	return r
 }

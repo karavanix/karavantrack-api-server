@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/karavanix/karavantrack-api-server/internal/delivery/consumers"
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/outerr"
 	"github.com/karavanix/karavantrack-api-server/pkg/app"
 	"github.com/karavanix/karavantrack-api-server/pkg/logger"
@@ -23,15 +24,15 @@ func (h *Handler) Connect() wsrouter.HandlerFunc {
 			return nil
 		}
 
-		// conn = wsrouter.WithAttachment(conn, "userID", userID)
-		// err := h.bkr.Subscribe(
-		// 	ctx,
-		// 	consumers.NewWebsocketNotficationConsumer(h.cfg, conn, userID),
-		// )
-		// if err != nil {
-		// 	outerr.HandleWS(conn, err)
-		// 	return nil
-		// }
+		conn = wsrouter.WithAttachment(conn, "userID", userID)
+		err = h.bkr.Subscribe(
+			ctx,
+			consumers.NewWebsocketConnectionConsumer(h.cfg, conn, userID),
+		)
+		if err != nil {
+			outerr.HandleWS(conn, err)
+			return nil
+		}
 
 		err = h.presenceService.Online(ctx, userID)
 		if err != nil {
@@ -54,24 +55,24 @@ func (h *Handler) Disconnect() wsrouter.HandlerFunc {
 			return nil
 		}
 
-		// err := h.bkr.Unsubscribe(
-		// 	ctx,
-		// 	consumers.NewWebsocketNotficationConsumer(h.cfg, conn, userID),
-		// )
-		// if err != nil {
-		// 	logger.WarnContext(ctx, "failed to unsubscribe notification consumer", "error", err)
-		// }
+		err = h.bkr.Unsubscribe(
+			ctx,
+			consumers.NewWebsocketConnectionConsumer(h.cfg, conn, userID),
+		)
+		if err != nil {
+			logger.WarnContext(ctx, "failed to unsubscribe connection consumer", "error", err)
+		}
 
-		// chatID, ok := wsrouter.Attachment[string](conn, "chatID")
-		// if ok {
-		// 	err = h.bkr.Unsubscribe(
-		// 		ctx,
-		// 		consumers.NewWebsocketConsumer(h.cfg, conn, chatID),
-		// 	)
-		// 	if err != nil {
-		// 		logger.WarnContext(ctx, "failed to unsubscribe chat message consumer", "error", err)
-		// 	}
-		// }
+		loadID, ok := wsrouter.Attachment[string](conn, "loadID")
+		if ok {
+			err = h.bkr.Unsubscribe(
+				ctx,
+				consumers.NewWebsocketLoadLocationLiveConsumer(h.cfg, conn, loadID),
+			)
+			if err != nil {
+				logger.WarnContext(ctx, "failed to unsubscribe load location live consumer", "error", err)
+			}
+		}
 
 		err = h.presenceService.Offline(ctx, userID)
 		if err != nil {

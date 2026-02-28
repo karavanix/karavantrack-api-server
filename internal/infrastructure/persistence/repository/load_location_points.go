@@ -10,8 +10,8 @@ import (
 	"github.com/uptrace/bun"
 )
 
-type CarrierLocationPoints struct {
-	bun.BaseModel `bun:"table:carrier_location_points,alias:clp"`
+type LoadLocationPoints struct {
+	bun.BaseModel `bun:"table:load_location_points,alias:llp"`
 
 	ID         int64     `bun:"id,pk,autoincrement"`
 	LoadID     string    `bun:"load_id,type:uuid"`
@@ -25,34 +25,46 @@ type CarrierLocationPoints struct {
 	CreatedAt  time.Time `bun:"created_at"`
 }
 
-type locationPointsRepo struct {
+type loadLocationPointsRepo struct {
 	db bun.IDB
 }
 
-func NewLocationPointsRepo(db bun.IDB) domain.LocationPointRepository {
-	return &locationPointsRepo{db: db}
+func NewLoadLocationPointsRepo(db bun.IDB) domain.LoadLocationPointRepository {
+	return &loadLocationPointsRepo{db: db}
 }
 
-func (r *locationPointsRepo) BatchSave(ctx context.Context, points []*domain.CarrierLocationPoint) error {
+func (r *loadLocationPointsRepo) Save(ctx context.Context, point *domain.LoadLocationPoint) error {
+	db := postgres.FromContext(ctx, r.db)
+	model := r.toModel(point)
+
+	_, err := db.NewInsert().Model(model).Exec(ctx)
+	if err != nil {
+		return postgres.Error(err, model)
+	}
+
+	return nil
+}
+
+func (r *loadLocationPointsRepo) BatchSave(ctx context.Context, points []*domain.LoadLocationPoint) error {
 	if len(points) == 0 {
 		return nil
 	}
 	db := postgres.FromContext(ctx, r.db)
-	models := make([]*CarrierLocationPoints, len(points))
+	models := make([]*LoadLocationPoints, len(points))
 	for i, p := range points {
 		models[i] = r.toModel(p)
 	}
 
 	_, err := db.NewInsert().Model(&models).Exec(ctx)
 	if err != nil {
-		return postgres.Error(err, &CarrierLocationPoints{})
+		return postgres.Error(err, &LoadLocationPoints{})
 	}
 	return nil
 }
 
-func (r *locationPointsRepo) FindByLoadID(ctx context.Context, loadID uuid.UUID, limit, offset int) ([]*domain.CarrierLocationPoint, error) {
+func (r *loadLocationPointsRepo) FindByLoadID(ctx context.Context, loadID uuid.UUID, limit, offset int) ([]*domain.LoadLocationPoint, error) {
 	db := postgres.FromContext(ctx, r.db)
-	var models []CarrierLocationPoints
+	var models []LoadLocationPoints
 	q := db.NewSelect().Model(&models).
 		Where("load_id = ?", loadID.String()).
 		Order("recorded_at DESC")
@@ -68,19 +80,19 @@ func (r *locationPointsRepo) FindByLoadID(ctx context.Context, loadID uuid.UUID,
 
 	err := q.Scan(ctx)
 	if err != nil {
-		return nil, postgres.Error(err, &CarrierLocationPoints{})
+		return nil, postgres.Error(err, &LoadLocationPoints{})
 	}
 
-	result := make([]*domain.CarrierLocationPoint, len(models))
+	result := make([]*domain.LoadLocationPoint, len(models))
 	for i := range models {
 		result[i] = r.toDomain(&models[i])
 	}
 	return result, nil
 }
 
-func (r *locationPointsRepo) FindLatestByLoadID(ctx context.Context, loadID uuid.UUID) (*domain.CarrierLocationPoint, error) {
+func (r *loadLocationPointsRepo) FindLatestByLoadID(ctx context.Context, loadID uuid.UUID) (*domain.LoadLocationPoint, error) {
 	db := postgres.FromContext(ctx, r.db)
-	var model CarrierLocationPoints
+	var model LoadLocationPoints
 	err := db.NewSelect().Model(&model).
 		Where("load_id = ?", loadID.String()).
 		Order("recorded_at DESC").
@@ -92,11 +104,11 @@ func (r *locationPointsRepo) FindLatestByLoadID(ctx context.Context, loadID uuid
 	return r.toDomain(&model), nil
 }
 
-func (r *locationPointsRepo) toModel(e *domain.CarrierLocationPoint) *CarrierLocationPoints {
+func (r *loadLocationPointsRepo) toModel(e *domain.LoadLocationPoint) *LoadLocationPoints {
 	if e == nil {
 		return nil
 	}
-	return &CarrierLocationPoints{
+	return &LoadLocationPoints{
 		LoadID:     e.LoadID.String(),
 		CarrierID:  e.CarrierID.String(),
 		Lat:        e.Lat,
@@ -109,13 +121,13 @@ func (r *locationPointsRepo) toModel(e *domain.CarrierLocationPoint) *CarrierLoc
 	}
 }
 
-func (r *locationPointsRepo) toDomain(m *CarrierLocationPoints) *domain.CarrierLocationPoint {
+func (r *loadLocationPointsRepo) toDomain(m *LoadLocationPoints) *domain.LoadLocationPoint {
 	if m == nil {
 		return nil
 	}
 	loadID, _ := uuid.Parse(m.LoadID)
 	carrierID, _ := uuid.Parse(m.CarrierID)
-	return &domain.CarrierLocationPoint{
+	return &domain.LoadLocationPoint{
 		ID:         m.ID,
 		LoadID:     loadID,
 		CarrierID:  carrierID,

@@ -11,17 +11,21 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/api"
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/validation"
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/worker"
+	"github.com/karavanix/karavantrack-api-server/internal/events"
 	"github.com/karavanix/karavantrack-api-server/internal/infrastructure/persistence/cache"
 	"github.com/karavanix/karavantrack-api-server/internal/infrastructure/persistence/repository"
+	"github.com/karavanix/karavantrack-api-server/internal/service/broker"
 	"github.com/karavanix/karavantrack-api-server/internal/service/presence"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/auth"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/companies"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/loads"
+	"github.com/karavanix/karavantrack-api-server/internal/usecase/location"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/users"
 	"github.com/karavanix/karavantrack-api-server/pkg/app"
 	"github.com/karavanix/karavantrack-api-server/pkg/config"
 	"github.com/karavanix/karavantrack-api-server/pkg/database/postgres"
 	"github.com/karavanix/karavantrack-api-server/pkg/logger"
+	"github.com/karavanix/karavantrack-api-server/pkg/nats"
 	"github.com/karavanix/karavantrack-api-server/pkg/otlp"
 	"github.com/karavanix/karavantrack-api-server/pkg/redis"
 	"github.com/karavanix/karavantrack-api-server/pkg/security"
@@ -36,6 +40,7 @@ type ServerApp struct {
 	redis        *redis.RedisClient
 	taskQueue    *asynq.Client
 	taskWorker   *asynq.Server
+	bkr          broker.Broker
 	shutdownOTLP func(context.Context) error
 }
 
@@ -80,6 +85,16 @@ func NewServerApp(cfg *config.Config) (*ServerApp, error) {
 
 	taskQueue := asynq.NewClientFromRedisClient(redis.GetRedisClient())
 
+	natsClient, err := nats.NewClient(
+		nats.WithHost(cfg.Nats.Host),
+		nats.WithPort(cfg.Nats.Port),
+		nats.WithUsername(cfg.Nats.Username),
+		nats.WithPassword(cfg.Nats.Password),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create nats client: %w", err)
+	}
+
 	return &ServerApp{
 		config:       cfg,
 		logger:       logger,
@@ -88,6 +103,7 @@ func NewServerApp(cfg *config.Config) (*ServerApp, error) {
 		redis:        redis,
 		taskQueue:    taskQueue,
 		taskWorker:   nil,
+		bkr:          natsClient,
 		shutdownOTLP: shutdownOTLP,
 	}, nil
 
@@ -102,6 +118,7 @@ func (s *ServerApp) Run() error {
 		s.config.JWT.RefreshTTL,
 		jwt.SigningMethodHS256,
 	)
+	eventFactory := events.NewFactory(s.config)
 
 	// cache
 	presenceRepo := cache.NewPresenceRedisStore(s.config, s.redis)
@@ -112,7 +129,7 @@ func (s *ServerApp) Run() error {
 	companyMembersRepo := repository.NewCompanyMembersRepo(s.db)
 	companyCarriersRepo := repository.NewCompanyCarriersRepo(s.db)
 	loadsRepo := repository.NewLoadsRepo(s.db)
-	locationsPointsRepo := repository.NewLocationPointsRepo(s.db)
+	loadLocationsPointsRepo := repository.NewLoadLocationPointsRepo(s.db)
 
 	// service
 	presenceService := presence.NewService(s.config.Context.Timeout, presenceRepo)
@@ -121,18 +138,21 @@ func (s *ServerApp) Run() error {
 	authUsecase := auth.NewUsecase(s.config.Context.Timeout, jwtProvider, usersRepo)
 	usersUsecase := users.NewUsecase(s.config.Context.Timeout, usersRepo)
 	companiesUsecase := companies.NewUsecase(s.config.Context.Timeout, txManager, companiesRepo, companyMembersRepo, companyCarriersRepo, usersRepo)
-	loadsUsecase := loads.NewUsecase(s.config.Context.Timeout, loadsRepo, usersRepo, locationsPointsRepo)
+	loadsUsecase := loads.NewUsecase(s.config.Context.Timeout, loadsRepo, usersRepo, loadLocationsPointsRepo)
+	locationUsecase := location.NewUsecase(s.config.Context.Timeout, s.bkr, eventFactory, loadLocationsPointsRepo)
 
 	// init handlers options
 	opts := &delivery.HandlerOptions{
 		Config:           s.config,
 		Validator:        validation.NewValidator(),
 		JWTProvider:      jwtProvider,
+		Broker:           s.bkr,
 		PresenceService:  presenceService,
 		AuthUsecase:      authUsecase,
 		UsersUsecase:     usersUsecase,
 		CompaniesUsecase: companiesUsecase,
 		LoadsUsecase:     loadsUsecase,
+		LocationUsecase:  locationUsecase,
 	}
 
 	mux := worker.NewRouter(opts)
@@ -161,6 +181,10 @@ func (s *ServerApp) Shutdown(ctx context.Context) error {
 
 	if s.redis != nil {
 		_ = s.redis.Close()
+	}
+
+	if s.bkr != nil {
+		_ = s.bkr.Close(ctx)
 	}
 
 	if s.shutdownOTLP != nil {

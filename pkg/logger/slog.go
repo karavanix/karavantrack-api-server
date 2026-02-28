@@ -143,6 +143,40 @@ func LogContext(ctx context.Context, logLevel app.LogLevel, msg string, args ...
 	logger.Logger.Log(ctx, LogLevelToSlogLevel(logLevel), msg, args...)
 }
 
+func Debug(msg string, args ...any) {
+	args = append(args, GetSource(2))
+	logger.Logger.Debug(msg, args...)
+}
+
+func Info(msg string, args ...any) {
+	args = append(args, GetSource(2))
+	logger.Logger.Info(msg, args...)
+}
+
+func Error(msg string, err error, args ...any) {
+	if err != nil {
+		args = append(args, "exception.message", err.Error())
+		args = append(args, "exception.type", fmt.Sprintf("%T", err))
+
+		var httpErr *inerr.ErrHttp
+		if errors.As(err, &httpErr) {
+			args = append(args,
+				"http.request.method", httpErr.Method,
+				"http.route", httpErr.Endpoint,
+				"http.response.status_code", httpErr.StatusCode,
+				"http.server.request.duration", float64(httpErr.Duration)/float64(time.Second),
+			)
+		}
+	}
+	args = append(args, GetSource(2))
+	logger.Logger.Error(msg, args...)
+}
+
+func Warn(msg string, args ...any) {
+	args = append(args, GetSource(2))
+	logger.Logger.Warn(msg, args...)
+}
+
 func (l *Logger) Close() {
 	if l.logFile != nil {
 		_ = l.logFile.Close()
