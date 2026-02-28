@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/hibiken/asynq"
+	workerhandlers "github.com/karavanix/karavantrack-api-server/internal/delivery/worker/handlers"
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
 	"github.com/karavanix/karavantrack-api-server/internal/inerr"
 	"github.com/karavanix/karavantrack-api-server/pkg/logger"
@@ -17,13 +19,15 @@ type AssignUsecase struct {
 	contextDuration time.Duration
 	loadsRepo       domain.LoadRepository
 	usersRepo       domain.UserRepository
+	taskQueue       *asynq.Client
 }
 
-func NewAssignUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository, usersRepo domain.UserRepository) *AssignUsecase {
+func NewAssignUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository, usersRepo domain.UserRepository, taskQueue *asynq.Client) *AssignUsecase {
 	return &AssignUsecase{
 		contextDuration: contextDuration,
 		loadsRepo:       loadsRepo,
 		usersRepo:       usersRepo,
+		taskQueue:       taskQueue,
 	}
 }
 
@@ -81,7 +85,17 @@ func (u *AssignUsecase) Assign(ctx context.Context, loadID string, req *AssignRe
 		return err
 	}
 
-	// TODO: enqueue push notification to carrier
+	// Enqueue push notification to carrier
+	if task, err := workerhandlers.NewSendPushTask(
+		load.CarrierID.String(),
+		"Новый груз",
+		"Вам назначен новый груз: "+load.Title,
+		map[string]string{"load_id": load.ID.String(), "action": "assigned"},
+	); err == nil {
+		if _, err := u.taskQueue.Enqueue(task); err != nil {
+			logger.ErrorContext(ctx, "failed to enqueue push notification", err)
+		}
+	}
 
 	return nil
 }

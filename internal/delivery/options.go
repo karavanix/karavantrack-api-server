@@ -3,6 +3,7 @@ package delivery
 import (
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/validation"
 	"github.com/karavanix/karavantrack-api-server/internal/service/broker"
+	"github.com/karavanix/karavantrack-api-server/internal/service/notification"
 	"github.com/karavanix/karavantrack-api-server/internal/service/presence"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/auth"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/companies"
@@ -20,7 +21,8 @@ type HandlerOptions struct {
 	Broker      broker.Broker
 
 	// Services
-	PresenceService presence.Service
+	PresenceService     presence.Service
+	NotificationService notification.Service
 
 	// Usecases
 	AuthUsecase      *auth.Usecase

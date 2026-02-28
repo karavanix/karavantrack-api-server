@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/hibiken/asynq"
+	workerhandlers "github.com/karavanix/karavantrack-api-server/internal/delivery/worker/handlers"
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
 	"github.com/karavanix/karavantrack-api-server/internal/inerr"
 	"github.com/karavanix/karavantrack-api-server/pkg/logger"
@@ -16,10 +18,11 @@ import (
 type ConfirmUsecase struct {
 	contextDuration time.Duration
 	loadsRepo       domain.LoadRepository
+	taskQueue       *asynq.Client
 }
 
-func NewConfirmUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository) *ConfirmUsecase {
-	return &ConfirmUsecase{contextDuration: contextDuration, loadsRepo: loadsRepo}
+func NewConfirmUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository, taskQueue *asynq.Client) *ConfirmUsecase {
+	return &ConfirmUsecase{contextDuration: contextDuration, loadsRepo: loadsRepo, taskQueue: taskQueue}
 }
 
 func (u *ConfirmUsecase) Confirm(ctx context.Context, loadID string) (err error) {
@@ -55,7 +58,17 @@ func (u *ConfirmUsecase) Confirm(ctx context.Context, loadID string) (err error)
 		return err
 	}
 
-	// TODO: enqueue push notification to carrier
+	// Enqueue push notification to carrier
+	if task, err := workerhandlers.NewSendPushTask(
+		load.CarrierID.String(),
+		"Груз подтверждён",
+		"Владелец подтвердил доставку: "+load.Title,
+		map[string]string{"load_id": load.ID.String(), "action": "confirmed"},
+	); err == nil {
+		if _, err := u.taskQueue.Enqueue(task); err != nil {
+			logger.ErrorContext(ctx, "failed to enqueue push notification", err)
+		}
+	}
 
 	return nil
 }

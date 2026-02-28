@@ -15,6 +15,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/infrastructure/persistence/cache"
 	"github.com/karavanix/karavantrack-api-server/internal/infrastructure/persistence/repository"
 	"github.com/karavanix/karavantrack-api-server/internal/service/broker"
+	"github.com/karavanix/karavantrack-api-server/internal/service/notification"
 	"github.com/karavanix/karavantrack-api-server/internal/service/presence"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/auth"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/companies"
@@ -24,6 +25,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/pkg/app"
 	"github.com/karavanix/karavantrack-api-server/pkg/config"
 	"github.com/karavanix/karavantrack-api-server/pkg/database/postgres"
+	"github.com/karavanix/karavantrack-api-server/pkg/firebase"
 	"github.com/karavanix/karavantrack-api-server/pkg/logger"
 	"github.com/karavanix/karavantrack-api-server/pkg/nats"
 	"github.com/karavanix/karavantrack-api-server/pkg/otlp"
@@ -130,29 +132,41 @@ func (s *ServerApp) Run() error {
 	companyCarriersRepo := repository.NewCompanyCarriersRepo(s.db)
 	loadsRepo := repository.NewLoadsRepo(s.db)
 	loadLocationsPointsRepo := repository.NewLoadLocationPointsRepo(s.db)
+	fcmDevicesRepo := repository.NewFCMDevicesRepo(s.db)
+
+	// firebase
+	fcmClient, err := firebase.New(context.Background(), s.config)
+	if err != nil {
+		s.logger.Warn("Firebase FCM client initialization failed, push notifications disabled", "error", err)
+	}
 
 	// service
 	presenceService := presence.NewService(s.config.Context.Timeout, presenceRepo)
+	var notificationService notification.Service
+	if fcmClient != nil {
+		notificationService = notification.NewService(fcmClient, fcmDevicesRepo)
+	}
 
 	// usecase
 	authUsecase := auth.NewUsecase(s.config.Context.Timeout, jwtProvider, usersRepo)
-	usersUsecase := users.NewUsecase(s.config.Context.Timeout, usersRepo)
+	usersUsecase := users.NewUsecase(s.config.Context.Timeout, usersRepo, fcmDevicesRepo)
 	companiesUsecase := companies.NewUsecase(s.config.Context.Timeout, txManager, companiesRepo, companyMembersRepo, companyCarriersRepo, usersRepo)
-	loadsUsecase := loads.NewUsecase(s.config.Context.Timeout, loadsRepo, usersRepo, loadLocationsPointsRepo)
+	loadsUsecase := loads.NewUsecase(s.config.Context.Timeout, loadsRepo, usersRepo, loadLocationsPointsRepo, s.taskQueue)
 	locationUsecase := location.NewUsecase(s.config.Context.Timeout, s.bkr, eventFactory, loadLocationsPointsRepo)
 
 	// init handlers options
 	opts := &delivery.HandlerOptions{
-		Config:           s.config,
-		Validator:        validation.NewValidator(),
-		JWTProvider:      jwtProvider,
-		Broker:           s.bkr,
-		PresenceService:  presenceService,
-		AuthUsecase:      authUsecase,
-		UsersUsecase:     usersUsecase,
-		CompaniesUsecase: companiesUsecase,
-		LoadsUsecase:     loadsUsecase,
-		LocationUsecase:  locationUsecase,
+		Config:              s.config,
+		Validator:           validation.NewValidator(),
+		JWTProvider:         jwtProvider,
+		Broker:              s.bkr,
+		PresenceService:     presenceService,
+		NotificationService: notificationService,
+		AuthUsecase:         authUsecase,
+		UsersUsecase:        usersUsecase,
+		CompaniesUsecase:    companiesUsecase,
+		LoadsUsecase:        loadsUsecase,
+		LocationUsecase:     locationUsecase,
 	}
 
 	mux := worker.NewRouter(opts)

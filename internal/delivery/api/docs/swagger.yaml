@@ -56,6 +56,39 @@ definitions:
     required:
     - refresh_token
     type: object
+  command.RegisterDeviceRequest:
+    properties:
+      device_id:
+        type: string
+      device_name:
+        type: string
+      device_token:
+        type: string
+      device_type:
+        type: string
+    required:
+    - device_id
+    - device_token
+    type: object
+  command.RegisterLoadLocationRequest:
+    properties:
+      accuracy_m:
+        type: number
+      carrier_id:
+        type: string
+      heading_deg:
+        type: number
+      lat:
+        type: number
+      lng:
+        type: number
+      load_id:
+        type: string
+      recorded_at:
+        type: string
+      speed_mps:
+        type: number
+    type: object
   command.RegisterRequest:
     properties:
       email:
@@ -178,6 +211,17 @@ definitions:
       status:
         type: string
     type: object
+  query.GetTrackResponse:
+    properties:
+      load_id:
+        type: string
+      points:
+        items:
+          $ref: '#/definitions/query.TrackPointResponse'
+        type: array
+      total:
+        type: integer
+    type: object
   query.ListCarriersResponse:
     properties:
       alias:
@@ -260,6 +304,59 @@ definitions:
       member_id:
         type: string
       role:
+        type: string
+    type: object
+  query.PositionResponse:
+    properties:
+      accuracy_m:
+        type: number
+      carrier_id:
+        type: string
+      heading_deg:
+        type: number
+      lat:
+        type: number
+      lng:
+        type: number
+      load_id:
+        type: string
+      recorded_at:
+        type: string
+      speed_mps:
+        type: number
+    type: object
+  query.TrackPointResponse:
+    properties:
+      accuracy_m:
+        type: number
+      heading_deg:
+        type: number
+      lat:
+        type: number
+      lng:
+        type: number
+      recorded_at:
+        type: string
+      speed_mps:
+        type: number
+    type: object
+  query.UsersResponse:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      first_name:
+        type: string
+      id:
+        type: string
+      last_name:
+        type: string
+      phone:
+        type: string
+      role:
+        type: string
+      updated_at:
         type: string
     type: object
 info:
@@ -975,9 +1072,45 @@ paths:
       summary: Confirm load delivery
       tags:
       - Loads
+  /loads/{id}/location:
+    post:
+      consumes:
+      - application/json
+      description: Register a GPS location point for an in-transit load (MVP REST
+        alternative to WebSocket)
+      parameters:
+      - description: Load ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Location data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/command.RegisterLoadLocationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/outerr.Response'
+      security:
+      - BearerAuth: []
+      summary: Register location point
+      tags:
+      - Loads
   /loads/{id}/position:
     get:
-      description: Get current tracked position for a load
+      description: Get current tracked position for a load (latest GPS point)
       parameters:
       - description: Load ID
         in: path
@@ -989,8 +1122,18 @@ paths:
       responses:
         "200":
           description: OK
+          schema:
+            $ref: '#/definitions/query.PositionResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/outerr.Response'
         "401":
           description: Unauthorized
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "404":
+          description: Not Found
           schema:
             $ref: '#/definitions/outerr.Response'
       security:
@@ -1030,13 +1173,31 @@ paths:
         name: id
         required: true
         type: string
+      - description: Max number of points (default 100, max 1000)
+        in: query
+        name: limit
+        type: integer
+      - description: Pagination offset
+        in: query
+        name: offset
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
+          schema:
+            $ref: '#/definitions/query.GetTrackResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/outerr.Response'
         "401":
           description: Unauthorized
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "404":
+          description: Not Found
           schema:
             $ref: '#/definitions/outerr.Response'
       security:
@@ -1044,6 +1205,37 @@ paths:
       summary: Get load track
       tags:
       - Loads
+  /users/carriers/search:
+    get:
+      description: Search for carrier users by name, email, or phone
+      parameters:
+      - description: Search query (name, email, or phone)
+        in: query
+        name: q
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/query.UsersResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/outerr.Response'
+      security:
+      - BearerAuth: []
+      summary: Search carriers
+      tags:
+      - Users
   /users/me:
     get:
       description: Get the profile of the authenticated user (includes role)
@@ -1094,6 +1286,67 @@ paths:
       security:
       - BearerAuth: []
       summary: Update current user
+      tags:
+      - Users
+  /users/me/devices:
+    post:
+      consumes:
+      - application/json
+      description: Register or update a device for push notifications
+      parameters:
+      - description: Device registration
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/command.RegisterDeviceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/outerr.Response'
+      security:
+      - BearerAuth: []
+      summary: Register FCM device
+      tags:
+      - Users
+  /users/shippers/search:
+    get:
+      description: Search for shipper users by name, email, or phone
+      parameters:
+      - description: Search query (name, email, or phone)
+        in: query
+        name: q
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/query.UsersResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/outerr.Response'
+      security:
+      - BearerAuth: []
+      summary: Search shippers
       tags:
       - Users
   /ws:

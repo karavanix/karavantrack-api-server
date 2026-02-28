@@ -15,21 +15,25 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/loads"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/loads/command"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/loads/query"
+	"github.com/karavanix/karavantrack-api-server/internal/usecase/location"
+	locationcmd "github.com/karavanix/karavantrack-api-server/internal/usecase/location/command"
 	"github.com/karavanix/karavantrack-api-server/pkg/app"
 	"github.com/karavanix/karavantrack-api-server/pkg/config"
 )
 
 type handler struct {
-	cfg          *config.Config
-	validator    *validation.Validator
-	loadsUsecase *loads.Usecase
+	cfg             *config.Config
+	validator       *validation.Validator
+	loadsUsecase    *loads.Usecase
+	locationUsecase *location.Usecase
 }
 
 func New(opts *delivery.HandlerOptions) http.Handler {
 	h := &handler{
-		cfg:          opts.Config,
-		validator:    opts.Validator,
-		loadsUsecase: opts.LoadsUsecase,
+		cfg:             opts.Config,
+		validator:       opts.Validator,
+		loadsUsecase:    opts.LoadsUsecase,
+		locationUsecase: opts.LocationUsecase,
 	}
 
 	r := chi.NewRouter()
@@ -56,7 +60,7 @@ func New(opts *delivery.HandlerOptions) http.Handler {
 		r.Post("/{id}/accept", h.Accept())
 		r.Post("/{id}/start", h.Start())
 		r.Post("/{id}/complete", h.Complete())
-
+		r.Post("/{id}/location", h.RegisterLocation())
 	})
 
 	return r
@@ -324,32 +328,93 @@ func (h *handler) Cancel() http.HandlerFunc {
 // @Description  Get location history tracking for a load
 // @Tags         Loads
 // @Produce      json
-// @Param        id   path      string  true  "Load ID"
-// @Success      200
+// @Param        id     path  string true  "Load ID"
+// @Param        limit  query int    false "Max number of points (default 100, max 1000)"
+// @Param        offset query int    false "Pagination offset"
+// @Success      200  {object} query.GetTrackResponse
+// @Failure      400  {object} outerr.Response
 // @Failure      401  {object} outerr.Response
+// @Failure      404  {object} outerr.Response
 // @Router       /loads/{id}/track [get]
 func (h *handler) GetTrack() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// TODO: implement location history query via LocationPointsRepository
-		_ = chi.URLParam(r, "id")
-		render.JSON(w, r, map[string]string{"status": "not_implemented"})
+		loadID := chi.URLParam(r, "id")
+		limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+		offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+
+		resp, err := h.loadsUsecase.Query.GetTrack(r.Context(), loadID, limit, offset)
+		if err != nil {
+			outerr.HandleHTTP(w, r, err)
+			return
+		}
+
+		render.JSON(w, r, resp)
 	}
 }
 
 // GetPosition godoc
 // @Security     BearerAuth
 // @Summary      Get current position
-// @Description  Get current tracked position for a load
+// @Description  Get current tracked position for a load (latest GPS point)
 // @Tags         Loads
 // @Produce      json
 // @Param        id   path      string  true  "Load ID"
-// @Success      200
+// @Success      200  {object} query.PositionResponse
+// @Failure      400  {object} outerr.Response
 // @Failure      401  {object} outerr.Response
+// @Failure      404  {object} outerr.Response
 // @Router       /loads/{id}/position [get]
 func (h *handler) GetPosition() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// TODO: implement current carrier position query via LocationPointsRepository
-		_ = chi.URLParam(r, "id")
-		render.JSON(w, r, map[string]string{"status": "not_implemented"})
+		loadID := chi.URLParam(r, "id")
+
+		resp, err := h.loadsUsecase.Query.GetPosition(r.Context(), loadID)
+		if err != nil {
+			outerr.HandleHTTP(w, r, err)
+			return
+		}
+
+		render.JSON(w, r, resp)
+	}
+}
+
+// RegisterLocation godoc
+// @Security     BearerAuth
+// @Summary      Register location point
+// @Description  Register a GPS location point for an in-transit load (MVP REST alternative to WebSocket)
+// @Tags         Loads
+// @Accept       json
+// @Produce      json
+// @Param        id   path      string  true  "Load ID"
+// @Param        body body locationcmd.RegisterLoadLocationRequest true "Location data"
+// @Success      200
+// @Failure      400  {object} outerr.Response
+// @Failure      401  {object} outerr.Response
+// @Router       /loads/{id}/location [post]
+func (h *handler) RegisterLocation() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := app.UserID[string](r.Context())
+		if !ok {
+			outerr.Forbidden(w, r, "missing user context")
+			return
+		}
+
+		loadID := chi.URLParam(r, "id")
+
+		var req locationcmd.RegisterLoadLocationRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			outerr.BadRequest(w, r, "invalid request body")
+			return
+		}
+
+		req.LoadID = loadID
+		req.CarrierID = userID
+
+		if err := h.locationUsecase.Command.RegisterLoadLocation(r.Context(), &req); err != nil {
+			outerr.HandleHTTP(w, r, err)
+			return
+		}
+
+		render.Status(r, http.StatusOK)
 	}
 }

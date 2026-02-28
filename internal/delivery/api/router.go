@@ -14,6 +14,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/handlers/companies"
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/handlers/loads"
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/handlers/users"
+	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/handlers/ws"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
 
@@ -58,6 +59,7 @@ func NewRouter(options *delivery.HandlerOptions) http.Handler {
 		r.Mount("/users", users.New(options))
 		r.Mount("/companies", companies.New(options))
 		r.Mount("/loads", loads.New(options))
+		r.Mount("/ws", ws.New(options))
 	})
 
 	// Set swagger

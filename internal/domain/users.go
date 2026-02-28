@@ -109,4 +109,5 @@ type UserRepository interface {
 	FindByID(ctx context.Context, id uuid.UUID) (*User, error)
 	FindByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]*User, error)
 	FindCarriersByQuery(ctx context.Context, query string) ([]*User, error)
+	FindShippersByQuery(ctx context.Context, query string) ([]*User, error)
 }

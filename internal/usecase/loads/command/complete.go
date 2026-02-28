@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/hibiken/asynq"
+	workerhandlers "github.com/karavanix/karavantrack-api-server/internal/delivery/worker/handlers"
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
 	"github.com/karavanix/karavantrack-api-server/internal/inerr"
 	"github.com/karavanix/karavantrack-api-server/pkg/logger"
@@ -16,10 +18,11 @@ import (
 type CompleteUsecase struct {
 	contextDuration time.Duration
 	loadsRepo       domain.LoadRepository
+	taskQueue       *asynq.Client
 }
 
-func NewCompleteUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository) *CompleteUsecase {
-	return &CompleteUsecase{contextDuration: contextDuration, loadsRepo: loadsRepo}
+func NewCompleteUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository, taskQueue *asynq.Client) *CompleteUsecase {
+	return &CompleteUsecase{contextDuration: contextDuration, loadsRepo: loadsRepo, taskQueue: taskQueue}
 }
 
 func (u *CompleteUsecase) Complete(ctx context.Context, loadID string) (err error) {
@@ -55,8 +58,17 @@ func (u *CompleteUsecase) Complete(ctx context.Context, loadID string) (err erro
 		return err
 	}
 
-	// TODO: enqueue push + email notification to cargo owner
-	// TODO: stop GPS tracking
+	// Enqueue push notification to cargo owner
+	if task, err := workerhandlers.NewSendPushTask(
+		load.MemberID.String(),
+		"Поездка завершена",
+		"Водитель завершил поездку: "+load.Title,
+		map[string]string{"load_id": load.ID.String(), "action": "completed"},
+	); err == nil {
+		if _, err := u.taskQueue.Enqueue(task); err != nil {
+			logger.ErrorContext(ctx, "failed to enqueue push notification", err)
+		}
+	}
 
 	return nil
 }
