@@ -37,7 +37,7 @@ func New(ctx context.Context, cfg *config.Config) (*FCM, error) {
 		return nil, fmt.Errorf("failed to decode service key: %v", err)
 	}
 
-	opt := option.WithCredentialsJSON([]byte(serviceKey))
+	opt := option.WithAuthCredentialsJSON(option.ServiceAccount, []byte(serviceKey))
 	app, err := firebase.NewApp(ctx, nil, opt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize app: %v", err)

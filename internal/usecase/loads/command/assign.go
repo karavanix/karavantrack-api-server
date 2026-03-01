@@ -6,9 +6,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
-	workerhandlers "github.com/karavanix/karavantrack-api-server/internal/delivery/worker/handlers"
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
 	"github.com/karavanix/karavantrack-api-server/internal/inerr"
+	"github.com/karavanix/karavantrack-api-server/internal/tasks"
 	"github.com/karavanix/karavantrack-api-server/pkg/logger"
 	"github.com/karavanix/karavantrack-api-server/pkg/otlp"
 	"go.opentelemetry.io/otel"
@@ -85,16 +85,25 @@ func (u *AssignUsecase) Assign(ctx context.Context, loadID string, req *AssignRe
 		return err
 	}
 
-	// Enqueue push notification to carrier
-	if task, err := workerhandlers.NewSendPushTask(
+	task, err := tasks.NewSendPushNotificationTask(
 		load.CarrierID.String(),
-		"Новый груз",
-		"Вам назначен новый груз: "+load.Title,
-		map[string]string{"load_id": load.ID.String(), "action": "assigned"},
-	); err == nil {
-		if _, err := u.taskQueue.Enqueue(task); err != nil {
-			logger.ErrorContext(ctx, "failed to enqueue push notification", err)
-		}
+		tasks.PushNotification{
+			Title: "Новый груз",
+			Body:  "Вам назначен новый груз: " + load.Title,
+			Metadata: map[string]string{
+				"load_id": load.ID.String(),
+				"action":  "assigned",
+			},
+		},
+	)
+	if err != nil {
+		logger.ErrorContext(ctx, "failed to create push notification task", err)
+		return err
+	}
+
+	if _, err := u.taskQueue.Enqueue(task); err != nil {
+		logger.ErrorContext(ctx, "failed to enqueue push notification", err)
+		return err
 	}
 
 	return nil

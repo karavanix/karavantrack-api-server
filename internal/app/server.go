@@ -121,6 +121,10 @@ func (s *ServerApp) Run() error {
 		jwt.SigningMethodHS256,
 	)
 	eventFactory := events.NewFactory(s.config)
+	fcmClient, err := firebase.New(context.Background(), s.config)
+	if err != nil {
+		return fmt.Errorf("failed to create firebase client: %w", err)
+	}
 
 	// cache
 	presenceRepo := cache.NewPresenceRedisStore(s.config, s.redis)
@@ -134,18 +138,9 @@ func (s *ServerApp) Run() error {
 	loadLocationsPointsRepo := repository.NewLoadLocationPointsRepo(s.db)
 	fcmDevicesRepo := repository.NewFCMDevicesRepo(s.db)
 
-	// firebase
-	fcmClient, err := firebase.New(context.Background(), s.config)
-	if err != nil {
-		s.logger.Warn("Firebase FCM client initialization failed, push notifications disabled", "error", err)
-	}
-
 	// service
 	presenceService := presence.NewService(s.config.Context.Timeout, presenceRepo)
-	var notificationService notification.Service
-	if fcmClient != nil {
-		notificationService = notification.NewService(fcmClient, fcmDevicesRepo)
-	}
+	notificationService := notification.NewService(fcmClient, fcmDevicesRepo)
 
 	// usecase
 	authUsecase := auth.NewUsecase(s.config.Context.Timeout, jwtProvider, usersRepo)
