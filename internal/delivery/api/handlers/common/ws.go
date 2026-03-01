@@ -1,11 +1,9 @@
-package ws
+package common
 
 import (
 	"net/http"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/karavanix/karavantrack-api-server/internal/delivery"
-	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/middleware"
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/websocket"
 )
 
@@ -13,17 +11,11 @@ type wsHandler struct {
 	handler http.Handler
 }
 
-func New(opts *delivery.HandlerOptions) http.Handler {
-	wsHandler := &wsHandler{
-		handler: websocket.NewRouter(opts),
+func NewWSHandler(opts *delivery.HandlerOptions) *wsHandler {
+	handler := websocket.NewRouter(opts)
+	return &wsHandler{
+		handler: handler,
 	}
-
-	r := chi.NewRouter()
-	r.Use(middleware.AuthorizeAny(opts.JWTProvider))
-
-	r.Get("/", wsHandler.WebSocketHandler)
-
-	return r
 }
 
 // ChatWsHandler godoc

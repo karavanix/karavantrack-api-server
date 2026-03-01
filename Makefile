@@ -36,9 +36,14 @@ migrate-force:
 	migrate -path ./migrations -database  "postgres://${DB_USERNAME}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_DATABASE}?sslmode=disable" force $$version
 
 # generate swagger
-.PHONY: swagger-gen
-swagger-gen:
-	swag init --parseDependency --dir ./internal/delivery/api -g router.go -o ./internal/delivery/api/docs
+.PHONY: swagger-gen swagger-gen-carrier swagger-gen-shipper
+swagger-gen: swagger-gen-carrier swagger-gen-shipper
+
+swagger-gen-carrier:
+	swag init --instanceName carrier --parseDependency --dir ./internal/delivery/api/handlers/carriers,./internal/delivery/api/handlers/common -g routes.go -o ./internal/delivery/api/docs/carrier
+
+swagger-gen-shipper:
+	swag init --instanceName shipper --parseDependency --dir ./internal/delivery/api/handlers/shippers,./internal/delivery/api/handlers/common -g routes.go -o ./internal/delivery/api/docs/shipper
 
 .PHONY: asynqmon
 asynqmon:

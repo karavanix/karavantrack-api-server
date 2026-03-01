@@ -70,25 +70,6 @@ definitions:
     - device_id
     - device_token
     type: object
-  command.RegisterLoadLocationRequest:
-    properties:
-      accuracy_m:
-        type: number
-      carrier_id:
-        type: string
-      heading_deg:
-        type: number
-      lat:
-        type: number
-      lng:
-        type: number
-      load_id:
-        type: string
-      recorded_at:
-        type: string
-      speed_mps:
-        type: number
-    type: object
   command.RegisterRequest:
     properties:
       email:
@@ -360,17 +341,8 @@ definitions:
         type: string
     type: object
 info:
-  contact:
-    email: support@swagger.io
-    name: API Support
-    url: http://www.swagger.io/support
-  description: Documentation of the Karavantrack API server
-  license:
-    name: Apache 2.0
-    url: http://www.apache.org/licenses/LICENSE-2.0.html
-  termsOfService: http://swagger.io/terms/
-  title: Karavantrack API Documentation
-  version: 0.0.1
+  contact: {}
+  title: Shippers API
 paths:
   /auth/login:
     post:
@@ -937,33 +909,6 @@ paths:
       summary: Get load
       tags:
       - Loads
-  /loads/{id}/accept:
-    post:
-      description: Accept an assigned load (by carrier)
-      parameters:
-      - description: Load ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/outerr.Response'
-      security:
-      - BearerAuth: []
-      summary: Accept load
-      tags:
-      - Loads
   /loads/{id}/assign:
     post:
       consumes:
@@ -1026,29 +971,6 @@ paths:
       summary: Cancel load
       tags:
       - Loads
-  /loads/{id}/complete:
-    post:
-      description: Complete a load (by carrier)
-      parameters:
-      - description: Load ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/outerr.Response'
-      security:
-      - BearerAuth: []
-      summary: Complete load
-      tags:
-      - Loads
   /loads/{id}/confirm:
     post:
       description: Confirm a completed load delivery (by company/dispatcher)
@@ -1070,42 +992,6 @@ paths:
       security:
       - BearerAuth: []
       summary: Confirm load delivery
-      tags:
-      - Loads
-  /loads/{id}/location:
-    post:
-      consumes:
-      - application/json
-      description: Register a GPS location point for an in-transit load (MVP REST
-        alternative to WebSocket)
-      parameters:
-      - description: Load ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Location data
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/command.RegisterLoadLocationRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/outerr.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/outerr.Response'
-      security:
-      - BearerAuth: []
-      summary: Register location point
       tags:
       - Loads
   /loads/{id}/position:
@@ -1139,29 +1025,6 @@ paths:
       security:
       - BearerAuth: []
       summary: Get current position
-      tags:
-      - Loads
-  /loads/{id}/start:
-    post:
-      description: Start a load (by carrier, transitions to in-transit)
-      parameters:
-      - description: Load ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/outerr.Response'
-      security:
-      - BearerAuth: []
-      summary: Start load
       tags:
       - Loads
   /loads/{id}/track:
@@ -1318,37 +1181,6 @@ paths:
       summary: Register FCM device
       tags:
       - Users
-  /users/shippers/search:
-    get:
-      description: Search for shipper users by name, email, or phone
-      parameters:
-      - description: Search query (name, email, or phone)
-        in: query
-        name: q
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/query.UsersResponse'
-            type: array
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/outerr.Response'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/outerr.Response'
-      security:
-      - BearerAuth: []
-      summary: Search shippers
-      tags:
-      - Users
   /ws:
     get:
       consumes:
@@ -1375,8 +1207,6 @@ paths:
       tags:
       - WebSocket
 securityDefinitions:
-  BasicAuth:
-    type: basic
   BearerAuth:
     description: API Токен используется для авторизации
     in: header

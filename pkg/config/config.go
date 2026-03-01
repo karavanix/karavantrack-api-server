@@ -149,6 +149,9 @@ func New() (*Config, error) {
 		return nil, fmt.Errorf("JWT_REFRESH_TTL: %w", err)
 	}
 
+	// Firebase
+	c.Firebase.AuthKey = getEnv("FIREBASE_AUTH_KEY", "")
+
 	// OTLP
 	c.OTEL.ServiceName = getEnv("OTEL_SERVICE_NAME", "karavantruck-api-server")
 	c.OTEL.Propagators = getEnv("OTEL_PROPAGATORS", "baggage,tracecontext")

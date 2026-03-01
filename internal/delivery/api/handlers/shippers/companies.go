@@ -1,4 +1,4 @@
-package companies
+package shippers
 
 import (
 	"encoding/json"
@@ -8,10 +8,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
 	"github.com/karavanix/karavantrack-api-server/internal/delivery"
-	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/middleware"
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/validation"
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/outerr"
-	"github.com/karavanix/karavantrack-api-server/internal/domain/shared"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/companies"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/companies/command"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/companies/query"
@@ -21,46 +19,20 @@ import (
 	"github.com/karavanix/karavantrack-api-server/pkg/config"
 )
 
-type handler struct {
+type companiesHandler struct {
 	cfg              *config.Config
 	validator        *validation.Validator
 	companiesUsecase *companies.Usecase
 	loadsUsecase     *loads.Usecase
 }
 
-func New(opts *delivery.HandlerOptions) http.Handler {
-	h := &handler{
+func NewCompaniesHandler(opts *delivery.HandlerOptions) *companiesHandler {
+	return &companiesHandler{
 		cfg:              opts.Config,
 		validator:        opts.Validator,
 		companiesUsecase: opts.CompaniesUsecase,
 		loadsUsecase:     opts.LoadsUsecase,
 	}
-
-	r := chi.NewRouter()
-	r.Group(func(r chi.Router) {
-		r.Use(middleware.AuthorizeAny(opts.JWTProvider))
-		r.Get("/{id}", h.Get())
-
-	})
-
-	r.Group(func(r chi.Router) {
-		r.Use(middleware.AuthorizeByRole(opts.JWTProvider, shared.RoleShipper))
-		r.Post("/", h.Create())
-		r.Get("/mine", h.ListMine())
-		r.Put("/{id}", h.Update())
-
-		r.Get("/{id}/loads", h.ListLoads())
-
-		r.Post("/{id}/members", h.AddMember())
-		r.Get("/{id}/members", h.ListMembers())
-		r.Delete("/{id}/members/{user_id}", h.RemoveMember())
-
-		r.Get("/{id}/carriers", h.ListCarriers())
-		r.Post("/{id}/carriers", h.AddCarrier())
-		r.Delete("/{id}/carriers/{carrier_id}", h.RemoveCarrier())
-	})
-
-	return r
 }
 
 // Create godoc
@@ -76,7 +48,7 @@ func New(opts *delivery.HandlerOptions) http.Handler {
 // @Failure      401  {object} outerr.Response
 // @Failure      403  {object} outerr.Response
 // @Router       /companies [post]
-func (h *handler) Create() http.HandlerFunc {
+func (h *companiesHandler) Create() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, ok := app.UserID[string](r.Context())
 		if !ok {
@@ -105,7 +77,7 @@ func (h *handler) Create() http.HandlerFunc {
 	}
 }
 
-// List godoc
+// ListMine godoc
 // @Security     BearerAuth
 // @Summary      List companies
 // @Description  List companies for the current user
@@ -115,7 +87,7 @@ func (h *handler) Create() http.HandlerFunc {
 // @Failure      401  {object} outerr.Response
 // @Failure      403  {object} outerr.Response
 // @Router       /companies/mine [get]
-func (h *handler) ListMine() http.HandlerFunc {
+func (h *companiesHandler) ListMine() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, ok := app.UserID[string](r.Context())
 		if !ok {
@@ -124,31 +96,6 @@ func (h *handler) ListMine() http.HandlerFunc {
 		}
 
 		resp, err := h.companiesUsecase.Query.ListByUser(r.Context(), userID)
-		if err != nil {
-			outerr.HandleHTTP(w, r, err)
-			return
-		}
-
-		render.JSON(w, r, resp)
-	}
-}
-
-// Get godoc
-// @Security     BearerAuth
-// @Summary      Get company
-// @Description  Get company by ID
-// @Tags         Companies
-// @Produce      json
-// @Param        id   path      string  true  "Company ID"
-// @Success      200  {object} query.CompanyResponse
-// @Failure      401  {object} outerr.Response
-// @Failure      404  {object} outerr.Response
-// @Router       /companies/{id} [get]
-func (h *handler) Get() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		companyID := chi.URLParam(r, "id")
-
-		resp, err := h.companiesUsecase.Query.Get(r.Context(), companyID)
 		if err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
@@ -172,7 +119,7 @@ func (h *handler) Get() http.HandlerFunc {
 // @Failure      401  {object} outerr.Response
 // @Failure      403  {object} outerr.Response
 // @Router       /companies/{id} [put]
-func (h *handler) Update() http.HandlerFunc {
+func (h *companiesHandler) Update() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, ok := app.UserID[string](r.Context())
 		if !ok {
@@ -215,7 +162,7 @@ func (h *handler) Update() http.HandlerFunc {
 // @Failure      401  {object} outerr.Response
 // @Failure      403  {object} outerr.Response
 // @Router       /companies/{id}/members [post]
-func (h *handler) AddMember() http.HandlerFunc {
+func (h *companiesHandler) AddMember() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, ok := app.UserID[string](r.Context())
 		if !ok {
@@ -254,7 +201,7 @@ func (h *handler) AddMember() http.HandlerFunc {
 // @Success      200  {array} query.MemberResponse
 // @Failure      401  {object} outerr.Response
 // @Router       /companies/{id}/members [get]
-func (h *handler) ListMembers() http.HandlerFunc {
+func (h *companiesHandler) ListMembers() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		companyID := chi.URLParam(r, "id")
 
@@ -280,7 +227,7 @@ func (h *handler) ListMembers() http.HandlerFunc {
 // @Failure      401  {object} outerr.Response
 // @Failure      403  {object} outerr.Response
 // @Router       /companies/{id}/members/{user_id} [delete]
-func (h *handler) RemoveMember() http.HandlerFunc {
+func (h *companiesHandler) RemoveMember() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, ok := app.UserID[string](r.Context())
 		if !ok {
@@ -313,7 +260,7 @@ func (h *handler) RemoveMember() http.HandlerFunc {
 // @Success      200  {array} query.LoadResponse
 // @Failure      401  {object} outerr.Response
 // @Router       /companies/{id}/loads [get]
-func (h *handler) ListLoads() http.HandlerFunc {
+func (h *companiesHandler) ListLoads() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		companyID := chi.URLParam(r, "id")
 		limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
@@ -346,7 +293,7 @@ func (h *handler) ListLoads() http.HandlerFunc {
 // @Success      200  {array} query.ListCarriersResponse
 // @Failure      401  {object} outerr.Response
 // @Router       /companies/{id}/carriers [get]
-func (h *handler) ListCarriers() http.HandlerFunc {
+func (h *companiesHandler) ListCarriers() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		companyID := chi.URLParam(r, "id")
 
@@ -380,7 +327,7 @@ func (h *handler) ListCarriers() http.HandlerFunc {
 // @Failure      400  {object} outerr.Response
 // @Failure      401  {object} outerr.Response
 // @Router       /companies/{id}/carriers [post]
-func (h *handler) AddCarrier() http.HandlerFunc {
+func (h *companiesHandler) AddCarrier() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		userID, ok := app.UserID[string](r.Context())
@@ -420,7 +367,7 @@ func (h *handler) AddCarrier() http.HandlerFunc {
 // @Success      200
 // @Failure      401  {object} outerr.Response
 // @Router       /companies/{id}/carriers/{carrier_id} [delete]
-func (h *handler) RemoveCarrier() http.HandlerFunc {
+func (h *companiesHandler) RemoveCarrier() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		companyID := chi.URLParam(r, "id")
 		carrierID := chi.URLParam(r, "carrier_id")

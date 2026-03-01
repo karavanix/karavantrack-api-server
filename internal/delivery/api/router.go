@@ -9,33 +9,15 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/go-chi/render"
 	"github.com/karavanix/karavantrack-api-server/internal/delivery"
-	_ "github.com/karavanix/karavantrack-api-server/internal/delivery/api/docs"
-	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/handlers/auth"
-	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/handlers/companies"
-	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/handlers/loads"
-	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/handlers/users"
-	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/handlers/ws"
+	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/handlers/carriers"
+	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/handlers/common"
+	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/handlers/shippers"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
+
+	_ "github.com/karavanix/karavantrack-api-server/internal/delivery/api/docs/carrier"
+	_ "github.com/karavanix/karavantrack-api-server/internal/delivery/api/docs/shipper"
 )
 
-// @title Karavantrack API Documentation
-// @version 0.0.1
-// @description Documentation of the Karavantrack API server
-// @termsOfService http://swagger.io/terms/
-
-// @contact.name API Support
-// @contact.url http://www.swagger.io/support
-// @contact.email support@swagger.io
-
-// @license.name Apache 2.0
-// @license.url http://www.apache.org/licenses/LICENSE-2.0.html
-
-// @BasePath /api/v1
-// @securityDefinitions.basic 	BasicAuth
-// @securityDefinitions.apikey	BearerAuth
-// @in							header
-// @name						Authorization
-// @description					API Токен используется для авторизации
 func NewRouter(options *delivery.HandlerOptions) http.Handler {
 	router := chi.NewRouter()
 
@@ -55,15 +37,46 @@ func NewRouter(options *delivery.HandlerOptions) http.Handler {
 
 	// Mount the handlers under the /api/v1 path
 	router.Route("/api/v1", func(r chi.Router) {
-		r.Mount("/auth", auth.New(options))
-		r.Mount("/users", users.New(options))
-		r.Mount("/companies", companies.New(options))
-		r.Mount("/loads", loads.New(options))
-		r.Mount("/ws", ws.New(options))
+		common.RegisterRoutes(r, options)
+		carriers.RegisterRoutes(r, options)
+		shippers.RegisterRoutes(r, options)
 	})
 
-	// Set swagger
-	router.Get("/api/swagger/*", httpSwagger.Handler())
+	router.Get("/api/swagger/carrier/*", httpSwagger.Handler(
+		httpSwagger.InstanceName("carrier"),
+	))
+	router.Get("/api/swagger/shipper/*", httpSwagger.Handler(
+		httpSwagger.InstanceName("shipper"),
+	))
+
+	router.Get("/api/swagger/*", httpSwagger.Handler(
+		httpSwagger.BeforeScript(`
+			var link = document.createElement('link');
+			link.rel = 'stylesheet';
+			link.href = 'https://cdn.jsdelivr.net/npm/swagger-ui-themes@3.0.1/themes/3.x/theme-material.css';
+			document.head.appendChild(link);
+		`),
+		httpSwagger.UIConfig(map[string]string{
+			"urls": `[
+				{
+					"url": "/api/swagger/carrier/doc.json",
+					"name": "Carriers API"
+				},
+				{
+					"url": "/api/swagger/shipper/doc.json",
+					"name": "Shippers API"
+				}
+			]`,
+			"filter":                 `true`,
+			"displayRequestDuration": `true`,
+
+		}),
+		httpSwagger.DefaultModelsExpandDepth(httpSwagger.HideModel),
+		httpSwagger.Layout(httpSwagger.StandaloneLayout),
+		httpSwagger.PersistAuthorization(true),
+		httpSwagger.DeepLinking(true),
+		httpSwagger.DocExpansion("list"),
+	))
 
 	// Healthcheck
 	router.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {

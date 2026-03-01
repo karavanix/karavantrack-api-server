@@ -1,0 +1,652 @@
+basePath: /api/v1
+definitions:
+  command.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+      phone:
+        type: string
+    type: object
+  command.LoginResponse:
+    properties:
+      access_token:
+        type: string
+      refresh_token:
+        type: string
+    type: object
+  command.RefreshTokenRequest:
+    properties:
+      refresh_token:
+        type: string
+    required:
+    - refresh_token
+    type: object
+  command.RegisterDeviceRequest:
+    properties:
+      device_id:
+        type: string
+      device_name:
+        type: string
+      device_token:
+        type: string
+      device_type:
+        type: string
+    required:
+    - device_id
+    - device_token
+    type: object
+  command.RegisterLoadLocationRequest:
+    properties:
+      accuracy_m:
+        type: number
+      carrier_id:
+        type: string
+      heading_deg:
+        type: number
+      lat:
+        type: number
+      lng:
+        type: number
+      load_id:
+        type: string
+      recorded_at:
+        type: string
+      speed_mps:
+        type: number
+    type: object
+  command.RegisterRequest:
+    properties:
+      email:
+        type: string
+      first_name:
+        type: string
+      last_name:
+        type: string
+      password:
+        type: string
+      phone:
+        type: string
+      role:
+        enum:
+        - shipper
+        - carrier
+        type: string
+    required:
+    - password
+    - role
+    type: object
+  command.RegisterResponse:
+    properties:
+      access_token:
+        type: string
+      refresh_token:
+        type: string
+      role:
+        type: string
+    type: object
+  github_com_karavanix_karavantrack-api-server_internal_usecase_users_command.UpdateRequest:
+    properties:
+      first_name:
+        type: string
+      last_name:
+        type: string
+    type: object
+  outerr.Response:
+    properties:
+      code:
+        type: string
+      details: {}
+      message:
+        type: string
+    type: object
+  query.CompanyResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      owner_id:
+        type: string
+      role:
+        type: string
+      status:
+        type: string
+    type: object
+  query.LoadResponse:
+    properties:
+      carrier_id:
+        type: string
+      company_id:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      dropoff_address:
+        type: string
+      dropoff_at:
+        type: string
+      dropoff_lat:
+        type: number
+      dropoff_lng:
+        type: number
+      id:
+        type: string
+      member_id:
+        type: string
+      pickup_address:
+        type: string
+      pickup_at:
+        type: string
+      pickup_lat:
+        type: number
+      pickup_lng:
+        type: number
+      reference_id:
+        type: string
+      status:
+        type: string
+      title:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  query.MeResponse:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      first_name:
+        type: string
+      id:
+        type: string
+      last_name:
+        type: string
+      phone:
+        type: string
+      role:
+        type: string
+      status:
+        type: string
+    type: object
+  query.UsersResponse:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      first_name:
+        type: string
+      id:
+        type: string
+      last_name:
+        type: string
+      phone:
+        type: string
+      role:
+        type: string
+      updated_at:
+        type: string
+    type: object
+info:
+  contact: {}
+  title: Carriers API
+paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user with email/phone and password
+      parameters:
+      - description: Login credentials
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/command.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/command.LoginResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/outerr.Response'
+      summary: Login
+      tags:
+      - Auth
+  /auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: Logout user (invalidate session)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+      summary: Logout
+      tags:
+      - Auth
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Exchange a valid refresh token for a new token pair
+      parameters:
+      - description: Refresh token
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/command.RefreshTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/command.LoginResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/outerr.Response'
+      summary: Refresh tokens
+      tags:
+      - Auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Register a new user and return tokens
+      parameters:
+      - description: Registration data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/command.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/command.RegisterResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/outerr.Response'
+      summary: Register
+      tags:
+      - Auth
+  /companies/{id}:
+    get:
+      description: Get company by ID
+      parameters:
+      - description: Company ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/query.CompanyResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/outerr.Response'
+      security:
+      - BearerAuth: []
+      summary: Get company
+      tags:
+      - Companies
+  /loads:
+    get:
+      description: List loads with optional filters
+      parameters:
+      - description: Company ID filter
+        in: query
+        name: company_id
+        type: string
+      - description: Carrier ID filter
+        in: query
+        name: carrier_id
+        type: string
+      - description: Status filter
+        in: query
+        name: status
+        type: string
+      - description: Pagination Limit
+        in: query
+        name: limit
+        type: integer
+      - description: Pagination Offset
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/query.LoadResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/outerr.Response'
+      security:
+      - BearerAuth: []
+      summary: List loads
+      tags:
+      - Loads
+  /loads/{id}:
+    get:
+      description: Get load by ID
+      parameters:
+      - description: Load ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/query.LoadResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/outerr.Response'
+      security:
+      - BearerAuth: []
+      summary: Get load
+      tags:
+      - Loads
+  /loads/{id}/accept:
+    post:
+      description: Accept an assigned load (by carrier)
+      parameters:
+      - description: Load ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/outerr.Response'
+      security:
+      - BearerAuth: []
+      summary: Accept load
+      tags:
+      - Loads
+  /loads/{id}/complete:
+    post:
+      description: Complete a load (by carrier)
+      parameters:
+      - description: Load ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/outerr.Response'
+      security:
+      - BearerAuth: []
+      summary: Complete load
+      tags:
+      - Loads
+  /loads/{id}/location:
+    post:
+      consumes:
+      - application/json
+      description: Register a GPS location point for an in-transit load (MVP REST
+        alternative to WebSocket)
+      parameters:
+      - description: Load ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Location data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/command.RegisterLoadLocationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/outerr.Response'
+      security:
+      - BearerAuth: []
+      summary: Register location point
+      tags:
+      - Loads
+  /loads/{id}/start:
+    post:
+      description: Start a load (by carrier, transitions to in-transit)
+      parameters:
+      - description: Load ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/outerr.Response'
+      security:
+      - BearerAuth: []
+      summary: Start load
+      tags:
+      - Loads
+  /users/me:
+    get:
+      description: Get the profile of the authenticated user (includes role)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/query.MeResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/outerr.Response'
+      security:
+      - BearerAuth: []
+      summary: Get current user
+      tags:
+      - Users
+    put:
+      consumes:
+      - application/json
+      description: Update the profile of the authenticated user
+      parameters:
+      - description: Update User Request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_karavanix_karavantrack-api-server_internal_usecase_users_command.UpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/outerr.Response'
+      security:
+      - BearerAuth: []
+      summary: Update current user
+      tags:
+      - Users
+  /users/me/devices:
+    post:
+      consumes:
+      - application/json
+      description: Register or update a device for push notifications
+      parameters:
+      - description: Device registration
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/command.RegisterDeviceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/outerr.Response'
+      security:
+      - BearerAuth: []
+      summary: Register FCM device
+      tags:
+      - Users
+  /users/shippers/search:
+    get:
+      description: Search for shipper users by name, email, or phone
+      parameters:
+      - description: Search query (name, email, or phone)
+        in: query
+        name: q
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/query.UsersResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/outerr.Response'
+      security:
+      - BearerAuth: []
+      summary: Search shippers
+      tags:
+      - Users
+  /ws:
+    get:
+      consumes:
+      - application/json
+      description: Upgrades HTTP connection to a full-duplex WebSocket.
+      parameters:
+      - description: JWT authentication token
+        in: query
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "101":
+          description: Switching Protocols
+          schema:
+            type: string
+        "400":
+          description: Bad request (missing/invalid headers)
+          schema:
+            $ref: '#/definitions/outerr.Response'
+      summary: WebSocket endpoint for chat
+      tags:
+      - WebSocket
+securityDefinitions:
+  BearerAuth:
+    description: API Токен используется для авторизации
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

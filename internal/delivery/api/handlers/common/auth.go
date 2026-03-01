@@ -1,10 +1,9 @@
-package auth
+package common
 
 import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
 	"github.com/karavanix/karavantrack-api-server/internal/delivery"
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/validation"
@@ -22,22 +21,13 @@ type authHander struct {
 	jwtProvider *security.JWTProvider
 }
 
-func New(opts *delivery.HandlerOptions) http.Handler {
-	handler := &authHander{
+func NewAuthHandler(opts *delivery.HandlerOptions) *authHander {
+	return &authHander{
 		cfg:         opts.Config,
 		validator:   opts.Validator,
 		authUsecase: opts.AuthUsecase,
 		jwtProvider: opts.JWTProvider,
 	}
-
-	r := chi.NewRouter()
-
-	r.Post("/login", handler.Login())
-	r.Post("/register", handler.Register())
-	r.Post("/logout", handler.Logout())
-	r.Post("/refresh", handler.Refresh())
-
-	return r
 }
 
 // Login godoc
