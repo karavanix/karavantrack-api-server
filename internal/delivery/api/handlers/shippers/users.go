@@ -52,3 +52,30 @@ func (h *usersHandler) SearchCarriers() http.HandlerFunc {
 		render.JSON(w, r, resp)
 	}
 }
+
+// SearchShippers godoc
+// @Security     BearerAuth
+// @Summary      Search shippers
+// @Description  Search for shipper users by name, email, or phone
+// @Tags         Users
+// @Produce      json
+// @Param        q query string true "Search query (name, email, or phone)"
+// @Success      200  {array} query.UsersResponse
+// @Failure      401  {object} outerr.Response
+// @Failure      403  {object} outerr.Response
+// @Router       /users/shippers/search [get]
+func (h *usersHandler) SearchShippers() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query().Get("q")
+
+		resp, err := h.usersUsecase.Query.SearchShippers(r.Context(), &query.SearchShippersRequest{
+			Query: q,
+		})
+		if err != nil {
+			outerr.HandleHTTP(w, r, err)
+			return
+		}
+
+		render.JSON(w, r, resp)
+	}
+}

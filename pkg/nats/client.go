@@ -30,12 +30,7 @@ func NewClient(ots ...Option) (broker.Broker, error) {
 		ot(&o)
 	}
 
-	natsOpts := []nats.Option{}
-	if o.Username != "" {
-		natsOpts = append(natsOpts, nats.UserInfo(o.Username, o.Password))
-	}
-
-	nc, err := nats.Connect(o.Host+":"+o.Port, natsOpts...)
+	nc, err := nats.Connect(o.Host+":"+o.Port, nats.UserInfo(o.Username, o.Password))
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to nats: %w", err)
 	}

@@ -114,6 +114,36 @@ func (r *loadsRepo) FindAll(ctx context.Context, filter domain.LoadFilter) ([]*d
 	return result, total, nil
 }
 
+func (r *loadsRepo) FindStats(ctx context.Context, filter domain.LoadFilter) (*domain.LoadStats, error) {
+	db := postgres.FromContext(ctx, r.db)
+
+	var stats domain.LoadStats
+	q := db.NewSelect().
+		TableExpr("loads").
+		ColumnExpr("COUNT(*) FILTER (WHERE status = ?) AS created", domain.LoadStatusCreated).
+		ColumnExpr("COUNT(*) FILTER (WHERE status = ?) AS assigned", domain.LoadStatusAssigned).
+		ColumnExpr("COUNT(*) FILTER (WHERE status = ?) AS accepted", domain.LoadStatusAccepted).
+		ColumnExpr("COUNT(*) FILTER (WHERE status = ?) AS in_transit", domain.LoadStatusInTransit).
+		ColumnExpr("COUNT(*) FILTER (WHERE status = ?) AS completed", domain.LoadStatusCompleted).
+		ColumnExpr("COUNT(*) FILTER (WHERE status = ?) AS confirmed", domain.LoadStatusConfirmed).
+		ColumnExpr("COUNT(*) FILTER (WHERE status = ?) AS canceled", domain.LoadStatusCancelled).
+		ColumnExpr("COUNT(*) AS total")
+
+	if filter.CompanyID != nil {
+		q = q.Where("company_id = ?", filter.CompanyID.String())
+	}
+	if filter.CarrierID != nil {
+		q = q.Where("carrier_id = ?", filter.CarrierID.String())
+	}
+
+	err := q.Scan(ctx, &stats)
+	if err != nil {
+		return nil, postgres.Error(err, &Loads{})
+	}
+
+	return &stats, nil
+}
+
 func (r *loadsRepo) toModel(e *domain.Load) *Loads {
 	if e == nil {
 		return nil

@@ -26,6 +26,7 @@ func NewCreateUsecase(contextDuration time.Duration, loadsRepo domain.LoadReposi
 }
 
 type CreateRequest struct {
+	ReferenceID    string  `json:"reference_id"`
 	CompanyID      string  `json:"company_id" validate:"required"`
 	Title          string  `json:"title" validate:"required,min=2,max=255"`
 	Description    string  `json:"description"`
@@ -74,6 +75,10 @@ func (u *CreateUsecase) Create(ctx context.Context, userID string, req *CreateRe
 	)
 	if err != nil {
 		return nil, inerr.NewErrValidation("load", err.Error())
+	}
+
+	if req.ReferenceID != "" {
+		load.SetReferenceID(req.ReferenceID)
 	}
 
 	if err := u.loadsRepo.Save(ctx, load); err != nil {
