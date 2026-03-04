@@ -13,7 +13,7 @@ RUN make build-linux
 # Stage 2: Final Image
 FROM alpine:latest
 
-COPY --from=builder /app/bin/karavantruck-api-server ./karavantruck-api-server
-RUN chmod +x ./karavantruck-api-server
+COPY --from=builder /app/bin/yoollive-api-server ./yoollive-api-server
+RUN chmod +x ./yoollive-api-server
 
-ENTRYPOINT ["./karavantruck-api-server"]
+ENTRYPOINT ["./yoollive-api-server"]
