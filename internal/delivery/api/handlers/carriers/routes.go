@@ -15,7 +15,6 @@ import (
 // @description					API Токен используется для авторизации
 func RegisterRoutes(r chi.Router, opts *delivery.HandlerOptions) {
 	loadsH := NewLoadsHandler(opts)
-	usersH := NewUsersHandler(opts)
 
 	// Carrier-specific routes (RoleCarrier only)
 	r.Group(func(r chi.Router) {
@@ -26,8 +25,5 @@ func RegisterRoutes(r chi.Router, opts *delivery.HandlerOptions) {
 		r.Post("/loads/{id}/start", loadsH.Start())
 		r.Post("/loads/{id}/complete", loadsH.Complete())
 		r.Post("/loads/{id}/location", loadsH.RegisterLocation())
-
-		// User search
-		r.Get("/users/shippers/search", usersH.SearchShippers())
 	})
 }

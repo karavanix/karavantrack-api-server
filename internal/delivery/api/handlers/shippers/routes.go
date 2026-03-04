@@ -28,6 +28,7 @@ func RegisterRoutes(r chi.Router, opts *delivery.HandlerOptions) {
 		r.Put("/companies/{id}", companiesH.Update())
 
 		r.Get("/companies/{id}/loads", companiesH.ListLoads())
+		r.Get("/companies/{id}/loads/stats", loadsH.GetLoadStats())
 
 		r.Post("/companies/{id}/members", companiesH.AddMember())
 		r.Get("/companies/{id}/members", companiesH.ListMembers())
@@ -47,5 +48,6 @@ func RegisterRoutes(r chi.Router, opts *delivery.HandlerOptions) {
 
 		// User search
 		r.Get("/users/carriers/search", usersH.SearchCarriers())
+		r.Get("/users/shippers/search", usersH.SearchShippers())
 	})
 }

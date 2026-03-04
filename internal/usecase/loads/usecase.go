@@ -24,6 +24,7 @@ type Query struct {
 	*query.ListUsecase
 	*query.GetTrackUsecase
 	*query.GetPositionUsecase
+	*query.GetStatsUsecase
 }
 
 type Usecase struct {
@@ -53,6 +54,7 @@ func NewUsecase(
 			ListUsecase:        query.NewListUsecase(contextDuration, loadsRepo),
 			GetTrackUsecase:    query.NewGetTrackUsecase(contextDuration, loadLocationPointRepo),
 			GetPositionUsecase: query.NewGetPositionUsecase(contextDuration, loadLocationPointRepo),
+			GetStatsUsecase:    query.NewGetStatsUsecase(contextDuration, loadsRepo),
 		},
 	}
 }

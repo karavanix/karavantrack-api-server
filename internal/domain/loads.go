@@ -82,6 +82,10 @@ func NewLoad(
 	}, nil
 }
 
+func (l *Load) SetReferenceID(referenceID string) {
+	l.ReferenceID = referenceID
+}
+
 // Assign assigns a carrier to the load.
 func (l *Load) Assign(carrierID uuid.UUID) error {
 	if l.Status != LoadStatusCreated {
@@ -154,8 +158,20 @@ type LoadFilter struct {
 	Offset    int
 }
 
+type LoadStats struct {
+	Created   int
+	Assigned  int
+	Accepted  int
+	InTransit int
+	Completed int
+	Confirmed int
+	Canceled  int
+	Total     int
+}
+
 type LoadRepository interface {
 	Save(ctx context.Context, load *Load) error
 	FindByID(ctx context.Context, id uuid.UUID) (*Load, error)
 	FindAll(ctx context.Context, filter LoadFilter) ([]*Load, int, error)
+	FindStats(ctx context.Context, filter LoadFilter) (*LoadStats, error)
 }

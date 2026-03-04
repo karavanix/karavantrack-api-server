@@ -283,6 +283,39 @@ func (h *companiesHandler) ListLoads() http.HandlerFunc {
 	}
 }
 
+// GetStats godoc
+// @Security     BearerAuth
+// @Summary      Get load
+// @Description  Get load by ID
+// @Tags         Loads
+// @Produce      json
+// @Success      200  {object} query.GetStatsResponse
+// @Failure      401  {object} outerr.Response
+// @Failure      404  {object} outerr.Response
+// @Router       /companies/{id}/loads/stats [get]
+func (h *loadsHandler) GetLoadStats() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		companyID := chi.URLParam(r, "id")
+		if companyID == "" {
+			outerr.BadRequest(w, r, "missing company id")
+			return
+		}
+		userID, ok := app.UserID[string](r.Context())
+		if !ok {
+			outerr.Forbidden(w, r, "missing user context")
+			return
+		}
+
+		resp, err := h.loadsUsecase.Query.GetStats(r.Context(), userID, companyID)
+		if err != nil {
+			outerr.HandleHTTP(w, r, err)
+			return
+		}
+
+		render.JSON(w, r, resp)
+	}
+}
+
 // ListCarriers godoc
 // @Security     BearerAuth
 // @Summary      List company carriers
