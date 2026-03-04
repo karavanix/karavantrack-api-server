@@ -143,6 +143,8 @@ definitions:
         type: number
       pickup_lng:
         type: number
+      reference_id:
+        type: string
       title:
         maxLength: 255
         minLength: 2
@@ -191,6 +193,19 @@ definitions:
         type: string
       status:
         type: string
+    type: object
+  query.GetStatsResponse:
+    properties:
+      active:
+        type: integer
+      canceled:
+        type: integer
+      completed:
+        type: integer
+      pending:
+        type: integer
+      total:
+        type: integer
     type: object
   query.GetTrackResponse:
     properties:
@@ -677,6 +692,29 @@ paths:
       summary: List company loads
       tags:
       - Companies
+  /companies/{id}/loads/stats:
+    get:
+      description: Get load by ID
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/query.GetStatsResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/outerr.Response'
+      security:
+      - BearerAuth: []
+      summary: Get load
+      tags:
+      - Loads
   /companies/{id}/members:
     get:
       description: List members of a company
@@ -1179,6 +1217,37 @@ paths:
       security:
       - BearerAuth: []
       summary: Register FCM device
+      tags:
+      - Users
+  /users/shippers/search:
+    get:
+      description: Search for shipper users by name, email, or phone
+      parameters:
+      - description: Search query (name, email, or phone)
+        in: query
+        name: q
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/query.UsersResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/outerr.Response'
+      security:
+      - BearerAuth: []
+      summary: Search shippers
       tags:
       - Users
   /ws:

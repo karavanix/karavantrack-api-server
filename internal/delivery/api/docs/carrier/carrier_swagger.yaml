@@ -174,25 +174,6 @@ definitions:
       status:
         type: string
     type: object
-  query.UsersResponse:
-    properties:
-      created_at:
-        type: string
-      email:
-        type: string
-      first_name:
-        type: string
-      id:
-        type: string
-      last_name:
-        type: string
-      phone:
-        type: string
-      role:
-        type: string
-      updated_at:
-        type: string
-    type: object
 info:
   contact: {}
   title: Carriers API
@@ -585,37 +566,6 @@ paths:
       security:
       - BearerAuth: []
       summary: Register FCM device
-      tags:
-      - Users
-  /users/shippers/search:
-    get:
-      description: Search for shipper users by name, email, or phone
-      parameters:
-      - description: Search query (name, email, or phone)
-        in: query
-        name: q
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/query.UsersResponse'
-            type: array
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/outerr.Response'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/outerr.Response'
-      security:
-      - BearerAuth: []
-      summary: Search shippers
       tags:
       - Users
   /ws:

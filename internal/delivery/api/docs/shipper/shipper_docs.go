@@ -575,6 +575,43 @@ const docTemplateshipper = `{
                 }
             }
         },
+        "/companies/{id}/loads/stats": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get load by ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Loads"
+                ],
+                "summary": "Get load",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/query.GetStatsResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/companies/{id}/members": {
             "get": {
                 "security": [
@@ -1331,6 +1368,55 @@ const docTemplateshipper = `{
                 }
             }
         },
+        "/users/shippers/search": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Search for shipper users by name, email, or phone",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Search shippers",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Search query (name, email, or phone)",
+                        "name": "q",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/query.UsersResponse"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/ws": {
             "get": {
                 "description": "Upgrades HTTP connection to a full-duplex WebSocket.",
@@ -1594,6 +1680,9 @@ const docTemplateshipper = `{
                 "pickup_lng": {
                     "type": "number"
                 },
+                "reference_id": {
+                    "type": "string"
+                },
                 "title": {
                     "type": "string",
                     "maxLength": 255,
@@ -1655,6 +1744,26 @@ const docTemplateshipper = `{
                 },
                 "status": {
                     "type": "string"
+                }
+            }
+        },
+        "query.GetStatsResponse": {
+            "type": "object",
+            "properties": {
+                "active": {
+                    "type": "integer"
+                },
+                "canceled": {
+                    "type": "integer"
+                },
+                "completed": {
+                    "type": "integer"
+                },
+                "pending": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
                 }
             }
         },

@@ -68,8 +68,8 @@ func (u *GetStatsUsecase) GetStats(ctx context.Context, requesterID string, comp
 	}
 
 	result := &GetStatsResponse{
-		Active:    stats.InTransit,
-		Pending:   stats.Created + stats.Assigned + stats.Accepted,
+		Active:    stats.Accepted + stats.InTransit,
+		Pending:   stats.Created + stats.Assigned,
 		Completed: stats.Completed + stats.Confirmed,
 		Canceled:  stats.Canceled,
 		Total:     stats.Total,
