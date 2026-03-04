@@ -2,7 +2,7 @@
 export
 
 CURRENT_DIR=$(shell pwd)
-APP=karavantruck-api-server
+APP=yoollive-api-server
 CMD_DIR=./cmd
 
 
