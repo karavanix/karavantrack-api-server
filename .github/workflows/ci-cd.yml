@@ -60,6 +60,6 @@ jobs:
             ${{ vars.ENV_FILE }}
             EOL
             echo "IMAGE_TAG=${{ needs.build.outputs.short_sha }}" > .env.backend.release
-            docker compose pull yoollive-api-server
-            docker compose up -d --no-deps yoollive-api-server
+            docker compose pull backend
+            docker compose --env-file .env.backend.release up -d --no-deps backend
             docker image prune -f
