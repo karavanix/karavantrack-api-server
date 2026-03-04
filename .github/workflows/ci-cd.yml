@@ -59,7 +59,7 @@ jobs:
             cat > .env.backend << 'EOL'
             ${{ vars.ENV_FILE }}
             EOL
-            echo "IMAGE_TAG=${{ needs.build.outputs.short_sha }}" > .env.backend.release
+            export BACKEND_IMAGE_TAG=${{ needs.build.outputs.short_sha }}
             docker compose pull backend
-            docker compose --env-file .env.backend.release up -d --no-deps backend
+            docker compose up -d --no-deps backend
             docker image prune -f
