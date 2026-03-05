@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/go-chi/metrics"
 	"github.com/go-chi/render"
 	"github.com/karavanix/karavantrack-api-server/internal/delivery"
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/handlers/carriers"
@@ -21,7 +22,6 @@ import (
 func NewRouter(options *delivery.HandlerOptions) http.Handler {
 	router := chi.NewRouter()
 
-	// Set real ip & recover & logger & cors & request id middlewares
 	router.Use(chimiddleware.RealIP)
 	router.Use(chimiddleware.Recoverer)
 	router.Use(chimiddleware.Logger)
@@ -34,6 +34,13 @@ func NewRouter(options *delivery.HandlerOptions) http.Handler {
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
+	router.Use(metrics.Collector(metrics.CollectorOpts{
+		Host:  false,
+		Proto: true,
+		Skip: func(r *http.Request) bool {
+			return r.Method != "OPTIONS"
+		},
+	}))
 
 	// Mount the handlers under the /api/v1 path
 	router.Route("/api/v1", func(r chi.Router) {
@@ -42,6 +49,7 @@ func NewRouter(options *delivery.HandlerOptions) http.Handler {
 		shippers.RegisterRoutes(r, options)
 	})
 
+	router.Handle("/metrics", metrics.Handler())
 	router.Get("/api/swagger/carrier/*", httpSwagger.Handler(
 		httpSwagger.InstanceName("carrier"),
 	))
@@ -69,7 +77,6 @@ func NewRouter(options *delivery.HandlerOptions) http.Handler {
 			]`,
 			"filter":                 `true`,
 			"displayRequestDuration": `true`,
-
 		}),
 		httpSwagger.DefaultModelsExpandDepth(httpSwagger.HideModel),
 		httpSwagger.Layout(httpSwagger.StandaloneLayout),
