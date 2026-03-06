@@ -120,7 +120,7 @@ func (r *loadsRepo) FindActiveByCarrierIDs(ctx context.Context, carrierIDs []uui
 	q := db.NewSelect().Model(&models).
 		Where(
 			"carrier_id IN (?) AND status IN (?)",
-			bun.Tuple(carrierIDs),
+			bun.In(carrierIDs),
 			bun.Tuple([]string{
 				domain.LoadStatusAccepted.String(),
 				domain.LoadStatusInTransit.String(),
@@ -138,8 +138,7 @@ func (r *loadsRepo) FindActiveByCarrierIDs(ctx context.Context, carrierIDs []uui
 		if load == nil {
 			continue
 		}
-		// Key by CarrierID so callers can look up "does this carrier have an active load?"
-		// Keep only the first (most recent, due to ORDER BY created_at DESC) per carrier.
+
 		if _, ok := result[load.CarrierID]; !ok {
 			result[load.CarrierID] = load
 		}
