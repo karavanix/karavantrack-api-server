@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
 	"github.com/karavanix/karavantrack-api-server/internal/inerr"
+	"github.com/karavanix/karavantrack-api-server/pkg/logger"
 	"github.com/karavanix/karavantrack-api-server/pkg/otlp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -16,17 +17,20 @@ type ListCarriersUsecase struct {
 	contextDuration     time.Duration
 	companyCarriersRepo domain.CompanyCarrierRepository
 	usersRepo           domain.UserRepository
+	loadsRepo           domain.LoadRepository
 }
 
 func NewListByCompanyUsecase(
 	contextDuration time.Duration,
 	companyCarriersRepo domain.CompanyCarrierRepository,
 	usersRepo domain.UserRepository,
+	loadsRepo domain.LoadRepository,
 ) *ListCarriersUsecase {
 	return &ListCarriersUsecase{
 		contextDuration:     contextDuration,
 		companyCarriersRepo: companyCarriersRepo,
 		usersRepo:           usersRepo,
+		loadsRepo:           loadsRepo,
 	}
 }
 
@@ -35,6 +39,7 @@ type ListCarriersResponse struct {
 	Alias     string    `json:"alias"`
 	FirstName string    `json:"first_name"`
 	LastName  string    `json:"last_name"`
+	IsFree    bool      `json:"is_free"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -49,7 +54,6 @@ func (u *ListCarriersUsecase) ListCarriers(ctx context.Context, companyID string
 
 	var input struct {
 		companyID uuid.UUID
-		actorID   uuid.UUID
 	}
 	{
 		input.companyID, err = uuid.Parse(companyID)
@@ -60,6 +64,7 @@ func (u *ListCarriersUsecase) ListCarriers(ctx context.Context, companyID string
 
 	companyCarriers, err := u.companyCarriersRepo.FindByCompanyID(ctx, input.companyID)
 	if err != nil {
+		logger.ErrorContext(ctx, "failed to find company carriers", err)
 		return nil, err
 	}
 
@@ -70,6 +75,13 @@ func (u *ListCarriersUsecase) ListCarriers(ctx context.Context, companyID string
 
 	users, err := u.usersRepo.FindByIDs(ctx, carrierUserIDs)
 	if err != nil {
+		logger.ErrorContext(ctx, "failed to find users", err)
+		return nil, err
+	}
+
+	carriersActiveLoads, err := u.loadsRepo.FindActiveByCarrierIDs(ctx, carrierUserIDs)
+	if err != nil {
+		logger.ErrorContext(ctx, "failed to find loads", err)
 		return nil, err
 	}
 
@@ -85,6 +97,7 @@ func (u *ListCarriersUsecase) ListCarriers(ctx context.Context, companyID string
 			Alias:     cc.Alias,
 			FirstName: user.FirstName,
 			LastName:  user.LastName,
+			IsFree:    carriersActiveLoads[user.ID] == nil,
 			CreatedAt: cc.CreatedAt,
 		})
 	}

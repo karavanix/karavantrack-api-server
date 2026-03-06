@@ -75,6 +75,18 @@ func (r *companyCarriersRepo) FindByCarrierID(ctx context.Context, carrierID uui
 	return result, nil
 }
 
+func (r *companyCarriersRepo) FindByCompanyIDAndCarrierID(ctx context.Context, companyID, carrierID uuid.UUID) (*domain.CompanyCarrier, error) {
+	db := postgres.FromContext(ctx, r.db)
+	var model CompanyCarriers
+	err := db.NewSelect().Model(&model).
+		Where("company_id = ? AND carrier_id = ?", companyID.String(), carrierID.String()).
+		Scan(ctx)
+	if err != nil {
+		return nil, postgres.Error(err, &CompanyCarriers{})
+	}
+	return r.toDomain(&model), nil
+}
+
 func (r *companyCarriersRepo) DeleteByCompanyIDAndCarrierID(ctx context.Context, companyID, carrierID uuid.UUID) error {
 	db := postgres.FromContext(ctx, r.db)
 	_, err := db.NewDelete().Model((*CompanyCarriers)(nil)).

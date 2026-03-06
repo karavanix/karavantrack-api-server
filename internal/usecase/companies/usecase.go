@@ -19,8 +19,9 @@ type Command struct {
 }
 
 type Query struct {
-	*query.GetUsecase
-	*query.ListByUserUsecase
+	*query.GetShipperCompanyUsecase
+	*query.GetCarrierCompanyUsecase
+	*query.ListShipperCompaniesUsecase
 	*query.ListMembersUsecase
 	*query.ListCarriersUsecase
 }
@@ -37,6 +38,7 @@ func NewUsecase(
 	companyMembersRepo domain.CompanyMemberRepository,
 	companyCarriersRepo domain.CompanyCarrierRepository,
 	usersRepo domain.UserRepository,
+	loadsRepo domain.LoadRepository,
 ) *Usecase {
 	return &Usecase{
 		Command: Command{
@@ -47,10 +49,11 @@ func NewUsecase(
 			AddCarrierUsecase:   command.NewAddCarrierUsecase(contextDuration, companyCarriersRepo, companyMembersRepo, usersRepo),
 		},
 		Query: Query{
-			GetUsecase:          query.NewGetUsecase(contextDuration, companiesRepo),
-			ListByUserUsecase:   query.NewListByUserUsecase(contextDuration, companiesRepo, companyMembersRepo),
-			ListMembersUsecase:  query.NewListMembersUsecase(contextDuration, companyMembersRepo),
-			ListCarriersUsecase: query.NewListByCompanyUsecase(contextDuration, companyCarriersRepo, usersRepo),
+			GetShipperCompanyUsecase:    query.NewGetShipperCompanyUsecase(contextDuration, companiesRepo, companyMembersRepo),
+			GetCarrierCompanyUsecase:    query.NewGetCarrierCompanyUsecase(contextDuration, companiesRepo),
+			ListShipperCompaniesUsecase: query.NewListShipperCompaniesUsecase(contextDuration, companiesRepo, companyMembersRepo),
+			ListMembersUsecase:          query.NewListMembersUsecase(contextDuration, companyMembersRepo),
+			ListCarriersUsecase:         query.NewListByCompanyUsecase(contextDuration, companyCarriersRepo, usersRepo, loadsRepo),
 		},
 	}
 }

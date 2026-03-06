@@ -15,12 +15,18 @@ import (
 // @description					API Токен используется для авторизации
 func RegisterRoutes(r chi.Router, opts *delivery.HandlerOptions) {
 	loadsH := NewLoadsHandler(opts)
+	companyH := NewCompanyHandler(opts)
 
 	// Carrier-specific routes (RoleCarrier only)
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.AuthorizeByRole(opts.JWTProvider, shared.RoleCarrier))
 
+		// Company actions
+		r.Get("/carriers/companies/{id}", companyH.GetCarrierCompany())
+
 		// Load actions
+		r.Get("/loads/pending", companyH.ListPending())
+		r.Get("/loads/active", companyH.GetActive())
 		r.Post("/loads/{id}/accept", loadsH.Accept())
 		r.Post("/loads/{id}/start", loadsH.Start())
 		r.Post("/loads/{id}/complete", loadsH.Complete())

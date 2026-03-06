@@ -13,44 +13,44 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 )
 
-type ListByUserUsecase struct {
+type ListShipperCompaniesUsecase struct {
 	contextDuration time.Duration
 	companiesRepo   domain.CompanyRepository
 	membersRepo     domain.CompanyMemberRepository
 }
 
-func NewListByUserUsecase(
+func NewListShipperCompaniesUsecase(
 	contextDuration time.Duration,
 	companiesRepo domain.CompanyRepository,
 	membersRepo domain.CompanyMemberRepository,
-) *ListByUserUsecase {
-	return &ListByUserUsecase{
+) *ListShipperCompaniesUsecase {
+	return &ListShipperCompaniesUsecase{
 		contextDuration: contextDuration,
 		companiesRepo:   companiesRepo,
 		membersRepo:     membersRepo,
 	}
 }
 
-func (u *ListByUserUsecase) ListByUser(ctx context.Context, userID string) (_ []*CompanyResponse, err error) {
+func (u *ListShipperCompaniesUsecase) ListShipperCompanies(ctx context.Context, userID string) (_ []*CompanyResponse, err error) {
 	ctx, cancel := context.WithTimeout(ctx, u.contextDuration)
 	defer cancel()
 
-	ctx, end := otlp.Start(ctx, otel.Tracer("companies"), "ListByUser",
+	ctx, end := otlp.Start(ctx, otel.Tracer("companies"), "ListShipperCompanies",
 		attribute.String("user_id", userID),
 	)
 	defer func() { end(err) }()
 
 	var input struct {
-		userID uuid.UUID
+		shipperID uuid.UUID
 	}
 	{
-		input.userID, err = uuid.Parse(userID)
+		input.shipperID, err = uuid.Parse(userID)
 		if err != nil {
 			return nil, inerr.NewErrValidation("user_id", "invalid user ID")
 		}
 	}
 
-	memberships, err := u.membersRepo.FindByMemberID(ctx, input.userID)
+	memberships, err := u.membersRepo.FindByMemberID(ctx, input.shipperID)
 	if err != nil {
 		logger.ErrorContext(ctx, "failed to find memberships", err)
 		return nil, err

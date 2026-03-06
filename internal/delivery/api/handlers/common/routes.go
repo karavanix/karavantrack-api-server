@@ -10,7 +10,6 @@ import (
 func RegisterRoutes(r chi.Router, opts *delivery.HandlerOptions) {
 	authH := NewAuthHandler(opts)
 	usersH := NewUsersHandler(opts)
-	companiesH := NewCompaniesHandler(opts)
 	loadsH := NewLoadsHandler(opts)
 	wsH := NewWSHandler(opts)
 
@@ -29,11 +28,7 @@ func RegisterRoutes(r chi.Router, opts *delivery.HandlerOptions) {
 		r.Put("/users/me", usersH.UpdateMe())
 		r.Post("/users/me/devices", usersH.RegisterDevice())
 
-		// Companies
-		r.Get("/companies/{id}", companiesH.Get())
-
 		// Loads
-		r.Get("/loads", loadsH.List())
 		r.Get("/loads/{id}", loadsH.Get())
 
 		// WebSocket

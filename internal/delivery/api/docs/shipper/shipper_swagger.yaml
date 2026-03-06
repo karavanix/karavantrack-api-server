@@ -228,6 +228,8 @@ definitions:
         type: string
       first_name:
         type: string
+      is_free:
+        type: boolean
       last_name:
         type: string
     type: object
@@ -459,6 +461,30 @@ paths:
       tags:
       - Auth
   /companies:
+    get:
+      description: List companies for the current user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/query.CompanyResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/outerr.Response'
+      security:
+      - BearerAuth: []
+      summary: List companies
+      tags:
+      - Companies
     post:
       consumes:
       - application/json
@@ -514,8 +540,16 @@ paths:
           description: Unauthorized
           schema:
             $ref: '#/definitions/outerr.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/outerr.Response'
         "404":
           description: Not Found
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "500":
+          description: Internal Server Error
           schema:
             $ref: '#/definitions/outerr.Response'
       security:
@@ -662,10 +696,21 @@ paths:
         in: path
         name: id
         type: string
-      - description: Status filter
+      - collectionFormat: multi
+        description: Status filter
         in: query
+        items:
+          enum:
+          - created
+          - assigned
+          - accepted
+          - in_transit
+          - completed
+          - confirmed
+          - cancelled
+          type: string
         name: status
-        type: string
+        type: array
       - description: Pagination Limit
         in: query
         name: limit
@@ -820,73 +865,7 @@ paths:
       summary: Remove member
       tags:
       - Companies
-  /companies/mine:
-    get:
-      description: List companies for the current user
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/query.CompanyResponse'
-            type: array
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/outerr.Response'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/outerr.Response'
-      security:
-      - BearerAuth: []
-      summary: List companies
-      tags:
-      - Companies
   /loads:
-    get:
-      description: List loads with optional filters
-      parameters:
-      - description: Company ID filter
-        in: query
-        name: company_id
-        type: string
-      - description: Carrier ID filter
-        in: query
-        name: carrier_id
-        type: string
-      - description: Status filter
-        in: query
-        name: status
-        type: string
-      - description: Pagination Limit
-        in: query
-        name: limit
-        type: integer
-      - description: Pagination Offset
-        in: query
-        name: offset
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/query.LoadResponse'
-            type: array
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/outerr.Response'
-      security:
-      - BearerAuth: []
-      summary: List loads
-      tags:
-      - Loads
     post:
       consumes:
       - application/json
