@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -13,6 +14,8 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/handlers/carriers"
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/handlers/common"
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/handlers/shippers"
+	"github.com/riandyrn/otelchi"
+	"github.com/riandyrn/otelchi/metric"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 
 	_ "github.com/karavanix/karavantrack-api-server/internal/delivery/api/docs/carrier"
@@ -34,6 +37,21 @@ func NewRouter(options *delivery.HandlerOptions) http.Handler {
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
+	baseCfg := metric.NewBaseConfig(
+		options.Config.APP,
+	)
+	router.Use(
+		otelchi.Middleware(options.Config.APP, otelchi.WithFilter(func(r *http.Request) bool {
+			if r.URL.Path == "/ping" || strings.HasSuffix(r.URL.Path, "/api/swagger") {
+				return false
+			}
+			return true
+		}), otelchi.WithChiRoutes(router)),
+		metric.NewRequestDurationMillis(baseCfg),
+		metric.NewRequestInFlight(baseCfg),
+		metric.NewResponseSizeBytes(baseCfg),
+	)
+
 	router.Use(metrics.Collector(metrics.CollectorOpts{
 		Host:  false,
 		Proto: true,
