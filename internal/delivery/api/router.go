@@ -14,6 +14,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/handlers/carriers"
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/handlers/common"
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/handlers/shippers"
+	apimiddleware "github.com/karavanix/karavantrack-api-server/internal/delivery/api/middleware"
 	"github.com/riandyrn/otelchi"
 	"github.com/riandyrn/otelchi/metric"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
@@ -25,18 +26,6 @@ import (
 func NewRouter(options *delivery.HandlerOptions) http.Handler {
 	router := chi.NewRouter()
 
-	router.Use(chimiddleware.RealIP)
-	router.Use(chimiddleware.Recoverer)
-	router.Use(chimiddleware.Logger)
-	router.Use(chimiddleware.RequestID)
-	router.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"*"},
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Accept-Language", "Content-Type", "X-CSRF-Token", "X-Request-Id", "X-Client-Id"},
-		ExposedHeaders:   []string{"Link"},
-		AllowCredentials: true,
-		MaxAge:           300,
-	}))
 	baseCfg := metric.NewBaseConfig(
 		options.Config.APP,
 	)
@@ -58,6 +47,19 @@ func NewRouter(options *delivery.HandlerOptions) http.Handler {
 		Skip: func(r *http.Request) bool {
 			return r.Method != "OPTIONS"
 		},
+	}))
+
+	router.Use(chimiddleware.RealIP)
+	router.Use(chimiddleware.Recoverer)
+	router.Use(chimiddleware.RequestID)
+	router.Use(apimiddleware.StructuredLogger)
+	router.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"*"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Accept-Language", "Content-Type", "X-CSRF-Token", "X-Request-Id", "X-Client-Id"},
+		ExposedHeaders:   []string{"Link"},
+		AllowCredentials: true,
+		MaxAge:           300,
 	}))
 
 	// Mount the handlers under the /api/v1 path
