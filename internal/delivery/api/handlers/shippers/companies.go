@@ -3,10 +3,10 @@ package shippers
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
+	"github.com/go-playground/form/v4"
 	"github.com/karavanix/karavantrack-api-server/internal/delivery"
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/validation"
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/outerr"
@@ -86,8 +86,8 @@ func (h *companiesHandler) Create() http.HandlerFunc {
 // @Success      200  {array} query.CompanyResponse
 // @Failure      401  {object} outerr.Response
 // @Failure      403  {object} outerr.Response
-// @Router       /companies/mine [get]
-func (h *companiesHandler) ListMine() http.HandlerFunc {
+// @Router       /companies [get]
+func (h *companiesHandler) ListShipperCompanies() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, ok := app.UserID[string](r.Context())
 		if !ok {
@@ -95,7 +95,39 @@ func (h *companiesHandler) ListMine() http.HandlerFunc {
 			return
 		}
 
-		resp, err := h.companiesUsecase.Query.ListByUser(r.Context(), userID)
+		resp, err := h.companiesUsecase.Query.ListShipperCompanies(r.Context(), userID)
+		if err != nil {
+			outerr.HandleHTTP(w, r, err)
+			return
+		}
+
+		render.JSON(w, r, resp)
+	}
+}
+
+// Get godoc
+// @Security     BearerAuth
+// @Summary      Get company
+// @Description  Get company by ID
+// @Tags         Companies
+// @Produce      json
+// @Param        id path string true "Company ID"
+// @Success      200 {object} query.CompanyResponse
+// @Failure      401 {object} outerr.Response
+// @Failure      403 {object} outerr.Response
+// @Failure      404 {object} outerr.Response
+// @Failure      500 {object} outerr.Response
+// @Router       /companies/{id} [get]
+func (h *companiesHandler) GetShipperCompany() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := app.UserID[string](r.Context())
+		if !ok {
+			outerr.Forbidden(w, r, "missing user context")
+			return
+		}
+		companyID := chi.URLParam(r, "id")
+
+		resp, err := h.companiesUsecase.Query.GetShipperCompany(r.Context(), userID, companyID)
 		if err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
@@ -254,7 +286,7 @@ func (h *companiesHandler) RemoveMember() http.HandlerFunc {
 // @Tags         Companies
 // @Produce      json
 // @Param        id     path  string false "Company ID"
-// @Param        status query string false "Status filter"
+// @Param        status query []string false "Status filter" collectionFormat(multi) Enums(created, assigned, accepted, in_transit, completed, confirmed, cancelled)
 // @Param        limit  query int    false "Pagination Limit"
 // @Param        offset query int    false "Pagination Offset"
 // @Success      200  {array} query.LoadResponse
@@ -263,17 +295,15 @@ func (h *companiesHandler) RemoveMember() http.HandlerFunc {
 func (h *companiesHandler) ListLoads() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		companyID := chi.URLParam(r, "id")
-		limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-		offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
 
-		req := &query_loads.ListRequest{
-			CompanyID: companyID,
-			Status:    r.URL.Query().Get("status"),
-			Limit:     limit,
-			Offset:    offset,
+		var urlForm query_loads.ListRequest
+		if err := form.NewDecoder().Decode(&urlForm, r.URL.Query()); err != nil {
+			outerr.BadRequest(w, r, "invalid request form: "+err.Error())
+			return
 		}
+		urlForm.CompanyID = companyID
 
-		resp, err := h.loadsUsecase.Query.List(r.Context(), req)
+		resp, err := h.loadsUsecase.Query.List(r.Context(), &urlForm)
 		if err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return

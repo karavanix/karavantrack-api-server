@@ -153,7 +153,7 @@ func (l *Load) Cancel() error {
 type LoadFilter struct {
 	CompanyID *uuid.UUID
 	CarrierID *uuid.UUID
-	Status    *LoadStatus
+	Status    []LoadStatus
 	Limit     int
 	Offset    int
 }
@@ -172,6 +172,8 @@ type LoadStats struct {
 type LoadRepository interface {
 	Save(ctx context.Context, load *Load) error
 	FindByID(ctx context.Context, id uuid.UUID) (*Load, error)
+	FindActiveByCarrierID(ctx context.Context, carrierID uuid.UUID) (*Load, error)
+	FindActiveByCarrierIDs(ctx context.Context, carrierIDs []uuid.UUID) (map[uuid.UUID]*Load, error)
 	FindAll(ctx context.Context, filter LoadFilter) ([]*Load, int, error)
 	FindStats(ctx context.Context, filter LoadFilter) (*LoadStats, error)
 }

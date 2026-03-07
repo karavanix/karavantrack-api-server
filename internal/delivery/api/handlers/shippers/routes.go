@@ -24,7 +24,8 @@ func RegisterRoutes(r chi.Router, opts *delivery.HandlerOptions) {
 
 		// Company management
 		r.Post("/companies", companiesH.Create())
-		r.Get("/companies/mine", companiesH.ListMine())
+		r.Get("/companies", companiesH.ListShipperCompanies())
+		r.Get("/companies/{id}", companiesH.GetShipperCompany())
 		r.Put("/companies/{id}", companiesH.Update())
 
 		r.Get("/companies/{id}/loads", companiesH.ListLoads())

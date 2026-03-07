@@ -167,7 +167,7 @@ const docTemplatecarrier = `{
                 }
             }
         },
-        "/companies/{id}": {
+        "/carriers/companies/{id}": {
             "get": {
                 "security": [
                     {
@@ -204,8 +204,20 @@ const docTemplatecarrier = `{
                             "$ref": "#/definitions/outerr.Response"
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/outerr.Response"
                         }
@@ -213,40 +225,70 @@ const docTemplatecarrier = `{
                 }
             }
         },
-        "/loads": {
+        "/loads/active": {
             "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "List loads with optional filters",
+                "description": "Get the current active load for the authenticated carrier (accepted, in_transit, or completed)",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Loads"
                 ],
-                "summary": "List loads",
+                "summary": "Get active load",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/query.LoadResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/loads/pending": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Loads"
+                ],
+                "summary": "Get latest assigned load",
                 "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Company ID filter",
-                        "name": "company_id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Carrier ID filter",
-                        "name": "carrier_id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Status filter",
-                        "name": "status",
-                        "in": "query"
-                    },
                     {
                         "type": "integer",
                         "description": "Pagination Limit",
@@ -264,14 +306,35 @@ const docTemplatecarrier = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/query.LoadResponse"
-                            }
+                            "$ref": "#/definitions/query.ListResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/outerr.Response"
                         }
@@ -842,6 +905,26 @@ const docTemplatecarrier = `{
                 },
                 "status": {
                     "type": "string"
+                }
+            }
+        },
+        "query.ListResponse": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "offset": {
+                    "type": "integer"
+                },
+                "result": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/query.LoadResponse"
+                    }
                 }
             }
         },

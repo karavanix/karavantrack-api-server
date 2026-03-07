@@ -21,11 +21,11 @@ func NewListUsecase(contextDuration time.Duration, loadsRepo domain.LoadReposito
 }
 
 type ListRequest struct {
-	CompanyID string `json:"company_id"`
-	CarrierID string `json:"carrier_id"`
-	Status    string `json:"status"`
-	Limit     int    `json:"limit"`
-	Offset    int    `json:"offset"`
+	CompanyID string   `form:"company_id"`
+	CarrierID string   `form:"carrier_id"`
+	Status    []string `form:"status"`
+	Limit     int      `form:"limit"`
+	Offset    int      `form:"offset"`
 }
 
 type ListResponse struct {
@@ -114,9 +114,10 @@ func (u *ListUsecase) List(ctx context.Context, req *ListRequest) (_ *ListRespon
 		filter.CarrierID = &id
 	}
 
-	if req.Status != "" {
-		s := domain.LoadStatus(req.Status)
-		filter.Status = &s
+	if len(req.Status) > 0 {
+		for _, s := range req.Status {
+			filter.Status = append(filter.Status, domain.LoadStatus(s))
+		}
 	}
 
 	loads, total, err := u.loadsRepo.FindAll(ctx, filter)

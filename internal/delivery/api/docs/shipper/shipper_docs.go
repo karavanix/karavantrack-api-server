@@ -168,6 +168,44 @@ const docTemplateshipper = `{
             }
         },
         "/companies": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "List companies for the current user",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Companies"
+                ],
+                "summary": "List companies",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/query.CompanyResponse"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    }
+                }
+            },
             "post": {
                 "security": [
                     {
@@ -224,46 +262,6 @@ const docTemplateshipper = `{
                 }
             }
         },
-        "/companies/mine": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "List companies for the current user",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Companies"
-                ],
-                "summary": "List companies",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/query.CompanyResponse"
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/outerr.Response"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/outerr.Response"
-                        }
-                    }
-                }
-            }
-        },
         "/companies/{id}": {
             "get": {
                 "security": [
@@ -301,8 +299,20 @@ const docTemplateshipper = `{
                             "$ref": "#/definitions/outerr.Response"
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/outerr.Response"
                         }
@@ -538,7 +548,20 @@ const docTemplateshipper = `{
                         "in": "path"
                     },
                     {
-                        "type": "string",
+                        "type": "array",
+                        "items": {
+                            "enum": [
+                                "created",
+                                "assigned",
+                                "accepted",
+                                "in_transit",
+                                "completed",
+                                "confirmed",
+                                "cancelled"
+                            ],
+                            "type": "string"
+                        },
+                        "collectionFormat": "multi",
                         "description": "Status filter",
                         "name": "status",
                         "in": "query"
@@ -777,70 +800,6 @@ const docTemplateshipper = `{
             }
         },
         "/loads": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "List loads with optional filters",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Loads"
-                ],
-                "summary": "List loads",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Company ID filter",
-                        "name": "company_id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Carrier ID filter",
-                        "name": "carrier_id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Status filter",
-                        "name": "status",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Pagination Limit",
-                        "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Pagination Offset",
-                        "name": "offset",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/query.LoadResponse"
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/outerr.Response"
-                        }
-                    }
-                }
-            },
             "post": {
                 "security": [
                     {
@@ -1798,6 +1757,9 @@ const docTemplateshipper = `{
                 },
                 "first_name": {
                     "type": "string"
+                },
+                "is_free": {
+                    "type": "boolean"
                 },
                 "last_name": {
                     "type": "string"

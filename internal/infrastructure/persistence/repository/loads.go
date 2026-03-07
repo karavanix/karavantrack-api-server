@@ -70,6 +70,82 @@ func (r *loadsRepo) FindByID(ctx context.Context, id uuid.UUID) (*domain.Load, e
 	return r.toDomain(&model), nil
 }
 
+func (r *loadsRepo) FindPendingByCarrierID(ctx context.Context, carrierID uuid.UUID) ([]*domain.Load, error) {
+	db := postgres.FromContext(ctx, r.db)
+	var models []Loads
+	err := db.NewSelect().
+		Model(&models).
+		Where("carrier_id = ? AND status = ?", carrierID.String(), domain.LoadStatusAssigned.String()).
+		OrderBy("created_at", bun.OrderAsc).
+		Scan(ctx)
+	if err != nil {
+		return nil, postgres.Error(err, &Loads{})
+	}
+
+	result := make([]*domain.Load, len(models))
+	for i := range models {
+		result[i] = r.toDomain(&models[i])
+	}
+
+	return result, nil
+}
+
+func (r *loadsRepo) FindActiveByCarrierID(ctx context.Context, carrierID uuid.UUID) (*domain.Load, error) {
+	db := postgres.FromContext(ctx, r.db)
+	var model Loads
+
+	q := db.NewSelect().Model(&model).
+		Where(
+			"carrier_id = ? AND status IN ?",
+			carrierID.String(),
+			bun.Tuple([]string{
+				domain.LoadStatusAccepted.String(),
+				domain.LoadStatusInTransit.String(),
+				domain.LoadStatusCompleted.String(),
+			}),
+		).
+		OrderBy("created_at", bun.OrderDesc).
+		Limit(1)
+	if err := q.Scan(ctx); err != nil {
+		return nil, postgres.Error(err, &Loads{})
+	}
+
+	return r.toDomain(&model), nil
+}
+
+func (r *loadsRepo) FindActiveByCarrierIDs(ctx context.Context, carrierIDs []uuid.UUID) (map[uuid.UUID]*domain.Load, error) {
+	db := postgres.FromContext(ctx, r.db)
+	var models []Loads
+
+	q := db.NewSelect().Model(&models).
+		Where(
+			"carrier_id IN (?) AND status IN ?",
+			bun.In(carrierIDs),
+			bun.Tuple([]string{
+				domain.LoadStatusAccepted.String(),
+				domain.LoadStatusInTransit.String(),
+				domain.LoadStatusCompleted.String(),
+			}),
+		).
+		OrderBy("created_at", bun.OrderDesc)
+	if err := q.Scan(ctx); err != nil {
+		return nil, postgres.Error(err, &Loads{})
+	}
+
+	result := make(map[uuid.UUID]*domain.Load)
+	for _, model := range models {
+		load := r.toDomain(&model)
+		if load == nil {
+			continue
+		}
+
+		if _, ok := result[load.CarrierID]; !ok {
+			result[load.CarrierID] = load
+		}
+	}
+	return result, nil
+}
+
 func (r *loadsRepo) FindAll(ctx context.Context, filter domain.LoadFilter) ([]*domain.Load, int, error) {
 	db := postgres.FromContext(ctx, r.db)
 	var models []Loads
@@ -81,8 +157,8 @@ func (r *loadsRepo) FindAll(ctx context.Context, filter domain.LoadFilter) ([]*d
 	if filter.CarrierID != nil {
 		q = q.Where("carrier_id = ?", filter.CarrierID.String())
 	}
-	if filter.Status != nil {
-		q = q.Where("status = ?", filter.Status.String())
+	if len(filter.Status) > 0 {
+		q = q.Where("status IN ?", bun.Tuple(filter.Status))
 	}
 
 	if filter.Limit > 0 {
@@ -94,7 +170,7 @@ func (r *loadsRepo) FindAll(ctx context.Context, filter domain.LoadFilter) ([]*d
 		q = q.Offset(filter.Offset)
 	}
 
-	q = q.Order("created_at DESC")
+	q = q.OrderBy("created_at", bun.OrderDesc)
 
 	err := q.Scan(ctx)
 	if err != nil {

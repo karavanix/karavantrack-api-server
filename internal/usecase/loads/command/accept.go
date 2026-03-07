@@ -2,6 +2,7 @@ package command
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -26,23 +27,39 @@ func NewAcceptUsecase(contextDuration time.Duration, loadsRepo domain.LoadReposi
 	return &AcceptUsecase{contextDuration: contextDuration, loadsRepo: loadsRepo, taskQueue: taskQueue}
 }
 
-func (u *AcceptUsecase) Accept(ctx context.Context, loadID string) (err error) {
+func (u *AcceptUsecase) Accept(ctx context.Context, loadID string, userID string) (err error) {
 	ctx, cancel := context.WithTimeout(ctx, u.contextDuration)
 	defer cancel()
 
 	ctx, end := otlp.Start(ctx, otel.Tracer("loads"), "Accept",
 		attribute.String("load_id", loadID),
+		attribute.String("user_id", userID),
 	)
 	defer func() { end(err) }()
 
 	var input struct {
-		loadID uuid.UUID
+		loadID    uuid.UUID
+		carrierID uuid.UUID
 	}
 	{
 		input.loadID, err = uuid.Parse(loadID)
 		if err != nil {
 			return inerr.NewErrValidation("load_id", "invalid load ID")
 		}
+
+		input.carrierID, err = uuid.Parse(userID)
+		if err != nil {
+			return inerr.NewErrValidation("user_id", "invalid user ID")
+		}
+	}
+
+	activeLoad, err := u.loadsRepo.FindActiveByCarrierID(ctx, input.carrierID)
+	if err != nil && !errors.Is(err, inerr.ErrNotFound{}) {
+		return err
+	}
+
+	if activeLoad != nil {
+		return inerr.ErrCarrierHasAlreadyActiveLoad
 	}
 
 	load, err := u.loadsRepo.FindByID(ctx, input.loadID)

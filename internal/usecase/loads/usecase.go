@@ -21,6 +21,7 @@ type Command struct {
 
 type Query struct {
 	*query.GetUsecase
+	*query.GetActiveUsecase
 	*query.ListUsecase
 	*query.GetTrackUsecase
 	*query.GetPositionUsecase
@@ -51,6 +52,7 @@ func NewUsecase(
 		},
 		Query: Query{
 			GetUsecase:         query.NewGetUsecase(contextDuration, loadsRepo),
+			GetActiveUsecase:   query.NewGetActiveUsecase(contextDuration, loadsRepo),
 			ListUsecase:        query.NewListUsecase(contextDuration, loadsRepo),
 			GetTrackUsecase:    query.NewGetTrackUsecase(contextDuration, loadLocationPointRepo),
 			GetPositionUsecase: query.NewGetPositionUsecase(contextDuration, loadLocationPointRepo),

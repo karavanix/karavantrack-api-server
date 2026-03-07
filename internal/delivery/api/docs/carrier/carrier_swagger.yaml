@@ -116,6 +116,19 @@ definitions:
       status:
         type: string
     type: object
+  query.ListResponse:
+    properties:
+      count:
+        type: integer
+      limit:
+        type: integer
+      offset:
+        type: integer
+      result:
+        items:
+          $ref: '#/definitions/query.LoadResponse'
+        type: array
+    type: object
   query.LoadResponse:
     properties:
       carrier_id:
@@ -277,7 +290,7 @@ paths:
       summary: Register
       tags:
       - Auth
-  /companies/{id}:
+  /carriers/companies/{id}:
     get:
       description: Get company by ID
       parameters:
@@ -297,8 +310,16 @@ paths:
           description: Unauthorized
           schema:
             $ref: '#/definitions/outerr.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/outerr.Response'
         "404":
           description: Not Found
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "500":
+          description: Internal Server Error
           schema:
             $ref: '#/definitions/outerr.Response'
       security:
@@ -306,48 +327,6 @@ paths:
       summary: Get company
       tags:
       - Companies
-  /loads:
-    get:
-      description: List loads with optional filters
-      parameters:
-      - description: Company ID filter
-        in: query
-        name: company_id
-        type: string
-      - description: Carrier ID filter
-        in: query
-        name: carrier_id
-        type: string
-      - description: Status filter
-        in: query
-        name: status
-        type: string
-      - description: Pagination Limit
-        in: query
-        name: limit
-        type: integer
-      - description: Pagination Offset
-        in: query
-        name: offset
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/query.LoadResponse'
-            type: array
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/outerr.Response'
-      security:
-      - BearerAuth: []
-      summary: List loads
-      tags:
-      - Loads
   /loads/{id}:
     get:
       description: Get load by ID
@@ -484,6 +463,81 @@ paths:
       security:
       - BearerAuth: []
       summary: Start load
+      tags:
+      - Loads
+  /loads/active:
+    get:
+      description: Get the current active load for the authenticated carrier (accepted,
+        in_transit, or completed)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/query.LoadResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/outerr.Response'
+      security:
+      - BearerAuth: []
+      summary: Get active load
+      tags:
+      - Loads
+  /loads/pending:
+    get:
+      parameters:
+      - description: Pagination Limit
+        in: query
+        name: limit
+        type: integer
+      - description: Pagination Offset
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/query.ListResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/outerr.Response'
+      security:
+      - BearerAuth: []
+      summary: Get latest assigned load
       tags:
       - Loads
   /users/me:

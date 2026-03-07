@@ -145,7 +145,7 @@ func (s *ServerApp) Run() error {
 	// usecase
 	authUsecase := auth.NewUsecase(s.config.Context.Timeout, jwtProvider, usersRepo)
 	usersUsecase := users.NewUsecase(s.config.Context.Timeout, usersRepo, fcmDevicesRepo)
-	companiesUsecase := companies.NewUsecase(s.config.Context.Timeout, txManager, companiesRepo, companyMembersRepo, companyCarriersRepo, usersRepo)
+	companiesUsecase := companies.NewUsecase(s.config.Context.Timeout, txManager, companiesRepo, companyMembersRepo, companyCarriersRepo, usersRepo, loadsRepo)
 	loadsUsecase := loads.NewUsecase(s.config.Context.Timeout, loadsRepo, usersRepo, loadLocationsPointsRepo, s.taskQueue)
 	locationUsecase := location.NewUsecase(s.config.Context.Timeout, s.bkr, eventFactory, loadLocationsPointsRepo)
 
