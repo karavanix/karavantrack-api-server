@@ -2,49 +2,14 @@ package postgres
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
-	"time"
 
 	"github.com/exaring/otelpgx"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
-	"github.com/karavanix/karavantrack-api-server/pkg/logger"
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/pgdialect"
 )
-
-// slogQueryHook logs bun queries as structured JSON via the global slog logger.
-type slogQueryHook struct{ verbose bool }
-
-func (h slogQueryHook) BeforeQuery(ctx context.Context, _ *bun.QueryEvent) context.Context {
-	return ctx
-}
-
-func (h slogQueryHook) AfterQuery(ctx context.Context, event *bun.QueryEvent) {
-	duration := time.Since(event.StartTime)
-
-	switch event.Err {
-	case nil, sql.ErrNoRows, sql.ErrTxDone:
-	default:
-		logger.ErrorContext(ctx, "[BUN]", event.Err,
-			"db.query", event.Query,
-			"db.duration_ms", fmt.Sprintf(" %10s ", duration.Round(time.Microsecond)),
-		)
-		return
-	}
-
-	if !h.verbose {
-		return
-	}
-
-	args := []any{
-		"db.query", event.Query,
-		"db.duration_ms", fmt.Sprintf(" %10s ", duration.Round(time.Microsecond)),
-	}
-
-	logger.DebugContext(ctx, "[BUN]", args...)
-}
 
 func NewBunDB(opt ...Options) (*bun.DB, error) {
 	o := options{
@@ -98,6 +63,8 @@ func NewBunDB(opt ...Options) (*bun.DB, error) {
 	sqldb := stdlib.OpenDBFromPool(pool)
 	db := bun.NewDB(sqldb, pgdialect.New())
 
-	db.AddQueryHook(slogQueryHook{verbose: o.Debug})
+	db.AddQueryHook(
+		NewLoggerQueryHook(o.Debug),
+	)
 	return db, nil
 }
