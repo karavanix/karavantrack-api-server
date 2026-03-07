@@ -96,7 +96,7 @@ func (r *loadsRepo) FindActiveByCarrierID(ctx context.Context, carrierID uuid.UU
 
 	q := db.NewSelect().Model(&model).
 		Where(
-			"carrier_id = ? AND status IN (?)",
+			"carrier_id = ? AND status IN ?",
 			carrierID.String(),
 			bun.Tuple([]string{
 				domain.LoadStatusAccepted.String(),
@@ -119,7 +119,7 @@ func (r *loadsRepo) FindActiveByCarrierIDs(ctx context.Context, carrierIDs []uui
 
 	q := db.NewSelect().Model(&models).
 		Where(
-			"carrier_id IN (?) AND status IN (?)",
+			"carrier_id IN (?) AND status IN ?",
 			bun.In(carrierIDs),
 			bun.Tuple([]string{
 				domain.LoadStatusAccepted.String(),
@@ -158,7 +158,7 @@ func (r *loadsRepo) FindAll(ctx context.Context, filter domain.LoadFilter) ([]*d
 		q = q.Where("carrier_id = ?", filter.CarrierID.String())
 	}
 	if len(filter.Status) > 0 {
-		q = q.Where("status IN (?)", bun.Tuple(filter.Status))
+		q = q.Where("status IN ?", bun.Tuple(filter.Status))
 	}
 
 	if filter.Limit > 0 {
