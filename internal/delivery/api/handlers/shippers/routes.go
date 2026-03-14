@@ -31,8 +31,8 @@ func RegisterRoutes(r chi.Router, opts *delivery.HandlerOptions) {
 		r.Get("/companies/{id}/loads", companiesH.ListLoads())
 		r.Get("/companies/{id}/loads/stats", loadsH.GetLoadStats())
 
-		r.Post("/companies/{id}/members", companiesH.AddMember())
 		r.Get("/companies/{id}/members", companiesH.ListMembers())
+		r.Post("/companies/{id}/members", companiesH.AddMember())
 		r.Delete("/companies/{id}/members/{user_id}", companiesH.RemoveMember())
 
 		r.Get("/companies/{id}/carriers", companiesH.ListCarriers())
@@ -47,8 +47,9 @@ func RegisterRoutes(r chi.Router, opts *delivery.HandlerOptions) {
 		r.Get("/loads/{id}/track", loadsH.GetTrack())
 		r.Get("/loads/{id}/position", loadsH.GetPosition())
 
-		// User search
-		r.Get("/users/carriers/search", usersH.SearchCarriers())
-		r.Get("/users/shippers/search", usersH.SearchShippers())
+		// User
+		r.Post("/users/invite", usersH.Invite())
+		r.Get("/users/carriers/by-contact", usersH.GetCarrierByContact())
+		r.Get("/users/shippers/by-contact", usersH.GetShipperByContact())
 	})
 }

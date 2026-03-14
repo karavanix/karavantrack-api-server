@@ -56,6 +56,46 @@ func (r *companyMembersRepo) FindByCompanyID(ctx context.Context, companyID uuid
 	return result, nil
 }
 
+func (r *companyMembersRepo) FindByCompanyIDWithFilter(ctx context.Context, companyID uuid.UUID, filter *domain.CompanyMemberFilter) ([]*domain.CompanyMember, error) {
+	db := postgres.FromContext(ctx, r.db)
+	var models []CompanyMembers
+
+	q := db.NewSelect().Model(&models).
+		Where("cm.company_id = ?", companyID.String())
+
+	if filter != nil {
+		if filter.Query != "" {
+			q = q.Join("JOIN users AS u ON u.id = cm.member_id").
+				WhereGroup(" AND ", func(q *bun.SelectQuery) *bun.SelectQuery {
+					return q.Where("cm.alias ILIKE ?", "%"+filter.Query+"%").
+						WhereOr("u.first_name ILIKE ?", "%"+filter.Query+"%").
+						WhereOr("u.last_name ILIKE ?", "%"+filter.Query+"%").
+						WhereOr("u.email ILIKE ?", "%"+filter.Query+"%").
+						WhereOr("u.phone ILIKE ?", "%"+filter.Query+"%")
+				})
+		}
+
+		if filter.Limit > 0 {
+			q = q.Limit(filter.Limit)
+		}
+
+		if filter.Offset > 0 {
+			q = q.Offset(filter.Offset)
+		}
+	}
+
+	err := q.Order("cm.created_at ASC").Scan(ctx)
+	if err != nil {
+		return nil, postgres.Error(err, &CompanyMembers{})
+	}
+
+	result := make([]*domain.CompanyMember, len(models))
+	for i := range models {
+		result[i] = r.toDomain(&models[i])
+	}
+	return result, nil
+}
+
 func (r *companyMembersRepo) FindByMemberID(ctx context.Context, memberID uuid.UUID) ([]*domain.CompanyMember, error) {
 	db := postgres.FromContext(ctx, r.db)
 	var models []CompanyMembers

@@ -59,6 +59,46 @@ func (r *companyCarriersRepo) FindByCompanyID(ctx context.Context, companyID uui
 	return result, nil
 }
 
+func (r *companyCarriersRepo) FindByCompanyIDWithFilter(ctx context.Context, companyID uuid.UUID, filter *domain.CompanyCarrierFilter) ([]*domain.CompanyCarrier, error) {
+	db := postgres.FromContext(ctx, r.db)
+	var models []CompanyCarriers
+
+	q := db.NewSelect().Model(&models).
+		Where("cc.company_id = ?", companyID.String())
+
+	if filter != nil {
+		if filter.Query != "" {
+			q = q.Join("JOIN users AS u ON u.id = cc.carrier_id").
+				WhereGroup(" AND ", func(q *bun.SelectQuery) *bun.SelectQuery {
+					return q.Where("cc.alias ILIKE ?", "%"+filter.Query+"%").
+						WhereOr("u.first_name ILIKE ?", "%"+filter.Query+"%").
+						WhereOr("u.last_name ILIKE ?", "%"+filter.Query+"%").
+						WhereOr("u.email ILIKE ?", "%"+filter.Query+"%").
+						WhereOr("u.phone ILIKE ?", "%"+filter.Query+"%")
+				})
+		}
+
+		if filter.Limit > 0 {
+			q = q.Limit(filter.Limit)
+		}
+
+		if filter.Offset > 0 {
+			q = q.Offset(filter.Offset)
+		}
+	}
+
+	err := q.Order("cc.created_at DESC").Scan(ctx)
+	if err != nil {
+		return nil, postgres.Error(err, &CompanyCarriers{})
+	}
+
+	result := make([]*domain.CompanyCarrier, len(models))
+	for i := range models {
+		result[i] = r.toDomain(&models[i])
+	}
+	return result, nil
+}
+
 func (r *companyCarriersRepo) FindByCarrierID(ctx context.Context, carrierID uuid.UUID) ([]*domain.CompanyCarrier, error) {
 	db := postgres.FromContext(ctx, r.db)
 	var models []CompanyCarriers

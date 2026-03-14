@@ -155,35 +155,40 @@ func (r *usersRepo) FindByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UU
 	return result, nil
 }
 
-func (r *usersRepo) FindCarriersByQuery(ctx context.Context, query string) ([]*domain.User, error) {
+func (r *usersRepo) FindByFilter(ctx context.Context, filter *domain.UserFilter) ([]*domain.User, error) {
 	db := postgres.FromContext(ctx, r.db)
 	var models []Users
 
-	err := db.NewSelect().Model(&models).
-		Where("role = ?", shared.RoleCarrier.String()).
-		Where("first_name ILIKE ? OR last_name ILIKE ? OR email ILIKE ? OR phone ILIKE ?", "%"+query+"%", "%"+query+"%", "%"+query+"%", "%"+query+"%").
-		Scan(ctx)
-	if err != nil {
-		return nil, postgres.Error(err, &Users{})
+	q := db.NewSelect().Model(&models)
+
+	if filter.Contact != "" {
+		q.WhereGroup(" AND ", func(q *bun.SelectQuery) *bun.SelectQuery {
+			return q.Where("email = ?", filter.Contact).WhereOr("phone = ?", filter.Contact)
+		})
 	}
 
-	result := make([]*domain.User, len(models))
-	for i := range models {
-		result[i] = r.toDomain(&models[i])
+	if filter.Query != "" {
+		q.WhereGroup(" AND ", func(q *bun.SelectQuery) *bun.SelectQuery {
+			return q.Where("email ILIKE ?", "%"+filter.Query+"%").
+				WhereOr("phone ILIKE ?", "%"+filter.Query+"%").
+				WhereOr("first_name ILIKE ?", "%"+filter.Query+"%").
+				WhereOr("last_name ILIKE ?", "%"+filter.Query+"%")
+		})
 	}
 
-	return result, nil
-}
+	if filter.Role != "" {
+		q.Where("role = ?", filter.Role.String())
+	}
 
-func (r *usersRepo) FindShippersByQuery(ctx context.Context, query string) ([]*domain.User, error) {
-	db := postgres.FromContext(ctx, r.db)
-	var models []Users
+	if filter.Limit > 0 {
+		q.Limit(filter.Limit)
+	}
 
-	err := db.NewSelect().Model(&models).
-		Where("role = ?", shared.RoleShipper.String()).
-		Where("first_name ILIKE ? OR last_name ILIKE ? OR email ILIKE ? OR phone ILIKE ?", "%"+query+"%", "%"+query+"%", "%"+query+"%", "%"+query+"%").
-		Scan(ctx)
-	if err != nil {
+	if filter.Offset > 0 {
+		q.Offset(filter.Offset)
+	}
+
+	if err := q.Scan(ctx); err != nil {
 		return nil, postgres.Error(err, &Users{})
 	}
 

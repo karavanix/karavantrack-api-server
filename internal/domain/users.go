@@ -12,6 +12,8 @@ import (
 type UserStatus string
 
 const (
+	UserStatusInvited  UserStatus = "invited"
+	UserStatusNew      UserStatus = "new"
 	UserStatusPending  UserStatus = "pending"
 	UserStatusActive   UserStatus = "active"
 	UserStatusInactive UserStatus = "inactive"
@@ -64,6 +66,30 @@ func NewUser(
 	}, nil
 }
 
+func NewUserInvited(
+	email shared.Email,
+	phone shared.Phone,
+	role shared.Role,
+) (*User, error) {
+	if email == "" && phone == "" {
+		return nil, errors.New("email or phone is required")
+	}
+
+	if !role.IsValid() {
+		return nil, errors.New("invalid role")
+	}
+
+	return &User{
+		ID:        uuid.New(),
+		Email:     email,
+		Phone:     phone,
+		Role:      role,
+		Status:    UserStatusInvited,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}, nil
+}
+
 func (u *User) Update(firstName, lastName string) {
 	if firstName != "" {
 		u.FirstName = firstName
@@ -100,6 +126,14 @@ func (u *User) IsShipper() bool {
 	return u.Role.IsShipper()
 }
 
+type UserFilter struct {
+	Query   string
+	Contact string
+	Role    shared.Role
+	Limit   int
+	Offset  int
+}
+
 type UserRepository interface {
 	Save(ctx context.Context, user *User) error
 	Update(ctx context.Context, user *User) error
@@ -108,6 +142,5 @@ type UserRepository interface {
 	FindByEmailOrPhone(ctx context.Context, email shared.Email, phone shared.Phone) (*User, error)
 	FindByID(ctx context.Context, id uuid.UUID) (*User, error)
 	FindByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]*User, error)
-	FindCarriersByQuery(ctx context.Context, query string) ([]*User, error)
-	FindShippersByQuery(ctx context.Context, query string) ([]*User, error)
+	FindByFilter(ctx context.Context, filter *UserFilter) ([]*User, error)
 }

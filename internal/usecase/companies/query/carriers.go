@@ -34,6 +34,12 @@ func NewListByCompanyUsecase(
 	}
 }
 
+type ListCarriersRequest struct {
+	Query  string `form:"q"`
+	Limit  int    `form:"limit"`
+	Offset int    `form:"offset"`
+}
+
 type ListCarriersResponse struct {
 	CarrierID string    `json:"carrier_id"`
 	Alias     string    `json:"alias"`
@@ -43,7 +49,7 @@ type ListCarriersResponse struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-func (u *ListCarriersUsecase) ListCarriers(ctx context.Context, companyID string) (_ []*ListCarriersResponse, err error) {
+func (u *ListCarriersUsecase) ListCarriers(ctx context.Context, companyID string, req *ListCarriersRequest) (_ []*ListCarriersResponse, err error) {
 	ctx, cancel := context.WithTimeout(ctx, u.contextDuration)
 	defer cancel()
 
@@ -62,7 +68,11 @@ func (u *ListCarriersUsecase) ListCarriers(ctx context.Context, companyID string
 		}
 	}
 
-	companyCarriers, err := u.companyCarriersRepo.FindByCompanyID(ctx, input.companyID)
+	companyCarriers, err := u.companyCarriersRepo.FindByCompanyIDWithFilter(ctx, input.companyID, &domain.CompanyCarrierFilter{
+		Query:  req.Query,
+		Limit:  req.Limit,
+		Offset: req.Offset,
+	})
 	if err != nil {
 		logger.ErrorContext(ctx, "failed to find company carriers", err)
 		return nil, err
@@ -86,6 +96,7 @@ func (u *ListCarriersUsecase) ListCarriers(ctx context.Context, companyID string
 	}
 
 	result := make([]*ListCarriersResponse, 0, len(companyCarriers))
+
 	for _, cc := range companyCarriers {
 		user, ok := users[cc.CarrierID]
 		if !ok {

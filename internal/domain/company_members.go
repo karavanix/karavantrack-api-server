@@ -62,9 +62,16 @@ func (m *CompanyMember) IsMember() bool {
 	return m.Role == MemberRoleMember
 }
 
+type CompanyMemberFilter struct {
+	Query  string
+	Limit  int
+	Offset int
+}
+
 type CompanyMemberRepository interface {
 	Save(ctx context.Context, member *CompanyMember) error
 	FindByCompanyID(ctx context.Context, companyID uuid.UUID) ([]*CompanyMember, error)
+	FindByCompanyIDWithFilter(ctx context.Context, companyID uuid.UUID, filter *CompanyMemberFilter) ([]*CompanyMember, error)
 	FindByMemberID(ctx context.Context, memberID uuid.UUID) ([]*CompanyMember, error)
 	FindByCompanyIDAndMemberID(ctx context.Context, companyID, memberID uuid.UUID) (*CompanyMember, error)
 	DeleteByCompanyIDAndMemberID(ctx context.Context, companyID, memberID uuid.UUID) error

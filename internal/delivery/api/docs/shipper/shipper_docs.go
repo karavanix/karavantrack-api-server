@@ -403,6 +403,24 @@ const docTemplateshipper = `{
                 "parameters": [
                     {
                         "type": "string",
+                        "description": "Search query by (alias, first_name, last_name, email, phone)",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination Limit",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination Offset",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
                         "description": "Company ID",
                         "name": "id",
                         "in": "path",
@@ -527,19 +545,6 @@ const docTemplateshipper = `{
         },
         "/companies/{id}/loads": {
             "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "List loads for a specific company with filters",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Companies"
-                ],
-                "summary": "List company loads",
                 "parameters": [
                     {
                         "type": "string",
@@ -651,6 +656,24 @@ const docTemplateshipper = `{
                 ],
                 "summary": "List members",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Search query by (alias, first_name, last_name, email, phone)",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination Limit",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination Offset",
+                        "name": "offset",
+                        "in": "query"
+                    },
                     {
                         "type": "string",
                         "description": "Company ID",
@@ -1147,26 +1170,26 @@ const docTemplateshipper = `{
                 }
             }
         },
-        "/users/carriers/search": {
+        "/users/carriers/by-contact": {
             "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Search for carrier users by name, email, or phone",
+                "description": "Get carrier user by contact",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Users"
                 ],
-                "summary": "Search carriers",
+                "summary": "Get carrier by contact",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Search query (name, email, or phone)",
-                        "name": "q",
+                        "description": "Email or Phone Number",
+                        "name": "contact",
                         "in": "query",
                         "required": true
                     }
@@ -1177,7 +1200,7 @@ const docTemplateshipper = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/query.UsersResponse"
+                                "$ref": "#/definitions/query.GetCarrierByContactResponse"
                             }
                         }
                     },
@@ -1189,6 +1212,66 @@ const docTemplateshipper = `{
                     },
                     "403": {
                         "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/invite": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Invite user",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Invite user",
+                "parameters": [
+                    {
+                        "description": "Invite user",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/command.InviteRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/command.InviteResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/outerr.Response"
                         }
@@ -1327,26 +1410,26 @@ const docTemplateshipper = `{
                 }
             }
         },
-        "/users/shippers/search": {
+        "/users/shippers/by-contact": {
             "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Search for shipper users by name, email, or phone",
+                "description": "Get shipper user by contact",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Users"
                 ],
-                "summary": "Search shippers",
+                "summary": "Get shipper by contact",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Search query (name, email, or phone)",
-                        "name": "q",
+                        "description": "Email or Phone Number",
+                        "name": "contact",
                         "in": "query",
                         "required": true
                     }
@@ -1357,7 +1440,7 @@ const docTemplateshipper = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/query.UsersResponse"
+                                "$ref": "#/definitions/query.GetShipperByContactResponse"
                             }
                         }
                     },
@@ -1461,6 +1544,50 @@ const docTemplateshipper = `{
             ],
             "properties": {
                 "carrier_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "command.InviteRequest": {
+            "type": "object",
+            "required": [
+                "contact",
+                "role"
+            ],
+            "properties": {
+                "contact": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                }
+            }
+        },
+        "command.InviteResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "first_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "last_name": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "updated_at": {
                     "type": "string"
                 }
             }
@@ -1615,6 +1742,9 @@ const docTemplateshipper = `{
                 "title"
             ],
             "properties": {
+                "carrier_id": {
+                    "type": "string"
+                },
                 "company_id": {
                     "type": "string"
                 },
@@ -1624,6 +1754,9 @@ const docTemplateshipper = `{
                 "dropoff_address": {
                     "type": "string"
                 },
+                "dropoff_at": {
+                    "type": "string"
+                },
                 "dropoff_lat": {
                     "type": "number"
                 },
@@ -1631,6 +1764,9 @@ const docTemplateshipper = `{
                     "type": "number"
                 },
                 "pickup_address": {
+                    "type": "string"
+                },
+                "pickup_at": {
                     "type": "string"
                 },
                 "pickup_lat": {
@@ -1702,6 +1838,64 @@ const docTemplateshipper = `{
                     "type": "string"
                 },
                 "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "query.GetCarrierByContactResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "first_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "last_name": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "query.GetShipperByContactResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "first_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "last_name": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "updated_at": {
                     "type": "string"
                 }
             }
@@ -1866,6 +2060,12 @@ const docTemplateshipper = `{
                 "created_at": {
                     "type": "string"
                 },
+                "first_name": {
+                    "type": "string"
+                },
+                "last_name": {
+                    "type": "string"
+                },
                 "member_id": {
                     "type": "string"
                 },
@@ -1923,35 +2123,6 @@ const docTemplateshipper = `{
                 },
                 "speed_mps": {
                     "type": "number"
-                }
-            }
-        },
-        "query.UsersResponse": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "email": {
-                    "type": "string"
-                },
-                "first_name": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "last_name": {
-                    "type": "string"
-                },
-                "phone": {
-                    "type": "string"
-                },
-                "role": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
                 }
             }
         }

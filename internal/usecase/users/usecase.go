@@ -9,14 +9,15 @@ import (
 )
 
 type Command struct {
+	*command.InviteUsecase
 	*command.UpdateUsecase
 	*command.RegisterDeviceUsecase
 }
 
 type Query struct {
 	*query.GetMeUsecase
-	*query.SearchCarriersUsecase
-	*query.SearchShippersUsecase
+	*query.GetCarrierByContactUsecase
+	*query.GetShipperByContactUsecase
 }
 
 type Usecase struct {
@@ -31,13 +32,14 @@ func NewUsecase(
 ) *Usecase {
 	return &Usecase{
 		Command: Command{
+			InviteUsecase:         command.NewInviteUsecase(contextDuration, usersRepo),
 			UpdateUsecase:         command.NewUpdateUsecase(contextDuration, usersRepo),
 			RegisterDeviceUsecase: command.NewRegisterDeviceUsecase(contextDuration, fcmDevicesRepo),
 		},
 		Query: Query{
-			GetMeUsecase:          query.NewGetMeUsecase(contextDuration, usersRepo),
-			SearchCarriersUsecase: query.NewSearchCarriersUsecase(contextDuration, usersRepo),
-			SearchShippersUsecase: query.NewSearchShippersUsecase(contextDuration, usersRepo),
+			GetMeUsecase:               query.NewGetMeUsecase(contextDuration, usersRepo),
+			GetCarrierByContactUsecase: query.NewGetCarrierByContactUsecase(contextDuration, usersRepo),
+			GetShipperByContactUsecase: query.NewGetShipperByContactUsecase(contextDuration, usersRepo),
 		},
 	}
 }

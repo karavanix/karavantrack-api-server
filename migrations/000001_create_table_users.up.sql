@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS users (
     last_name varchar(255),
     email varchar(255),
     phone varchar(64),
-    password_hash text NOT NULL,
+    password_hash text,
     status varchar(64) NOT NULL,
     role varchar(64) NOT NULL CHECK (role IN ('shipper', 'carrier')),
     created_at timestamp with time zone DEFAULT NOW(),

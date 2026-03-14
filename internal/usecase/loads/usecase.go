@@ -42,7 +42,7 @@ func NewUsecase(
 ) *Usecase {
 	return &Usecase{
 		Command: Command{
-			CreateUsecase:   command.NewCreateUsecase(contextDuration, loadsRepo),
+			CreateUsecase:   command.NewCreateUsecase(contextDuration, loadsRepo, usersRepo),
 			AssignUsecase:   command.NewAssignUsecase(contextDuration, loadsRepo, usersRepo, taskQueue),
 			AcceptUsecase:   command.NewAcceptUsecase(contextDuration, loadsRepo, taskQueue),
 			StartUsecase:    command.NewStartUsecase(contextDuration, loadsRepo, taskQueue),

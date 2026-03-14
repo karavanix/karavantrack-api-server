@@ -229,7 +229,10 @@ func (h *companiesHandler) AddMember() http.HandlerFunc {
 // @Description  List members of a company
 // @Tags         Companies
 // @Produce      json
-// @Param        id   path      string  true  "Company ID"
+// @Param        q     		query string false "Search query by (alias, first_name, last_name, email, phone)"
+// @Param        limit 		query int    false "Pagination Limit"
+// @Param        offset 	query int    false "Pagination Offset"
+// @Param        id   		path  string true  "Company ID"
 // @Success      200  {array} query.MemberResponse
 // @Failure      401  {object} outerr.Response
 // @Router       /companies/{id}/members [get]
@@ -237,7 +240,18 @@ func (h *companiesHandler) ListMembers() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		companyID := chi.URLParam(r, "id")
 
-		resp, err := h.companiesUsecase.Query.ListMembers(r.Context(), companyID)
+		var urlForm query.ListMembersRequest
+		if err := form.NewDecoder().Decode(&urlForm, r.URL.Query()); err != nil {
+			outerr.BadRequest(w, r, "invalid form data: "+err.Error())
+			return
+		}
+
+		if err := h.validator.Validate(&urlForm); err != nil {
+			outerr.HandleHTTP(w, r, err)
+			return
+		}
+
+		resp, err := h.companiesUsecase.Query.ListMembers(r.Context(), companyID, &urlForm)
 		if err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
@@ -285,6 +299,7 @@ func (h *companiesHandler) RemoveMember() http.HandlerFunc {
 // @Description  List loads for a specific company with filters
 // @Tags         Companies
 // @Produce      json
+
 // @Param        id     path  string false "Company ID"
 // @Param        status query []string false "Status filter" collectionFormat(multi) Enums(created, assigned, accepted, in_transit, completed, confirmed, cancelled)
 // @Param        limit  query int    false "Pagination Limit"
@@ -352,9 +367,12 @@ func (h *loadsHandler) GetLoadStats() http.HandlerFunc {
 // @Description  List carriers for a specific company
 // @Tags         Companies
 // @Produce      json
-// @Param        id   path      string  true  "Company ID"
-// @Success      200  {array} query.ListCarriersResponse
-// @Failure      401  {object} outerr.Response
+// @Param        q     		query string false "Search query by (alias, first_name, last_name, email, phone)"
+// @Param        limit 		query int    false "Pagination Limit"
+// @Param        offset 	query int    false "Pagination Offset"
+// @Param        id    		path  string true  "Company ID"
+// @Success      200   		{array} query.ListCarriersResponse
+// @Failure      401   		{object} outerr.Response
 // @Router       /companies/{id}/carriers [get]
 func (h *companiesHandler) ListCarriers() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -366,8 +384,19 @@ func (h *companiesHandler) ListCarriers() http.HandlerFunc {
 			return
 		}
 
+		var urlForm query.ListCarriersRequest
+		if err := form.NewDecoder().Decode(&urlForm, r.URL.Query()); err != nil {
+			outerr.BadRequest(w, r, "invalid form data: "+err.Error())
+			return
+		}
+
+		if err := h.validator.Validate(&urlForm); err != nil {
+			outerr.HandleHTTP(w, r, err)
+			return
+		}
+
 		var resp []*query.ListCarriersResponse
-		resp, err := h.companiesUsecase.Query.ListCarriers(r.Context(), companyID)
+		resp, err := h.companiesUsecase.Query.ListCarriers(r.Context(), companyID, &urlForm)
 		if err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return

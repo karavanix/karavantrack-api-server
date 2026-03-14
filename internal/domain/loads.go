@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/shogo82148/pointer"
 )
 
 type LoadStatus string
@@ -84,6 +85,11 @@ func NewLoad(
 
 func (l *Load) SetReferenceID(referenceID string) {
 	l.ReferenceID = referenceID
+}
+
+func (l *Load) SetDeadlines(pickupAt, dropoffAt time.Time) {
+	l.PickupAt = pointer.TimeOrNil(pickupAt)
+	l.DropoffAt = pointer.TimeOrNil(dropoffAt)
 }
 
 // Assign assigns a carrier to the load.

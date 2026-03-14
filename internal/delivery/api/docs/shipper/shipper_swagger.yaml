@@ -33,6 +33,35 @@ definitions:
     required:
     - carrier_id
     type: object
+  command.InviteRequest:
+    properties:
+      contact:
+        type: string
+      role:
+        type: string
+    required:
+    - contact
+    - role
+    type: object
+  command.InviteResponse:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      first_name:
+        type: string
+      id:
+        type: string
+      last_name:
+        type: string
+      phone:
+        type: string
+      role:
+        type: string
+      updated_at:
+        type: string
+    type: object
   command.LoginRequest:
     properties:
       email:
@@ -127,17 +156,23 @@ definitions:
     type: object
   github_com_karavanix_karavantrack-api-server_internal_usecase_loads_command.CreateRequest:
     properties:
+      carrier_id:
+        type: string
       company_id:
         type: string
       description:
         type: string
       dropoff_address:
         type: string
+      dropoff_at:
+        type: string
       dropoff_lat:
         type: number
       dropoff_lng:
         type: number
       pickup_address:
+        type: string
+      pickup_at:
         type: string
       pickup_lat:
         type: number
@@ -192,6 +227,44 @@ definitions:
       role:
         type: string
       status:
+        type: string
+    type: object
+  query.GetCarrierByContactResponse:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      first_name:
+        type: string
+      id:
+        type: string
+      last_name:
+        type: string
+      phone:
+        type: string
+      role:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  query.GetShipperByContactResponse:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      first_name:
+        type: string
+      id:
+        type: string
+      last_name:
+        type: string
+      phone:
+        type: string
+      role:
+        type: string
+      updated_at:
         type: string
     type: object
   query.GetStatsResponse:
@@ -299,6 +372,10 @@ definitions:
         type: string
       created_at:
         type: string
+      first_name:
+        type: string
+      last_name:
+        type: string
       member_id:
         type: string
       role:
@@ -337,25 +414,6 @@ definitions:
         type: string
       speed_mps:
         type: number
-    type: object
-  query.UsersResponse:
-    properties:
-      created_at:
-        type: string
-      email:
-        type: string
-      first_name:
-        type: string
-      id:
-        type: string
-      last_name:
-        type: string
-      phone:
-        type: string
-      role:
-        type: string
-      updated_at:
-        type: string
     type: object
 info:
   contact: {}
@@ -603,6 +661,18 @@ paths:
     get:
       description: List carriers for a specific company
       parameters:
+      - description: Search query by (alias, first_name, last_name, email, phone)
+        in: query
+        name: q
+        type: string
+      - description: Pagination Limit
+        in: query
+        name: limit
+        type: integer
+      - description: Pagination Offset
+        in: query
+        name: offset
+        type: integer
       - description: Company ID
         in: path
         name: id
@@ -690,7 +760,6 @@ paths:
       - Companies
   /companies/{id}/loads:
     get:
-      description: List loads for a specific company with filters
       parameters:
       - description: Company ID
         in: path
@@ -719,8 +788,6 @@ paths:
         in: query
         name: offset
         type: integer
-      produces:
-      - application/json
       responses:
         "200":
           description: OK
@@ -732,11 +799,6 @@ paths:
           description: Unauthorized
           schema:
             $ref: '#/definitions/outerr.Response'
-      security:
-      - BearerAuth: []
-      summary: List company loads
-      tags:
-      - Companies
   /companies/{id}/loads/stats:
     get:
       description: Get load by ID
@@ -764,6 +826,18 @@ paths:
     get:
       description: List members of a company
       parameters:
+      - description: Search query by (alias, first_name, last_name, email, phone)
+        in: query
+        name: q
+        type: string
+      - description: Pagination Limit
+        in: query
+        name: limit
+        type: integer
+      - description: Pagination Offset
+        in: query
+        name: offset
+        type: integer
       - description: Company ID
         in: path
         name: id
@@ -1085,13 +1159,13 @@ paths:
       summary: Get load track
       tags:
       - Loads
-  /users/carriers/search:
+  /users/carriers/by-contact:
     get:
-      description: Search for carrier users by name, email, or phone
+      description: Get carrier user by contact
       parameters:
-      - description: Search query (name, email, or phone)
+      - description: Email or Phone Number
         in: query
-        name: q
+        name: contact
         required: true
         type: string
       produces:
@@ -1101,7 +1175,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/query.UsersResponse'
+              $ref: '#/definitions/query.GetCarrierByContactResponse'
             type: array
         "401":
           description: Unauthorized
@@ -1113,7 +1187,45 @@ paths:
             $ref: '#/definitions/outerr.Response'
       security:
       - BearerAuth: []
-      summary: Search carriers
+      summary: Get carrier by contact
+      tags:
+      - Users
+  /users/invite:
+    post:
+      description: Invite user
+      parameters:
+      - description: Invite user
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/command.InviteRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/command.InviteResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/outerr.Response'
+      security:
+      - BearerAuth: []
+      summary: Invite user
       tags:
       - Users
   /users/me:
@@ -1198,13 +1310,13 @@ paths:
       summary: Register FCM device
       tags:
       - Users
-  /users/shippers/search:
+  /users/shippers/by-contact:
     get:
-      description: Search for shipper users by name, email, or phone
+      description: Get shipper user by contact
       parameters:
-      - description: Search query (name, email, or phone)
+      - description: Email or Phone Number
         in: query
-        name: q
+        name: contact
         required: true
         type: string
       produces:
@@ -1214,7 +1326,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/query.UsersResponse'
+              $ref: '#/definitions/query.GetShipperByContactResponse'
             type: array
         "401":
           description: Unauthorized
@@ -1226,7 +1338,7 @@ paths:
             $ref: '#/definitions/outerr.Response'
       security:
       - BearerAuth: []
-      summary: Search shippers
+      summary: Get shipper by contact
       tags:
       - Users
   /ws:

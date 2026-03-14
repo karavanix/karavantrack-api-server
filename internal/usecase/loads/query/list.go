@@ -21,6 +21,7 @@ func NewListUsecase(contextDuration time.Duration, loadsRepo domain.LoadReposito
 }
 
 type ListRequest struct {
+	Query     string   `form:"query"`
 	CompanyID string   `form:"company_id"`
 	CarrierID string   `form:"carrier_id"`
 	Status    []string `form:"status"`
