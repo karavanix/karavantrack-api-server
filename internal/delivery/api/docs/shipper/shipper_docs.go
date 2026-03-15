@@ -1229,10 +1229,7 @@ const docTemplateshipper = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/query.GetCarrierByContactResponse"
-                            }
+                            "$ref": "#/definitions/query.GetCarrierByContactResponse"
                         }
                     },
                     "401": {
@@ -1469,10 +1466,7 @@ const docTemplateshipper = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/query.GetShipperByContactResponse"
-                            }
+                            "$ref": "#/definitions/query.GetShipperByContactResponse"
                         }
                     },
                     "401": {

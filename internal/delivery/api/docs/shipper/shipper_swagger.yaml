@@ -1202,9 +1202,7 @@ paths:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/query.GetCarrierByContactResponse'
-            type: array
+            $ref: '#/definitions/query.GetCarrierByContactResponse'
         "401":
           description: Unauthorized
           schema:
@@ -1353,9 +1351,7 @@ paths:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/query.GetShipperByContactResponse'
-            type: array
+            $ref: '#/definitions/query.GetShipperByContactResponse'
         "401":
           description: Unauthorized
           schema:

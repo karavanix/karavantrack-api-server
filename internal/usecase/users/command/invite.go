@@ -72,6 +72,14 @@ func (u *InviteUsecase) Invite(ctx context.Context, req *InviteRequest) (_ *Invi
 		if !input.email.IsValid() && !input.phone.IsValid() {
 			return nil, inerr.NewErrValidation("contact", "invalid contact info")
 		}
+
+		if !input.email.IsValid() {
+			input.email = shared.Email("")
+		}
+
+		if !input.phone.IsValid() {
+			input.phone = shared.Phone("")
+		}
 	}
 
 	user, err := u.usersRepo.FindByEmailOrPhone(ctx, input.email, input.phone)

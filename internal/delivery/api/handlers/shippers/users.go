@@ -74,7 +74,7 @@ func (h *usersHandler) Invite() http.HandlerFunc {
 // @Tags         Users
 // @Produce      json
 // @Param        contact query string true "Email or Phone Number"
-// @Success      200  {array} query.GetCarrierByContactResponse
+// @Success      200  {object} query.GetCarrierByContactResponse
 // @Failure      401  {object} outerr.Response
 // @Failure      403  {object} outerr.Response
 // @Router       /users/carriers/by-contact [get]
@@ -111,7 +111,7 @@ func (h *usersHandler) GetCarrierByContact() http.HandlerFunc {
 // @Tags         Users
 // @Produce      json
 // @Param        contact query string true "Email or Phone Number"
-// @Success      200  {array} query.GetShipperByContactResponse
+// @Success      200  {object} query.GetShipperByContactResponse
 // @Failure      401  {object} outerr.Response
 // @Failure      403  {object} outerr.Response
 // @Router       /users/shippers/by-contact [get]
