@@ -59,6 +59,8 @@ definitions:
         type: string
       role:
         type: string
+      status:
+        type: string
       updated_at:
         type: string
     type: object
@@ -306,6 +308,8 @@ definitions:
       first_name:
         type: string
       is_free:
+        type: boolean
+      is_invited:
         type: boolean
       last_name:
         type: string

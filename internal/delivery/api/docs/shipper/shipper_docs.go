@@ -1618,6 +1618,9 @@ const docTemplateshipper = `{
                 "role": {
                     "type": "string"
                 },
+                "status": {
+                    "type": "string"
+                },
                 "updated_at": {
                     "type": "string"
                 }
@@ -1990,6 +1993,9 @@ const docTemplateshipper = `{
                     "type": "string"
                 },
                 "is_free": {
+                    "type": "boolean"
+                },
+                "is_invited": {
                     "type": "boolean"
                 },
                 "last_name": {
