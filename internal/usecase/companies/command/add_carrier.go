@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
 	"github.com/karavanix/karavantrack-api-server/internal/inerr"
+	"github.com/karavanix/karavantrack-api-server/internal/service/rbac"
 	"github.com/karavanix/karavantrack-api-server/pkg/logger"
 	"github.com/karavanix/karavantrack-api-server/pkg/otlp"
 	"go.opentelemetry.io/otel"
@@ -18,6 +19,7 @@ type AddCarrierUsecase struct {
 	companyCarriersRepo domain.CompanyCarrierRepository
 	companyMembersRepo  domain.CompanyMemberRepository
 	usersRepo           domain.UserRepository
+	rbacService         rbac.Service
 }
 
 func NewAddCarrierUsecase(
@@ -25,12 +27,14 @@ func NewAddCarrierUsecase(
 	companyCarriersRepo domain.CompanyCarrierRepository,
 	companyMembersRepo domain.CompanyMemberRepository,
 	usersRepo domain.UserRepository,
+	rbacService rbac.Service,
 ) *AddCarrierUsecase {
 	return &AddCarrierUsecase{
 		contextDuration:     contextDuration,
 		companyCarriersRepo: companyCarriersRepo,
 		companyMembersRepo:  companyMembersRepo,
 		usersRepo:           usersRepo,
+		rbacService:         rbacService,
 	}
 }
 
@@ -70,17 +74,20 @@ func (u *AddCarrierUsecase) AddCarrier(ctx context.Context, requesterID string, 
 		}
 	}
 
-	// Ownership check: only owner or admin can add carriers
-	actorMember, err := u.companyMembersRepo.FindByCompanyIDAndMemberID(ctx, input.companyID, input.actorID)
+	allow, err := u.rbacService.HasPermission(ctx,
+		input.companyID.String(),
+		input.actorID.String(),
+		domain.CompanyPermissionCarrierCreate,
+	)
 	if err != nil {
+		logger.ErrorContext(ctx, "failed to check permission", err)
+		return err
+	}
+
+	if !allow {
 		return inerr.ErrorPermissionDenied
 	}
 
-	if !actorMember.IsOwner() && !actorMember.IsAdmin() {
-		return inerr.ErrorPermissionDenied
-	}
-
-	// Verify user exists and is a carrier
 	user, err := u.usersRepo.FindByID(ctx, input.carrierID)
 	if err != nil {
 		return err

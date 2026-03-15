@@ -8,6 +8,8 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
 	"github.com/karavanix/karavantrack-api-server/internal/domain/shared"
 	"github.com/karavanix/karavantrack-api-server/internal/inerr"
+	"github.com/karavanix/karavantrack-api-server/internal/service/rbac"
+	"github.com/karavanix/karavantrack-api-server/pkg/logger"
 	"github.com/karavanix/karavantrack-api-server/pkg/otlp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -16,12 +18,14 @@ import (
 type GetCarrierCompanyUsecase struct {
 	contextDuration time.Duration
 	companiesRepo   domain.CompanyRepository
+	rbacService     rbac.Service
 }
 
-func NewGetCarrierCompanyUsecase(contextDuration time.Duration, companiesRepo domain.CompanyRepository) *GetCarrierCompanyUsecase {
+func NewGetCarrierCompanyUsecase(contextDuration time.Duration, companiesRepo domain.CompanyRepository, rbacService rbac.Service) *GetCarrierCompanyUsecase {
 	return &GetCarrierCompanyUsecase{
 		contextDuration: contextDuration,
 		companiesRepo:   companiesRepo,
+		rbacService:     rbacService,
 	}
 }
 
@@ -48,6 +52,20 @@ func (u *GetCarrierCompanyUsecase) GetCarrierCompany(ctx context.Context, userID
 		if err != nil {
 			return nil, inerr.NewErrValidation("carrier_id", "invalid carrier ID")
 		}
+	}
+
+	allow, err := u.rbacService.HasPermission(ctx,
+		input.companyID.String(),
+		input.carrierID.String(),
+		domain.CompanyPermissionCarrierRead,
+	)
+	if err != nil {
+		logger.ErrorContext(ctx, "failed to check permission", err)
+		return nil, err
+	}
+
+	if !allow {
+		return nil, inerr.ErrorPermissionDenied
 	}
 
 	company, err := u.companiesRepo.FindByID(ctx, input.companyID)

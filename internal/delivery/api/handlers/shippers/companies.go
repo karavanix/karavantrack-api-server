@@ -10,6 +10,8 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/delivery"
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/validation"
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/outerr"
+	"github.com/karavanix/karavantrack-api-server/internal/domain"
+	"github.com/karavanix/karavantrack-api-server/internal/service/rbac"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/companies"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/companies/command"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/companies/query"
@@ -24,6 +26,7 @@ type companiesHandler struct {
 	validator        *validation.Validator
 	companiesUsecase *companies.Usecase
 	loadsUsecase     *loads.Usecase
+	rbacService      rbac.Service
 }
 
 func NewCompaniesHandler(opts *delivery.HandlerOptions) *companiesHandler {
@@ -32,6 +35,7 @@ func NewCompaniesHandler(opts *delivery.HandlerOptions) *companiesHandler {
 		validator:        opts.Validator,
 		companiesUsecase: opts.CompaniesUsecase,
 		loadsUsecase:     opts.LoadsUsecase,
+		rbacService:      opts.RbacService,
 	}
 }
 
@@ -89,13 +93,15 @@ func (h *companiesHandler) Create() http.HandlerFunc {
 // @Router       /companies [get]
 func (h *companiesHandler) ListShipperCompanies() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userID, ok := app.UserID[string](r.Context())
+		ctx := r.Context()
+
+		userID, ok := app.UserID[string](ctx)
 		if !ok {
 			outerr.Forbidden(w, r, "missing user context")
 			return
 		}
 
-		resp, err := h.companiesUsecase.Query.ListShipperCompanies(r.Context(), userID)
+		resp, err := h.companiesUsecase.Query.ListShipperCompanies(ctx, userID)
 		if err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
@@ -120,14 +126,32 @@ func (h *companiesHandler) ListShipperCompanies() http.HandlerFunc {
 // @Router       /companies/{id} [get]
 func (h *companiesHandler) GetShipperCompany() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userID, ok := app.UserID[string](r.Context())
+		ctx := r.Context()
+
+		userID, ok := app.UserID[string](ctx)
 		if !ok {
 			outerr.Forbidden(w, r, "missing user context")
 			return
 		}
-		companyID := chi.URLParam(r, "id")
 
-		resp, err := h.companiesUsecase.Query.GetShipperCompany(r.Context(), userID, companyID)
+		companyID := chi.URLParam(r, "id")
+		if companyID == "" {
+			outerr.BadRequest(w, r, "company ID is required")
+			return
+		}
+
+		allow, err := h.rbacService.HasPermission(ctx, companyID, userID, domain.CompanyPermissionMemberRead)
+		if err != nil {
+			outerr.HandleHTTP(w, r, err)
+			return
+		}
+
+		if !allow {
+			outerr.Forbidden(w, r, "user is not allowed to access this resource")
+			return
+		}
+
+		resp, err := h.companiesUsecase.Query.GetShipperCompany(ctx, userID, companyID)
 		if err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
@@ -153,13 +177,30 @@ func (h *companiesHandler) GetShipperCompany() http.HandlerFunc {
 // @Router       /companies/{id} [put]
 func (h *companiesHandler) Update() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userID, ok := app.UserID[string](r.Context())
+		ctx := r.Context()
+
+		userID, ok := app.UserID[string](ctx)
 		if !ok {
 			outerr.Forbidden(w, r, "missing user context")
 			return
 		}
 
 		companyID := chi.URLParam(r, "id")
+		if companyID == "" {
+			outerr.BadRequest(w, r, "company ID is required")
+			return
+		}
+
+		allow, err := h.rbacService.HasPermission(ctx, companyID, userID, domain.CompanyPermissionMemberUpdate)
+		if err != nil {
+			outerr.HandleHTTP(w, r, err)
+			return
+		}
+
+		if !allow {
+			outerr.Forbidden(w, r, "user is not allowed to access this resource")
+			return
+		}
 
 		var req command.UpdateRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -171,7 +212,7 @@ func (h *companiesHandler) Update() http.HandlerFunc {
 			return
 		}
 
-		if err := h.companiesUsecase.Command.Update(r.Context(), userID, companyID, &req); err != nil {
+		if err := h.companiesUsecase.Command.Update(ctx, userID, companyID, &req); err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
 		}
@@ -196,19 +237,26 @@ func (h *companiesHandler) Update() http.HandlerFunc {
 // @Router       /companies/{id}/members [post]
 func (h *companiesHandler) AddMember() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userID, ok := app.UserID[string](r.Context())
+		ctx := r.Context()
+
+		userID, ok := app.UserID[string](ctx)
 		if !ok {
 			outerr.Forbidden(w, r, "missing user context")
 			return
 		}
 
 		companyID := chi.URLParam(r, "id")
+		if companyID == "" {
+			outerr.BadRequest(w, r, "company ID is required")
+			return
+		}
 
 		var req command.AddMemberRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			outerr.BadRequest(w, r, "invalid request body")
 			return
 		}
+
 		if err := h.validator.Validate(req); err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
@@ -235,9 +283,16 @@ func (h *companiesHandler) AddMember() http.HandlerFunc {
 // @Param        id   		path  string true  "Company ID"
 // @Success      200  {array} query.MemberResponse
 // @Failure      401  {object} outerr.Response
+// @Failure      403  {object} outerr.Response
 // @Router       /companies/{id}/members [get]
 func (h *companiesHandler) ListMembers() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := app.UserID[string](r.Context())
+		if !ok {
+			outerr.Forbidden(w, r, "missing user context")
+			return
+		}
+
 		companyID := chi.URLParam(r, "id")
 
 		var urlForm query.ListMembersRequest
@@ -251,7 +306,7 @@ func (h *companiesHandler) ListMembers() http.HandlerFunc {
 			return
 		}
 
-		resp, err := h.companiesUsecase.Query.ListMembers(r.Context(), companyID, &urlForm)
+		resp, err := h.companiesUsecase.Query.ListMembers(r.Context(), userID, companyID, &urlForm)
 		if err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
@@ -299,7 +354,6 @@ func (h *companiesHandler) RemoveMember() http.HandlerFunc {
 // @Description  List loads for a specific company with filters
 // @Tags         Companies
 // @Produce      json
-
 // @Param        id     path  string false "Company ID"
 // @Param        status query []string false "Status filter" collectionFormat(multi) Enums(created, assigned, accepted, in_transit, completed, confirmed, cancelled)
 // @Param        limit  query int    false "Pagination Limit"
@@ -373,16 +427,17 @@ func (h *loadsHandler) GetLoadStats() http.HandlerFunc {
 // @Param        id    		path  string true  "Company ID"
 // @Success      200   		{array} query.ListCarriersResponse
 // @Failure      401   		{object} outerr.Response
+// @Failure      403   		{object} outerr.Response
 // @Router       /companies/{id}/carriers [get]
 func (h *companiesHandler) ListCarriers() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		companyID := chi.URLParam(r, "id")
-
-		_, ok := app.UserID[string](r.Context())
+		userID, ok := app.UserID[string](r.Context())
 		if !ok {
 			outerr.Forbidden(w, r, "missing user context")
 			return
 		}
+
+		companyID := chi.URLParam(r, "id")
 
 		var urlForm query.ListCarriersRequest
 		if err := form.NewDecoder().Decode(&urlForm, r.URL.Query()); err != nil {
@@ -396,7 +451,7 @@ func (h *companiesHandler) ListCarriers() http.HandlerFunc {
 		}
 
 		var resp []*query.ListCarriersResponse
-		resp, err := h.companiesUsecase.Query.ListCarriers(r.Context(), companyID, &urlForm)
+		resp, err := h.companiesUsecase.Query.ListCarriers(r.Context(), userID, companyID, &urlForm)
 		if err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
@@ -458,13 +513,20 @@ func (h *companiesHandler) AddCarrier() http.HandlerFunc {
 // @Param        carrier_id    path      string  true  "Carrier ID"
 // @Success      200
 // @Failure      401  {object} outerr.Response
+// @Failure      403  {object} outerr.Response
 // @Router       /companies/{id}/carriers/{carrier_id} [delete]
 func (h *companiesHandler) RemoveCarrier() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := app.UserID[string](r.Context())
+		if !ok {
+			outerr.Forbidden(w, r, "missing user context")
+			return
+		}
+
 		companyID := chi.URLParam(r, "id")
 		carrierID := chi.URLParam(r, "carrier_id")
 
-		if err := h.companiesUsecase.Command.RemoveCarrier(r.Context(), companyID, carrierID); err != nil {
+		if err := h.companiesUsecase.Command.RemoveCarrier(r.Context(), userID, companyID, carrierID); err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
 		}

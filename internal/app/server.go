@@ -17,6 +17,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/service/broker"
 	"github.com/karavanix/karavantrack-api-server/internal/service/notification"
 	"github.com/karavanix/karavantrack-api-server/internal/service/presence"
+	"github.com/karavanix/karavantrack-api-server/internal/service/rbac"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/auth"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/companies"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/loads"
@@ -141,11 +142,12 @@ func (s *ServerApp) Run() error {
 	// service
 	presenceService := presence.NewService(s.config.Context.Timeout, presenceRepo)
 	notificationService := notification.NewService(fcmClient, fcmDevicesRepo)
+	rbacService := rbac.NewService(s.config.Context.Timeout, companyMembersRepo)
 
 	// usecase
 	authUsecase := auth.NewUsecase(s.config.Context.Timeout, jwtProvider, usersRepo)
 	usersUsecase := users.NewUsecase(s.config.Context.Timeout, usersRepo, fcmDevicesRepo)
-	companiesUsecase := companies.NewUsecase(s.config.Context.Timeout, txManager, companiesRepo, companyMembersRepo, companyCarriersRepo, usersRepo, loadsRepo)
+	companiesUsecase := companies.NewUsecase(s.config.Context.Timeout, txManager, companiesRepo, companyMembersRepo, companyCarriersRepo, usersRepo, loadsRepo, rbacService)
 	loadsUsecase := loads.NewUsecase(s.config.Context.Timeout, loadsRepo, usersRepo, loadLocationsPointsRepo, s.taskQueue)
 	locationUsecase := location.NewUsecase(s.config.Context.Timeout, s.bkr, eventFactory, loadLocationsPointsRepo)
 
@@ -162,6 +164,7 @@ func (s *ServerApp) Run() error {
 		CompaniesUsecase:    companiesUsecase,
 		LoadsUsecase:        loadsUsecase,
 		LocationUsecase:     locationUsecase,
+		RbacService:         rbacService,
 	}
 
 	mux := worker.NewRouter(opts)

@@ -64,12 +64,13 @@ func (u *ListShipperCompaniesUsecase) ListShipperCompanies(ctx context.Context, 
 			continue
 		}
 		result = append(result, &CompanyResponse{
-			ID:        company.ID.String(),
-			OwnerID:   company.OwnerID.String(),
-			Name:      company.Name,
-			Status:    company.Status.String(),
-			Role:      m.Role.String(),
-			CreatedAt: company.CreatedAt,
+			ID:          company.ID.String(),
+			OwnerID:     company.OwnerID.String(),
+			Name:        company.Name,
+			Status:      company.Status.String(),
+			Role:        m.Role.String(),
+			Permissions: m.PermissionStrings(),
+			CreatedAt:   company.CreatedAt,
 		})
 	}
 

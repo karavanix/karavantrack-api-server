@@ -8,6 +8,34 @@ import (
 	"github.com/google/uuid"
 )
 
+type CompanyPermission string
+
+const (
+	CompanyPermissionCompanyRead   CompanyPermission = "company.read"
+	CompanyPermissionCompanyUpdate CompanyPermission = "company.update"
+
+	CompanyPermissionMemberRead         CompanyPermission = "company.member.read"
+	CompanyPermissionMemberCreateMember CompanyPermission = "company.member.create.member"
+	CompanyPermissionMemberCreateAdmin  CompanyPermission = "company.member.create.admin"
+	CompanyPermissionMemberUpdate       CompanyPermission = "company.member.update"
+	CompanyPermissionMemberDeleteMember CompanyPermission = "company.member.delete.member"
+	CompanyPermissionMemberDeleteAdmin  CompanyPermission = "company.member.delete.admin"
+
+	CompanyPermissionCarrierRead   CompanyPermission = "company.carrier.read"
+	CompanyPermissionCarrierCreate CompanyPermission = "company.carrier.create"
+	CompanyPermissionCarrierUpdate CompanyPermission = "company.carrier.update"
+	CompanyPermissionCarrierDelete CompanyPermission = "company.carrier.delete"
+
+	CompanyPermissionLoadRead   CompanyPermission = "company.load.read"
+	CompanyPermissionLoadCreate CompanyPermission = "company.load.create"
+	CompanyPermissionLoadUpdate CompanyPermission = "company.load.update"
+	CompanyPermissionLoadDelete CompanyPermission = "company.load.delete"
+)
+
+func (p CompanyPermission) String() string {
+	return string(p)
+}
+
 type MemberRole string
 
 const (
@@ -16,8 +44,74 @@ const (
 	MemberRoleMember MemberRole = "member"
 )
 
+func (r MemberRole) IsValid() bool {
+	switch r {
+	case MemberRoleOwner, MemberRoleAdmin, MemberRoleMember:
+		return true
+	default:
+		return false
+	}
+}
+
 func (r MemberRole) String() string {
 	return string(r)
+}
+
+var rolePermissions = map[MemberRole]map[CompanyPermission]struct{}{
+	MemberRoleOwner: {
+		CompanyPermissionCompanyRead:        {},
+		CompanyPermissionCompanyUpdate:      {},
+		CompanyPermissionMemberRead:         {},
+		CompanyPermissionMemberCreateMember: {},
+		CompanyPermissionMemberCreateAdmin:  {},
+		CompanyPermissionMemberUpdate:       {},
+		CompanyPermissionMemberDeleteMember: {},
+		CompanyPermissionMemberDeleteAdmin:  {},
+		CompanyPermissionCarrierRead:        {},
+		CompanyPermissionCarrierCreate:      {},
+		CompanyPermissionCarrierUpdate:      {},
+		CompanyPermissionCarrierDelete:      {},
+		CompanyPermissionLoadRead:           {},
+		CompanyPermissionLoadCreate:         {},
+		CompanyPermissionLoadUpdate:         {},
+		CompanyPermissionLoadDelete:         {},
+	},
+	MemberRoleAdmin: {
+		CompanyPermissionCompanyRead:        {},
+		CompanyPermissionMemberRead:         {},
+		CompanyPermissionMemberCreateMember: {},
+		CompanyPermissionMemberUpdate:       {},
+		CompanyPermissionMemberDeleteMember: {},
+		CompanyPermissionCarrierRead:        {},
+		CompanyPermissionCarrierCreate:      {},
+		CompanyPermissionCarrierUpdate:      {},
+		CompanyPermissionCarrierDelete:      {},
+		CompanyPermissionLoadRead:           {},
+		CompanyPermissionLoadCreate:         {},
+		CompanyPermissionLoadUpdate:         {},
+		CompanyPermissionLoadDelete:         {},
+	},
+	MemberRoleMember: {
+		CompanyPermissionCompanyRead: {},
+		CompanyPermissionMemberRead:  {},
+		CompanyPermissionCarrierRead: {},
+		CompanyPermissionLoadRead:    {},
+	},
+}
+
+func (r MemberRole) Permissions() []CompanyPermission {
+	return r.permissions()
+}
+
+func (r MemberRole) permissions() []CompanyPermission {
+	if perms, ok := rolePermissions[r]; ok {
+		result := make([]CompanyPermission, 0, len(perms))
+		for p := range perms {
+			result = append(result, p)
+		}
+		return result
+	}
+	return nil
 }
 
 type CompanyMember struct {
@@ -60,6 +154,20 @@ func (m *CompanyMember) IsAdmin() bool {
 
 func (m *CompanyMember) IsMember() bool {
 	return m.Role == MemberRoleMember
+}
+
+func (m *CompanyMember) HasPermission(permission CompanyPermission) bool {
+	_, ok := rolePermissions[m.Role][permission]
+	return ok
+}
+
+func (m *CompanyMember) PermissionStrings() []string {
+	perms := m.Role.Permissions()
+	result := make([]string, 0, len(perms))
+	for _, p := range perms {
+		result = append(result, p.String())
+	}
+	return result
 }
 
 type CompanyMemberFilter struct {

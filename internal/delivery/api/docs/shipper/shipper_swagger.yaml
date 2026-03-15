@@ -224,6 +224,10 @@ definitions:
         type: string
       owner_id:
         type: string
+      permissions:
+        items:
+          type: string
+        type: array
       role:
         type: string
       status:
@@ -691,6 +695,10 @@ paths:
           description: Unauthorized
           schema:
             $ref: '#/definitions/outerr.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/outerr.Response'
       security:
       - BearerAuth: []
       summary: List company carriers
@@ -753,6 +761,10 @@ paths:
           description: Unauthorized
           schema:
             $ref: '#/definitions/outerr.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/outerr.Response'
       security:
       - BearerAuth: []
       summary: Remove carrier from company
@@ -760,6 +772,7 @@ paths:
       - Companies
   /companies/{id}/loads:
     get:
+      description: List loads for a specific company with filters
       parameters:
       - description: Company ID
         in: path
@@ -788,6 +801,8 @@ paths:
         in: query
         name: offset
         type: integer
+      produces:
+      - application/json
       responses:
         "200":
           description: OK
@@ -799,6 +814,11 @@ paths:
           description: Unauthorized
           schema:
             $ref: '#/definitions/outerr.Response'
+      security:
+      - BearerAuth: []
+      summary: List company loads
+      tags:
+      - Companies
   /companies/{id}/loads/stats:
     get:
       description: Get load by ID
@@ -854,6 +874,10 @@ paths:
             type: array
         "401":
           description: Unauthorized
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "403":
+          description: Forbidden
           schema:
             $ref: '#/definitions/outerr.Response'
       security:

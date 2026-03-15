@@ -56,15 +56,6 @@ func (u *UpdateUsecase) Update(ctx context.Context, requesterID, companyID strin
 		}
 	}
 
-	// Ownership check: only owner or admin can update
-	member, err := u.membersRepo.FindByCompanyIDAndMemberID(ctx, input.companyID, input.requesterID)
-	if err != nil {
-		return inerr.ErrorPermissionDenied
-	}
-	if !member.IsOwner() && !member.IsAdmin() {
-		return inerr.ErrorPermissionDenied
-	}
-
 	company, err := u.companiesRepo.FindByID(ctx, input.companyID)
 	if err != nil {
 		logger.ErrorContext(ctx, "failed to find company", err)

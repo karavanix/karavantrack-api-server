@@ -15,6 +15,7 @@ import (
 
 type ListCarriersUsecase struct {
 	contextDuration     time.Duration
+	companyMembersRepo  domain.CompanyMemberRepository
 	companyCarriersRepo domain.CompanyCarrierRepository
 	usersRepo           domain.UserRepository
 	loadsRepo           domain.LoadRepository
@@ -22,12 +23,14 @@ type ListCarriersUsecase struct {
 
 func NewListByCompanyUsecase(
 	contextDuration time.Duration,
+	companyMembersRepo domain.CompanyMemberRepository,
 	companyCarriersRepo domain.CompanyCarrierRepository,
 	usersRepo domain.UserRepository,
 	loadsRepo domain.LoadRepository,
 ) *ListCarriersUsecase {
 	return &ListCarriersUsecase{
 		contextDuration:     contextDuration,
+		companyMembersRepo:  companyMembersRepo,
 		companyCarriersRepo: companyCarriersRepo,
 		usersRepo:           usersRepo,
 		loadsRepo:           loadsRepo,
@@ -49,22 +52,29 @@ type ListCarriersResponse struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-func (u *ListCarriersUsecase) ListCarriers(ctx context.Context, companyID string, req *ListCarriersRequest) (_ []*ListCarriersResponse, err error) {
+func (u *ListCarriersUsecase) ListCarriers(ctx context.Context, requesterID, companyID string, req *ListCarriersRequest) (_ []*ListCarriersResponse, err error) {
 	ctx, cancel := context.WithTimeout(ctx, u.contextDuration)
 	defer cancel()
 
 	ctx, end := otlp.Start(ctx, otel.Tracer("carriers"), "ListCarrier",
+		attribute.String("requester_id", requesterID),
 		attribute.String("company_id", companyID),
 	)
 	defer func() { end(err) }()
 
 	var input struct {
 		companyID uuid.UUID
+		actorID   uuid.UUID
 	}
 	{
 		input.companyID, err = uuid.Parse(companyID)
 		if err != nil {
 			return nil, inerr.NewErrValidation("company_id", "invalid company ID")
+		}
+
+		input.actorID, err = uuid.Parse(requesterID)
+		if err != nil {
+			return nil, inerr.NewErrValidation("requester_id", "invalid requester ID")
 		}
 	}
 

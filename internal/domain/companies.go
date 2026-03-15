@@ -15,6 +15,15 @@ const (
 	CompanyStatusInactive CompanyStatus = "inactive"
 )
 
+func (s CompanyStatus) IsValid() bool {
+	switch s {
+	case CompanyStatusActive, CompanyStatusInactive:
+		return true
+	default:
+		return false
+	}
+}
+
 func (s CompanyStatus) String() string {
 	return string(s)
 }

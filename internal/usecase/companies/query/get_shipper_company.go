@@ -27,12 +27,13 @@ func NewGetShipperCompanyUsecase(contextDuration time.Duration, companiesRepo do
 }
 
 type CompanyResponse struct {
-	ID        string    `json:"id"`
-	OwnerID   string    `json:"owner_id"`
-	Name      string    `json:"name"`
-	Status    string    `json:"status"`
-	Role      string    `json:"role,omitempty"`
-	CreatedAt time.Time `json:"created_at"`
+	ID          string    `json:"id"`
+	OwnerID     string    `json:"owner_id"`
+	Name        string    `json:"name"`
+	Status      string    `json:"status"`
+	Role        string    `json:"role,omitempty"`
+	Permissions []string  `json:"permissions,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 func (u *GetShipperCompanyUsecase) GetShipperCompany(ctx context.Context, userID string, companyID string) (_ *CompanyResponse, err error) {
@@ -67,15 +68,16 @@ func (u *GetShipperCompanyUsecase) GetShipperCompany(ctx context.Context, userID
 
 	membership, err := u.membersRepo.FindByCompanyIDAndMemberID(ctx, input.companyID, input.shipperID)
 	if err != nil {
-		return nil, err
+		return nil, inerr.ErrorPermissionDenied
 	}
 
 	return &CompanyResponse{
-		ID:        company.ID.String(),
-		OwnerID:   company.OwnerID.String(),
-		Name:      company.Name,
-		Status:    company.Status.String(),
-		Role:      membership.Role.String(),
-		CreatedAt: company.CreatedAt,
+		ID:          company.ID.String(),
+		OwnerID:     company.OwnerID.String(),
+		Name:        company.Name,
+		Status:      company.Status.String(),
+		Role:        membership.Role.String(),
+		Permissions: membership.PermissionStrings(),
+		CreatedAt:   company.CreatedAt,
 	}, nil
 }

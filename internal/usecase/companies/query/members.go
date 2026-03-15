@@ -42,21 +42,33 @@ type MemberResponse struct {
 	LastName  string    `json:"last_name"`
 }
 
-func (u *ListMembersUsecase) ListMembers(ctx context.Context, companyID string, req *ListMembersRequest) (_ []*MemberResponse, err error) {
+func (u *ListMembersUsecase) ListMembers(ctx context.Context, requesterID, companyID string, req *ListMembersRequest) (_ []*MemberResponse, err error) {
 	ctx, cancel := context.WithTimeout(ctx, u.contextDuration)
 	defer cancel()
 
 	ctx, end := otlp.Start(ctx, otel.Tracer("companies"), "ListMembers",
+		attribute.String("requester_id", requesterID),
 		attribute.String("company_id", companyID),
 	)
 	defer func() { end(err) }()
 
-	compID, err := uuid.Parse(companyID)
-	if err != nil {
-		return nil, inerr.NewErrValidation("company_id", "invalid company ID")
+	var input struct {
+		companyID uuid.UUID
+		actorID   uuid.UUID
+	}
+	{
+		input.companyID, err = uuid.Parse(companyID)
+		if err != nil {
+			return nil, inerr.NewErrValidation("company_id", "invalid company ID")
+		}
+
+		input.actorID, err = uuid.Parse(requesterID)
+		if err != nil {
+			return nil, inerr.NewErrValidation("requester_id", "invalid requester ID")
+		}
 	}
 
-	members, err := u.membersRepo.FindByCompanyIDWithFilter(ctx, compID, &domain.CompanyMemberFilter{
+	members, err := u.membersRepo.FindByCompanyIDWithFilter(ctx, input.companyID, &domain.CompanyMemberFilter{
 		Query:  req.Query,
 		Limit:  req.Limit,
 		Offset: req.Offset,

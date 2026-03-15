@@ -900,6 +900,12 @@ const docTemplatecarrier = `{
                 "owner_id": {
                     "type": "string"
                 },
+                "permissions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "role": {
                     "type": "string"
                 },

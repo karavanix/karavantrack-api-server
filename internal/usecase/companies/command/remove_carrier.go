@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
 	"github.com/karavanix/karavantrack-api-server/internal/inerr"
+	"github.com/karavanix/karavantrack-api-server/internal/service/rbac"
 	"github.com/karavanix/karavantrack-api-server/pkg/logger"
 	"github.com/karavanix/karavantrack-api-server/pkg/otlp"
 	"go.opentelemetry.io/otel"
@@ -16,20 +17,30 @@ import (
 type RemoveCarrierUsecase struct {
 	contextDuration     time.Duration
 	companyCarriersRepo domain.CompanyCarrierRepository
+	companyMembersRepo  domain.CompanyMemberRepository
+	rbacService         rbac.Service
 }
 
-func NewRemoveCarrierUsecase(contextDuration time.Duration, companyCarriersRepo domain.CompanyCarrierRepository) *RemoveCarrierUsecase {
+func NewRemoveCarrierUsecase(
+	contextDuration time.Duration,
+	companyCarriersRepo domain.CompanyCarrierRepository,
+	companyMembersRepo domain.CompanyMemberRepository,
+	rbacService rbac.Service,
+) *RemoveCarrierUsecase {
 	return &RemoveCarrierUsecase{
 		contextDuration:     contextDuration,
 		companyCarriersRepo: companyCarriersRepo,
+		companyMembersRepo:  companyMembersRepo,
+		rbacService:         rbacService,
 	}
 }
 
-func (u *RemoveCarrierUsecase) RemoveCarrier(ctx context.Context, companyID, carrierID string) (err error) {
+func (u *RemoveCarrierUsecase) RemoveCarrier(ctx context.Context, requesterID, companyID, carrierID string) (err error) {
 	ctx, cancel := context.WithTimeout(ctx, u.contextDuration)
 	defer cancel()
 
 	ctx, end := otlp.Start(ctx, otel.Tracer("carriers"), "RemoveFromCompany",
+		attribute.String("requester_id", requesterID),
 		attribute.String("company_id", companyID),
 		attribute.String("carrier_id", carrierID),
 	)
@@ -37,6 +48,7 @@ func (u *RemoveCarrierUsecase) RemoveCarrier(ctx context.Context, companyID, car
 
 	var input struct {
 		companyID uuid.UUID
+		actorID   uuid.UUID
 		carrierID uuid.UUID
 	}
 	{
@@ -44,11 +56,29 @@ func (u *RemoveCarrierUsecase) RemoveCarrier(ctx context.Context, companyID, car
 		if err != nil {
 			return inerr.NewErrValidation("company_id", "invalid company ID")
 		}
+		input.actorID, err = uuid.Parse(requesterID)
+		if err != nil {
+			return inerr.NewErrValidation("requester_id", "invalid requester ID")
+		}
 
 		input.carrierID, err = uuid.Parse(carrierID)
 		if err != nil {
 			return inerr.NewErrValidation("carrier_id", "invalid carrier ID")
 		}
+	}
+
+	allow, err := u.rbacService.HasPermission(ctx,
+		input.companyID.String(),
+		input.actorID.String(),
+		domain.CompanyPermissionCarrierDelete,
+	)
+	if err != nil {
+		logger.ErrorContext(ctx, "failed to check permission", err)
+		return err
+	}
+
+	if !allow {
+		return inerr.ErrorPermissionDenied
 	}
 
 	if err := u.companyCarriersRepo.DeleteByCompanyIDAndCarrierID(ctx, input.companyID, input.carrierID); err != nil {

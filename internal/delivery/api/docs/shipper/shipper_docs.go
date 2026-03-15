@@ -442,6 +442,12 @@ const docTemplateshipper = `{
                         "schema": {
                             "$ref": "#/definitions/outerr.Response"
                         }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
                     }
                 }
             },
@@ -539,12 +545,31 @@ const docTemplateshipper = `{
                         "schema": {
                             "$ref": "#/definitions/outerr.Response"
                         }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
                     }
                 }
             }
         },
         "/companies/{id}/loads": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "List loads for a specific company with filters",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Companies"
+                ],
+                "summary": "List company loads",
                 "parameters": [
                     {
                         "type": "string",
@@ -694,6 +719,12 @@ const docTemplateshipper = `{
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/outerr.Response"
                         }
@@ -1833,6 +1864,12 @@ const docTemplateshipper = `{
                 },
                 "owner_id": {
                     "type": "string"
+                },
+                "permissions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "role": {
                     "type": "string"

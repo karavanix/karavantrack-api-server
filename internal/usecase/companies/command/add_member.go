@@ -2,13 +2,16 @@ package command
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
 	"github.com/karavanix/karavantrack-api-server/internal/inerr"
+	"github.com/karavanix/karavantrack-api-server/internal/service/rbac"
 	"github.com/karavanix/karavantrack-api-server/pkg/logger"
 	"github.com/karavanix/karavantrack-api-server/pkg/otlp"
+	"github.com/karavanix/karavantrack-api-server/pkg/utils"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 )
@@ -17,17 +20,20 @@ type AddMemberUsecase struct {
 	contextDuration    time.Duration
 	companyMembersRepo domain.CompanyMemberRepository
 	usersRepo          domain.UserRepository
+	rbacService        rbac.Service
 }
 
 func NewAddMemberUsecase(
 	contextDuration time.Duration,
 	companyMembersRepo domain.CompanyMemberRepository,
 	usersRepo domain.UserRepository,
+	rbacService rbac.Service,
 ) *AddMemberUsecase {
 	return &AddMemberUsecase{
 		contextDuration:    contextDuration,
 		companyMembersRepo: companyMembersRepo,
 		usersRepo:          usersRepo,
+		rbacService:        rbacService,
 	}
 }
 
@@ -52,6 +58,7 @@ func (u *AddMemberUsecase) AddMember(ctx context.Context, requesterID, companyID
 		companyID uuid.UUID
 		actorID   uuid.UUID
 		userID    uuid.UUID
+		role      domain.MemberRole
 	}
 	{
 		input.companyID, err = uuid.Parse(companyID)
@@ -66,26 +73,47 @@ func (u *AddMemberUsecase) AddMember(ctx context.Context, requesterID, companyID
 		if err != nil {
 			return inerr.NewErrValidation("user_id", "invalid user ID")
 		}
+		input.role = domain.MemberRole(req.Role)
+		if !input.role.IsValid() {
+			return inerr.NewErrValidation("role", "invalid role")
+		}
 	}
 
-	// Ownership check: only owner or admin can add members
-	actorMember, err := u.companyMembersRepo.FindByCompanyIDAndMemberID(ctx, input.companyID, input.actorID)
+	allow, err := u.rbacService.HasPermission(ctx,
+		input.companyID.String(),
+		input.actorID.String(),
+		utils.If(
+			input.role == domain.MemberRoleAdmin,
+			domain.CompanyPermissionMemberCreateAdmin,
+			domain.CompanyPermissionMemberCreateMember,
+		),
+	)
 	if err != nil {
+		logger.ErrorContext(ctx, "failed to check permission", err)
+		return err
+	}
+
+	if !allow {
 		return inerr.ErrorPermissionDenied
 	}
 
-	if !actorMember.IsOwner() && !actorMember.IsAdmin() {
-		return inerr.ErrorPermissionDenied
-	}
-
-	// Verify target user exists
 	_, err = u.usersRepo.FindByID(ctx, input.userID)
 	if err != nil {
 		logger.ErrorContext(ctx, "failed to find user", err)
 		return err
 	}
 
-	newMember, err := domain.NewCompanyMember(input.companyID, input.userID, req.Alias, domain.MemberRole(req.Role))
+	member, err := u.companyMembersRepo.FindByCompanyIDAndMemberID(ctx, input.companyID, input.userID)
+	if err != nil && !errors.Is(err, inerr.ErrNotFound{}) {
+		logger.ErrorContext(ctx, "failed to find company member", err)
+		return err
+	}
+
+	if member != nil {
+		return nil
+	}
+
+	newMember, err := domain.NewCompanyMember(input.companyID, input.userID, req.Alias, input.role)
 	if err != nil {
 		logger.ErrorContext(ctx, "failed to create company member", err)
 		return inerr.NewErrValidation("member", err.Error())

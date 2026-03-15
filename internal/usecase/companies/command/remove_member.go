@@ -7,8 +7,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
 	"github.com/karavanix/karavantrack-api-server/internal/inerr"
+	"github.com/karavanix/karavantrack-api-server/internal/service/rbac"
 	"github.com/karavanix/karavantrack-api-server/pkg/logger"
 	"github.com/karavanix/karavantrack-api-server/pkg/otlp"
+	"github.com/karavanix/karavantrack-api-server/pkg/utils"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 )
@@ -16,12 +18,14 @@ import (
 type RemoveMemberUsecase struct {
 	contextDuration    time.Duration
 	companyMembersRepo domain.CompanyMemberRepository
+	rbacService        rbac.Service
 }
 
-func NewRemoveMemberUsecase(contextDuration time.Duration, companyMembersRepo domain.CompanyMemberRepository) *RemoveMemberUsecase {
+func NewRemoveMemberUsecase(contextDuration time.Duration, companyMembersRepo domain.CompanyMemberRepository, rbacService rbac.Service) *RemoveMemberUsecase {
 	return &RemoveMemberUsecase{
-		contextDuration: contextDuration,
-		companyMembersRepo:     companyMembersRepo,
+		contextDuration:    contextDuration,
+		companyMembersRepo: companyMembersRepo,
+		rbacService:        rbacService,
 	}
 }
 
@@ -56,24 +60,27 @@ func (u *RemoveMemberUsecase) RemoveMember(ctx context.Context, requesterID, com
 		}
 	}
 
-	// Ownership check: only owner can remove members
-	actorMember, err := u.companyMembersRepo.FindByCompanyIDAndMemberID(ctx, input.companyID, input.actorID)
-	if err != nil {
-		return inerr.ErrorPermissionDenied
-	}
-
-	if !actorMember.IsOwner() {
-		return inerr.ErrorPermissionDenied
-	}
-
-	// Check that we're not removing the owner
 	targetMember, err := u.companyMembersRepo.FindByCompanyIDAndMemberID(ctx, input.companyID, input.memberID)
 	if err != nil {
 		return err
 	}
 
-	if targetMember.IsOwner() {
-		return inerr.NewErrValidation("member", "cannot remove company owner")
+	allow, err := u.rbacService.HasPermission(ctx,
+		input.companyID.String(),
+		input.actorID.String(),
+		utils.If(
+			targetMember.IsAdmin(),
+			domain.CompanyPermissionMemberDeleteAdmin,
+			domain.CompanyPermissionMemberDeleteMember,
+		),
+	)
+	if err != nil {
+		logger.ErrorContext(ctx, "failed to check permission", err)
+		return err
+	}
+
+	if !allow {
+		return inerr.ErrorPermissionDenied
 	}
 
 	if err := u.companyMembersRepo.DeleteByCompanyIDAndMemberID(ctx, input.companyID, input.memberID); err != nil {
