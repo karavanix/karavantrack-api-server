@@ -49,6 +49,7 @@ type ListCarriersResponse struct {
 	FirstName string    `json:"first_name"`
 	LastName  string    `json:"last_name"`
 	IsFree    bool      `json:"is_free"`
+	IsInvited bool      `json:"is_invited"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -119,6 +120,7 @@ func (u *ListCarriersUsecase) ListCarriers(ctx context.Context, requesterID, com
 			FirstName: user.FirstName,
 			LastName:  user.LastName,
 			IsFree:    carriersActiveLoads[user.ID] == nil,
+			IsInvited: user.IsInvited(),
 			CreatedAt: cc.CreatedAt,
 		})
 	}

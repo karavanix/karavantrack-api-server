@@ -44,7 +44,7 @@ func NewUsecase(
 ) *Usecase {
 	return &Usecase{
 		Command: Command{
-			CreateUsecase:       command.NewCreateUsecase(contextDuration, txManager, companiesRepo, companyMembersRepo),
+			CreateUsecase:       command.NewCreateUsecase(contextDuration, txManager, usersRepo, companiesRepo, companyMembersRepo),
 			UpdateUsecase:       command.NewUpdateUsecase(contextDuration, companiesRepo, companyMembersRepo),
 			AddMemberUsecase:    command.NewAddMemberUsecase(contextDuration, companyMembersRepo, usersRepo, rbacService),
 			RemoveMemberUsecase: command.NewRemoveMemberUsecase(contextDuration, companyMembersRepo, rbacService),

@@ -4,6 +4,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/delivery"
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/validation"
 	"github.com/karavanix/karavantrack-api-server/internal/service/notification"
+	"github.com/karavanix/karavantrack-api-server/internal/usecase/companies"
 	"github.com/karavanix/karavantrack-api-server/pkg/config"
 )
 
@@ -11,6 +12,7 @@ type Handler struct {
 	cfg                 *config.Config
 	validator           *validation.Validator
 	notificationService notification.Service
+	companyUsecase      *companies.Usecase
 }
 
 func NewHandler(opts *delivery.HandlerOptions) *Handler {
@@ -18,5 +20,6 @@ func NewHandler(opts *delivery.HandlerOptions) *Handler {
 		cfg:                 opts.Config,
 		validator:           opts.Validator,
 		notificationService: opts.NotificationService,
+		companyUsecase:      opts.CompaniesUsecase,
 	}
 }

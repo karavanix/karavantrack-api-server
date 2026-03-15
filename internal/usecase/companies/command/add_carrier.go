@@ -97,7 +97,16 @@ func (u *AddCarrierUsecase) AddCarrier(ctx context.Context, requesterID string, 
 		return inerr.NewErrValidation("carrier_id", "user is not a carrier")
 	}
 
-	cs, err := domain.NewCompanyCarrier(input.companyID, input.carrierID, req.Alias)
+	cs, err := u.companyCarriersRepo.FindByCompanyIDAndCarrierID(ctx, input.companyID, input.carrierID)
+	if err != nil {
+		return err
+	}
+
+	if cs != nil {
+		return nil
+	}
+
+	cs, err = domain.NewCompanyCarrier(input.companyID, input.carrierID, req.Alias)
 	if err != nil {
 		logger.ErrorContext(ctx, "failed to create company carrier", err)
 		return inerr.NewErrValidation("company_carrier", err.Error())

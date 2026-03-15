@@ -37,6 +37,7 @@ type InviteResponse struct {
 	LastName  string    `json:"last_name"`
 	Email     string    `json:"email"`
 	Phone     string    `json:"phone"`
+	Status    string    `json:"status"`
 	Role      string    `json:"role"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -100,6 +101,7 @@ func (u *InviteUsecase) Invite(ctx context.Context, req *InviteRequest) (_ *Invi
 		LastName:  user.LastName,
 		Email:     user.Email.String(),
 		Phone:     user.Phone.String(),
+		Status:    user.Status.String(),
 		Role:      user.Role.String(),
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,

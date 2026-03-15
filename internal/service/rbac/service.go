@@ -24,7 +24,7 @@ func NewService(contextTimeout time.Duration, companyMemberRepo domain.CompanyMe
 	}
 }
 
-func (s *service) HasPermission(ctx context.Context, companyID, userID string, permission domain.CompanyPermission) (_ bool, err error) {
+func (s *service) HasPermission(ctx context.Context, companyID, userID string, permission ...domain.CompanyPermission) (_ bool, err error) {
 	ctx, cancel := context.WithTimeout(ctx, s.contextTimeout)
 	defer cancel()
 
@@ -52,5 +52,11 @@ func (s *service) HasPermission(ctx context.Context, companyID, userID string, p
 		return false, err
 	}
 
-	return member.HasPermission(permission), nil
+	for _, p := range permission {
+		if !member.HasPermission(p) {
+			return false, nil
+		}
+	}
+
+	return true, nil
 }

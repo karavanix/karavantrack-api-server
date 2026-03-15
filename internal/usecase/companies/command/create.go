@@ -17,6 +17,7 @@ import (
 type CreateUsecase struct {
 	contextDuration time.Duration
 	txManager       postgres.TxManager
+	usersRepo       domain.UserRepository
 	companiesRepo   domain.CompanyRepository
 	membersRepo     domain.CompanyMemberRepository
 }
@@ -24,12 +25,14 @@ type CreateUsecase struct {
 func NewCreateUsecase(
 	contextDuration time.Duration,
 	txManager postgres.TxManager,
+	usersRepo domain.UserRepository,
 	companiesRepo domain.CompanyRepository,
 	membersRepo domain.CompanyMemberRepository,
 ) *CreateUsecase {
 	return &CreateUsecase{
 		contextDuration: contextDuration,
 		txManager:       txManager,
+		usersRepo:       usersRepo,
 		companiesRepo:   companiesRepo,
 		membersRepo:     membersRepo,
 	}
@@ -63,6 +66,12 @@ func (u *CreateUsecase) Create(ctx context.Context, userID string, req *CreateRe
 		}
 	}
 
+	user, err := u.usersRepo.FindByID(ctx, input.ownerID)
+	if err != nil {
+		logger.ErrorContext(ctx, "failed to find user", err)
+		return nil, err
+	}
+
 	company, err := domain.NewCompany(input.ownerID, req.Name)
 	if err != nil {
 		return nil, inerr.NewErrValidation("company", err.Error())
@@ -74,7 +83,7 @@ func (u *CreateUsecase) Create(ctx context.Context, userID string, req *CreateRe
 			return err
 		}
 
-		member, err := domain.NewCompanyMember(company.ID, input.ownerID, req.Name, domain.MemberRoleOwner)
+		member, err := domain.NewCompanyMember(company.ID, input.ownerID, user.FullName(), domain.MemberRoleOwner)
 		if err != nil {
 			return err
 		}

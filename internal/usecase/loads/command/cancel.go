@@ -5,8 +5,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/hibiken/asynq"
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
 	"github.com/karavanix/karavantrack-api-server/internal/inerr"
+	"github.com/karavanix/karavantrack-api-server/internal/service/rbac"
+	"github.com/karavanix/karavantrack-api-server/internal/tasks"
 	"github.com/karavanix/karavantrack-api-server/pkg/logger"
 	"github.com/karavanix/karavantrack-api-server/pkg/otlp"
 	"go.opentelemetry.io/otel"
@@ -16,13 +19,15 @@ import (
 type CancelUsecase struct {
 	contextDuration time.Duration
 	loadsRepo       domain.LoadRepository
+	rbacService     rbac.Service
+	taskQueue       *asynq.Client
 }
 
-func NewCancelUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository) *CancelUsecase {
-	return &CancelUsecase{contextDuration: contextDuration, loadsRepo: loadsRepo}
+func NewCancelUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository, rbacService rbac.Service, taskQueue *asynq.Client) *CancelUsecase {
+	return &CancelUsecase{contextDuration: contextDuration, loadsRepo: loadsRepo, rbacService: rbacService, taskQueue: taskQueue}
 }
 
-func (u *CancelUsecase) Cancel(ctx context.Context, loadID string) (err error) {
+func (u *CancelUsecase) Cancel(ctx context.Context, requesterID string, loadID string) (err error) {
 	ctx, cancel := context.WithTimeout(ctx, u.contextDuration)
 	defer cancel()
 
@@ -32,9 +37,15 @@ func (u *CancelUsecase) Cancel(ctx context.Context, loadID string) (err error) {
 	defer func() { end(err) }()
 
 	var input struct {
-		loadID uuid.UUID
+		actorID uuid.UUID
+		loadID  uuid.UUID
 	}
 	{
+		input.actorID, err = uuid.Parse(requesterID)
+		if err != nil {
+			return inerr.NewErrValidation("requester_id", err.Error())
+		}
+
 		input.loadID, err = uuid.Parse(loadID)
 		if err != nil {
 			return inerr.NewErrValidation("load_id", "invalid load ID")
@@ -47,12 +58,46 @@ func (u *CancelUsecase) Cancel(ctx context.Context, loadID string) (err error) {
 		return err
 	}
 
+	allow, err := u.rbacService.HasPermission(ctx,
+		load.CompanyID.String(),
+		input.actorID.String(),
+		domain.CompanyPermissionLoadUpdate,
+	)
+	if err != nil {
+		logger.ErrorContext(ctx, "failed to check permission", err)
+		return err
+	}
+	if !allow {
+		return inerr.ErrorPermissionDenied
+	}
+
 	if err := load.Cancel(); err != nil {
 		return inerr.NewErrValidation("status", err.Error())
 	}
 
 	if err := u.loadsRepo.Save(ctx, load); err != nil {
 		logger.ErrorContext(ctx, "failed to update load", err)
+		return err
+	}
+
+	task, err := tasks.NewSendPushNotificationTask(
+		load.CarrierID.String(),
+		tasks.PushNotification{
+			Title: "Груз отменен",
+			Body:  "Владелец отменил груз: " + load.Title,
+			Metadata: map[string]string{
+				"load_id": load.ID.String(),
+				"action":  "cancelled",
+			},
+		},
+	)
+	if err != nil {
+		logger.ErrorContext(ctx, "failed to create push notification task", err)
+		return err
+	}
+
+	if _, err := u.taskQueue.Enqueue(task); err != nil {
+		logger.ErrorContext(ctx, "failed to enqueue push notification", err)
 		return err
 	}
 

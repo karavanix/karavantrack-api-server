@@ -118,12 +118,20 @@ func (u *User) Deactivate() error {
 	return nil
 }
 
+func (u *User) IsInvited() bool {
+	return u.Status == UserStatusInvited
+}
+
 func (u *User) IsCarrier() bool {
 	return u.Role.IsCarrier()
 }
 
 func (u *User) IsShipper() bool {
 	return u.Role.IsShipper()
+}
+
+func (u *User) FullName() string {
+	return u.FirstName + " " + u.LastName
 }
 
 type UserFilter struct {

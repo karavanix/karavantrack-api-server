@@ -89,6 +89,12 @@ func (h *loadsHandler) Create() http.HandlerFunc {
 // @Router       /loads/{id}/assign [post]
 func (h *loadsHandler) Assign() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := app.UserID[string](r.Context())
+		if !ok {
+			outerr.Forbidden(w, r, "missing user context")
+			return
+		}
+
 		loadID := chi.URLParam(r, "id")
 
 		var req command.AssignRequest
@@ -101,7 +107,7 @@ func (h *loadsHandler) Assign() http.HandlerFunc {
 			return
 		}
 
-		if err := h.loadsUsecase.Command.Assign(r.Context(), loadID, &req); err != nil {
+		if err := h.loadsUsecase.Command.Assign(r.Context(), userID, loadID, &req); err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
 		}
@@ -123,9 +129,15 @@ func (h *loadsHandler) Assign() http.HandlerFunc {
 // @Router       /loads/{id}/confirm [post]
 func (h *loadsHandler) Confirm() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := app.UserID[string](r.Context())
+		if !ok {
+			outerr.Forbidden(w, r, "missing user context")
+			return
+		}
+
 		loadID := chi.URLParam(r, "id")
 
-		if err := h.loadsUsecase.Command.Confirm(r.Context(), loadID); err != nil {
+		if err := h.loadsUsecase.Command.Confirm(r.Context(), userID, loadID); err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
 		}
@@ -146,9 +158,15 @@ func (h *loadsHandler) Confirm() http.HandlerFunc {
 // @Router       /loads/{id}/cancel [post]
 func (h *loadsHandler) Cancel() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := app.UserID[string](r.Context())
+		if !ok {
+			outerr.Forbidden(w, r, "missing user context")
+			return
+		}
+
 		loadID := chi.URLParam(r, "id")
 
-		if err := h.loadsUsecase.Command.Cancel(r.Context(), loadID); err != nil {
+		if err := h.loadsUsecase.Command.Cancel(r.Context(), userID, loadID); err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
 		}

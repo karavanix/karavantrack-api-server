@@ -8,6 +8,7 @@ import (
 	"github.com/hibiken/asynq"
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
 	"github.com/karavanix/karavantrack-api-server/internal/inerr"
+	"github.com/karavanix/karavantrack-api-server/internal/service/rbac"
 	"github.com/karavanix/karavantrack-api-server/internal/tasks"
 	"github.com/karavanix/karavantrack-api-server/pkg/logger"
 	"github.com/karavanix/karavantrack-api-server/pkg/otlp"
@@ -19,14 +20,16 @@ type AssignUsecase struct {
 	contextDuration time.Duration
 	loadsRepo       domain.LoadRepository
 	usersRepo       domain.UserRepository
+	rbacService     rbac.Service
 	taskQueue       *asynq.Client
 }
 
-func NewAssignUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository, usersRepo domain.UserRepository, taskQueue *asynq.Client) *AssignUsecase {
+func NewAssignUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository, usersRepo domain.UserRepository, rbacService rbac.Service, taskQueue *asynq.Client) *AssignUsecase {
 	return &AssignUsecase{
 		contextDuration: contextDuration,
 		loadsRepo:       loadsRepo,
 		usersRepo:       usersRepo,
+		rbacService:     rbacService,
 		taskQueue:       taskQueue,
 	}
 }
@@ -35,17 +38,19 @@ type AssignRequest struct {
 	CarrierID string `json:"carrier_id" validate:"required"`
 }
 
-func (u *AssignUsecase) Assign(ctx context.Context, loadID string, req *AssignRequest) (err error) {
+func (u *AssignUsecase) Assign(ctx context.Context, requesterID string, loadID string, req *AssignRequest) (err error) {
 	ctx, cancel := context.WithTimeout(ctx, u.contextDuration)
 	defer cancel()
 
 	ctx, end := otlp.Start(ctx, otel.Tracer("loads"), "Assign",
+		attribute.String("requester_id", requesterID),
 		attribute.String("load_id", loadID),
 		attribute.String("carrier_id", req.CarrierID),
 	)
 	defer func() { end(err) }()
 
 	var input struct {
+		actorID   uuid.UUID
 		loadID    uuid.UUID
 		carrierID uuid.UUID
 	}
@@ -60,15 +65,11 @@ func (u *AssignUsecase) Assign(ctx context.Context, loadID string, req *AssignRe
 		if err != nil {
 			return inerr.NewErrValidation("carrier_id", "invalid carrier ID")
 		}
-	}
 
-	// Verify user exists and is a carrier
-	user, err := u.usersRepo.FindByID(ctx, input.carrierID)
-	if err != nil {
-		return err
-	}
-	if !user.IsCarrier() {
-		return inerr.NewErrValidation("carrier_id", "user is not a carrier")
+		input.actorID, err = uuid.Parse(requesterID)
+		if err != nil {
+			return inerr.NewErrValidation("requester_id", "invalid requester ID")
+		}
 	}
 
 	load, err := u.loadsRepo.FindByID(ctx, input.loadID)
@@ -76,7 +77,29 @@ func (u *AssignUsecase) Assign(ctx context.Context, loadID string, req *AssignRe
 		return err
 	}
 
-	if err := load.Assign(input.carrierID); err != nil {
+	allow, err := u.rbacService.HasPermission(ctx,
+		load.CompanyID.String(),
+		input.actorID.String(),
+		domain.CompanyPermissionLoadUpdate,
+	)
+	if err != nil {
+		logger.ErrorContext(ctx, "failed to check permission", err)
+		return err
+	}
+	if !allow {
+		return inerr.ErrorPermissionDenied
+	}
+
+	// Verify user exists and is a carrier
+	carrier, err := u.usersRepo.FindByID(ctx, input.carrierID)
+	if err != nil {
+		return err
+	}
+	if !carrier.IsCarrier() {
+		return inerr.NewErrValidation("carrier_id", "user is not a carrier")
+	}
+
+	if err := load.Assign(carrier.ID); err != nil {
 		return inerr.NewErrValidation("status", err.Error())
 	}
 
@@ -85,7 +108,9 @@ func (u *AssignUsecase) Assign(ctx context.Context, loadID string, req *AssignRe
 		return err
 	}
 
-	task, err := tasks.NewSendPushNotificationTask(
+	// Tasks to enqueue
+	var t []*asynq.Task
+	pushTask, err := tasks.NewSendPushNotificationTask(
 		load.CarrierID.String(),
 		tasks.PushNotification{
 			Title: "Новый груз",
@@ -98,12 +123,28 @@ func (u *AssignUsecase) Assign(ctx context.Context, loadID string, req *AssignRe
 	)
 	if err != nil {
 		logger.ErrorContext(ctx, "failed to create push notification task", err)
-		return err
+	} else {
+		t = append(t, pushTask)
 	}
 
-	if _, err := u.taskQueue.Enqueue(task); err != nil {
-		logger.ErrorContext(ctx, "failed to enqueue push notification", err)
-		return err
+	addCarrierTask, err := tasks.NewSendAddCarrierToCompanyTask(
+		&tasks.AddCarrierToCompanyPayload{
+			ActorID:   input.actorID.String(),
+			CompanyID: load.CompanyID.String(),
+			CarrierID: carrier.ID.String(),
+			Alias:     carrier.FullName(),
+		},
+	)
+	if err != nil {
+		logger.ErrorContext(ctx, "failed to create add carrier task", err)
+	} else {
+		t = append(t, addCarrierTask)
+	}
+
+	for _, task := range t {
+		if _, err := u.taskQueue.EnqueueContext(ctx, task); err != nil {
+			logger.ErrorContext(ctx, "failed to enqueue push notification", err)
+		}
 	}
 
 	return nil

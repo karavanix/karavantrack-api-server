@@ -7,5 +7,5 @@ import (
 )
 
 type Service interface {
-	HasPermission(ctx context.Context, companyID string, userID string, permission domain.CompanyPermission) (bool, error)
+	HasPermission(ctx context.Context, companyID string, userID string, permission ...domain.CompanyPermission) (bool, error)
 }
