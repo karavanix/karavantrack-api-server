@@ -95,7 +95,7 @@ func (r *usersRepo) FindByPhone(ctx context.Context, phone shared.Phone) (*domai
 		Where("phone = ?", phone.String()).
 		Scan(ctx)
 	if err != nil {
-		return nil, err
+		return nil, postgres.Error(err, model)
 	}
 
 	return r.toDomain(&model), nil
@@ -108,7 +108,7 @@ func (r *usersRepo) FindByEmailOrPhone(ctx context.Context, email shared.Email, 
 		Where("email = ? OR phone = ?", email.String(), phone.String()).
 		Scan(ctx)
 	if err != nil {
-		return nil, err
+		return nil, postgres.Error(err, model)
 	}
 
 	return r.toDomain(&model), nil
@@ -121,7 +121,7 @@ func (r *usersRepo) FindByID(ctx context.Context, id uuid.UUID) (*domain.User, e
 		Where("id = ?", id.String()).
 		Scan(ctx)
 	if err != nil {
-		return nil, err
+		return nil, postgres.Error(err, model)
 	}
 
 	return r.toDomain(&model), nil

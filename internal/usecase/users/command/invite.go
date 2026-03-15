@@ -79,7 +79,7 @@ func (u *InviteUsecase) Invite(ctx context.Context, req *InviteRequest) (_ *Invi
 	}
 
 	if user != nil && user.Role != input.role {
-		return nil, inerr.NewErrConflict("user")
+		return nil, inerr.NewErrConflict("user with different role")
 	}
 
 	if user == nil {
