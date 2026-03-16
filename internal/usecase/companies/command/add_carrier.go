@@ -2,6 +2,7 @@ package command
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -98,7 +99,8 @@ func (u *AddCarrierUsecase) AddCarrier(ctx context.Context, requesterID string, 
 	}
 
 	cs, err := u.companyCarriersRepo.FindByCompanyIDAndCarrierID(ctx, input.companyID, input.carrierID)
-	if err != nil {
+	if err != nil && !errors.Is(err, inerr.ErrNotFound{}) {
+		logger.ErrorContext(ctx, "failed to find company carrier", err)
 		return err
 	}
 
