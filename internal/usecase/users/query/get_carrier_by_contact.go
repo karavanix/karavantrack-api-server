@@ -35,6 +35,8 @@ type GetCarrierByContactResponse struct {
 	Email     string    `json:"email"`
 	Phone     string    `json:"phone"`
 	Role      string    `json:"role"`
+	IsFree    bool      `json:"is_free"`
+	Status    string    `json:"status"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -73,6 +75,7 @@ func (u *GetCarrierByContactUsecase) GetCarrierByContact(ctx context.Context, re
 		Email:     users[0].Email.String(),
 		Phone:     users[0].Phone.String(),
 		Role:      users[0].Role.String(),
+		Status:    users[0].Status.String(),
 		CreatedAt: users[0].CreatedAt,
 		UpdatedAt: users[0].UpdatedAt,
 	}, nil

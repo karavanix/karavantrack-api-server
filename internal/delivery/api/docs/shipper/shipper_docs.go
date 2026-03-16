@@ -1891,6 +1891,9 @@ const docTemplateshipper = `{
                 "id": {
                     "type": "string"
                 },
+                "is_free": {
+                    "type": "boolean"
+                },
                 "last_name": {
                     "type": "string"
                 },
@@ -1898,6 +1901,9 @@ const docTemplateshipper = `{
                     "type": "string"
                 },
                 "role": {
+                    "type": "string"
+                },
+                "status": {
                     "type": "string"
                 },
                 "updated_at": {
@@ -1989,10 +1995,10 @@ const docTemplateshipper = `{
                 "is_free": {
                     "type": "boolean"
                 },
-                "is_invited": {
-                    "type": "boolean"
-                },
                 "last_name": {
+                    "type": "string"
+                },
+                "status": {
                     "type": "string"
                 }
             }
