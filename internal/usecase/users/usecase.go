@@ -28,6 +28,7 @@ type Usecase struct {
 func NewUsecase(
 	contextDuration time.Duration,
 	usersRepo domain.UserRepository,
+	loadsRepo domain.LoadRepository,
 	fcmDevicesRepo domain.FCMDeviceRepository,
 ) *Usecase {
 	return &Usecase{
@@ -38,7 +39,7 @@ func NewUsecase(
 		},
 		Query: Query{
 			GetMeUsecase:               query.NewGetMeUsecase(contextDuration, usersRepo),
-			GetCarrierByContactUsecase: query.NewGetCarrierByContactUsecase(contextDuration, usersRepo),
+			GetCarrierByContactUsecase: query.NewGetCarrierByContactUsecase(contextDuration, usersRepo, loadsRepo),
 			GetShipperByContactUsecase: query.NewGetShipperByContactUsecase(contextDuration, usersRepo),
 		},
 	}

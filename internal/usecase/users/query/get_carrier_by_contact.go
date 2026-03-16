@@ -2,6 +2,7 @@ package query
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
@@ -15,12 +16,14 @@ import (
 type GetCarrierByContactUsecase struct {
 	contextTimeout time.Duration
 	usersRepo      domain.UserRepository
+	loadsRepo      domain.LoadRepository
 }
 
-func NewGetCarrierByContactUsecase(contextTimeout time.Duration, usersRepo domain.UserRepository) *GetCarrierByContactUsecase {
+func NewGetCarrierByContactUsecase(contextTimeout time.Duration, usersRepo domain.UserRepository, loadsRepo domain.LoadRepository) *GetCarrierByContactUsecase {
 	return &GetCarrierByContactUsecase{
 		contextTimeout: contextTimeout,
 		usersRepo:      usersRepo,
+		loadsRepo:      loadsRepo,
 	}
 }
 
@@ -68,6 +71,12 @@ func (u *GetCarrierByContactUsecase) GetCarrierByContact(ctx context.Context, re
 		return nil, inerr.NewErrNotFound("carrier not found")
 	}
 
+	load, err := u.loadsRepo.FindActiveByCarrierID(ctx, users[0].ID)
+	if err != nil && !errors.Is(err, inerr.ErrNotFound{}) {
+		logger.ErrorContext(ctx, "failed to find loads", err)
+		return nil, err
+	}
+
 	return &GetCarrierByContactResponse{
 		ID:        users[0].ID.String(),
 		FirstName: users[0].FirstName,
@@ -76,6 +85,7 @@ func (u *GetCarrierByContactUsecase) GetCarrierByContact(ctx context.Context, re
 		Phone:     users[0].Phone.String(),
 		Role:      users[0].Role.String(),
 		Status:    users[0].Status.String(),
+		IsFree:    load == nil,
 		CreatedAt: users[0].CreatedAt,
 		UpdatedAt: users[0].UpdatedAt,
 	}, nil
