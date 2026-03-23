@@ -88,9 +88,12 @@ func (u *CreateUsecase) Create(ctx context.Context, requesterID string, req *Cre
 			}
 		}
 
-		if req.PickupAt.IsZero() && req.DropoffAt.IsZero() && req.PickupAt.After(req.DropoffAt) {
+		input.dropoffAt = req.DropoffAt
+		input.pickupAt = req.PickupAt
+		if (!input.pickupAt.IsZero() && !input.dropoffAt.IsZero()) && input.pickupAt.After(input.dropoffAt) {
 			return nil, inerr.NewErrValidation("pickup_at", "pickup at must be before dropoff at")
 		}
+
 	}
 
 	allow, err := u.rbacService.HasPermission(ctx,
