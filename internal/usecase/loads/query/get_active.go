@@ -21,7 +21,7 @@ func NewGetActiveUsecase(contextDuration time.Duration, loadsRepo domain.LoadRep
 	return &GetActiveUsecase{contextDuration: contextDuration, loadsRepo: loadsRepo}
 }
 
-func (u *GetActiveUsecase) GetActive(ctx context.Context, carrierID string) (_ *LoadResponse, err error) {
+func (u *GetActiveUsecase) GetActive(ctx context.Context, carrierID string) (_ *LoadDetailResponse, err error) {
 	ctx, cancel := context.WithTimeout(ctx, u.contextDuration)
 	defer cancel()
 
@@ -45,5 +45,5 @@ func (u *GetActiveUsecase) GetActive(ctx context.Context, carrierID string) (_ *
 		return nil, err
 	}
 
-	return loadToResponse(load), nil
+	return loadToDetailResponse(load), nil
 }

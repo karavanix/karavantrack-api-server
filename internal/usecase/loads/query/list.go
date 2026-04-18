@@ -57,6 +57,30 @@ type LoadResponse struct {
 	UpdatedAt      string     `json:"updated_at"`
 }
 
+type HistoryAttachmentResponse struct {
+	ID           int64  `json:"id"`
+	HistoryID    int64  `json:"history_id"`
+	AttachmentID string `json:"attachment_id"`
+	CreatedAt    string `json:"created_at"`
+}
+
+type HistoryResponse struct {
+	ID          int64                        `json:"id"`
+	UserID      string                       `json:"user_id,omitempty"`
+	FromStatus  string                       `json:"from_status"`
+	ToStatus    string                       `json:"to_status"`
+	Note        string                       `json:"note,omitempty"`
+	CreatedAt   string                       `json:"created_at"`
+	Attachments []*HistoryAttachmentResponse `json:"attachments"`
+}
+
+// LoadDetailResponse is used for single-load GET endpoints.
+// It extends LoadResponse with the full status history.
+type LoadDetailResponse struct {
+	*LoadResponse
+	History []*HistoryResponse `json:"history"`
+}
+
 func loadToResponse(l *domain.Load) *LoadResponse {
 	r := &LoadResponse{
 		ID:             l.ID.String(),
@@ -85,6 +109,39 @@ func loadToResponse(l *domain.Load) *LoadResponse {
 		r.CarrierID = l.CarrierID.String()
 	}
 	return r
+}
+
+func loadToDetailResponse(l *domain.Load) *LoadDetailResponse {
+	base := loadToResponse(l)
+
+	history := make([]*HistoryResponse, len(l.History))
+	for i, h := range l.History {
+		hr := &HistoryResponse{
+			ID:         h.ID,
+			FromStatus: h.FromStatus.String(),
+			ToStatus:   h.ToStatus.String(),
+			Note:       h.Note,
+			CreatedAt:  h.CreatedAt.Format(time.RFC3339),
+			Attachments: make([]*HistoryAttachmentResponse, len(h.Attachments)),
+		}
+		if h.UserID != uuid.Nil {
+			hr.UserID = h.UserID.String()
+		}
+		for j, att := range h.Attachments {
+			hr.Attachments[j] = &HistoryAttachmentResponse{
+				ID:           att.ID,
+				HistoryID:    att.HistoryID,
+				AttachmentID: att.AttachmentID.String(),
+				CreatedAt:    att.CreatedAt.Format(time.RFC3339),
+			}
+		}
+		history[i] = hr
+	}
+
+	return &LoadDetailResponse{
+		LoadResponse: base,
+		History:      history,
+	}
 }
 
 func (u *ListUsecase) List(ctx context.Context, req *ListRequest) (_ *ListResponse, err error) {

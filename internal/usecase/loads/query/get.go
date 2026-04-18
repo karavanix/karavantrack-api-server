@@ -21,7 +21,7 @@ func NewGetUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepositor
 	return &GetUsecase{contextDuration: contextDuration, loadsRepo: loadsRepo}
 }
 
-func (u *GetUsecase) Get(ctx context.Context, loadID string) (_ *LoadResponse, err error) {
+func (u *GetUsecase) Get(ctx context.Context, loadID string) (_ *LoadDetailResponse, err error) {
 	ctx, cancel := context.WithTimeout(ctx, u.contextDuration)
 	defer cancel()
 
@@ -45,5 +45,5 @@ func (u *GetUsecase) Get(ctx context.Context, loadID string) (_ *LoadResponse, e
 		return nil, err
 	}
 
-	return loadToResponse(load), nil
+	return loadToDetailResponse(load), nil
 }
