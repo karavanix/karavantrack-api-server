@@ -146,7 +146,7 @@ func (r *loadsRepo) FindActiveByCarrierID(ctx context.Context, carrierID uuid.UU
 	err := db.NewSelect().
 		Model(&model).
 		Where(
-			"l.carrier_id = ? AND l.status IN ?",
+			"l.carrier_id = ? AND l.status IN (?)",
 			carrierID.String(),
 			bun.In(activeStatuses()),
 		).
@@ -175,7 +175,7 @@ func (r *loadsRepo) FindActiveByCarrierIDs(ctx context.Context, carrierIDs []uui
 
 	err := db.NewSelect().
 		Model(&models).
-		Where("l.carrier_id IN (?) AND l.status IN ?", bun.In(ids), bun.In(activeStatuses())).
+		Where("l.carrier_id IN (?) AND l.status IN (?)", bun.In(ids), bun.In(activeStatuses())).
 		OrderExpr("l.created_at DESC").
 		Relation("History", func(q *bun.SelectQuery) *bun.SelectQuery {
 			return q.OrderExpr("lsh.id ASC")
