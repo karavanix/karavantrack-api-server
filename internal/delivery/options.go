@@ -6,6 +6,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/service/notification"
 	"github.com/karavanix/karavantrack-api-server/internal/service/presence"
 	"github.com/karavanix/karavantrack-api-server/internal/service/rbac"
+	"github.com/karavanix/karavantrack-api-server/internal/usecase/attachments"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/auth"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/companies"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/loads"
@@ -27,9 +28,10 @@ type HandlerOptions struct {
 	RbacService         rbac.Service
 
 	// Usecases
-	AuthUsecase      *auth.Usecase
-	UsersUsecase     *users.Usecase
-	CompaniesUsecase *companies.Usecase
-	LoadsUsecase     *loads.Usecase
-	LocationUsecase  *location.Usecase
+	AuthUsecase        *auth.Usecase
+	UsersUsecase       *users.Usecase
+	CompaniesUsecase   *companies.Usecase
+	LoadsUsecase       *loads.Usecase
+	LocationUsecase    *location.Usecase
+	AttachmentsUsecase *attachments.Usecase
 }

@@ -14,8 +14,11 @@ type Command struct {
 	*command.CreateUsecase
 	*command.AssignUsecase
 	*command.AcceptUsecase
+	*command.BeginPickupUsecase
+	*command.ConfirmPickupUsecase
 	*command.StartUsecase
-	*command.CompleteUsecase
+	*command.BeginDropoffUsecase
+	*command.ConfirmDropoffUsecase
 	*command.ConfirmUsecase
 	*command.CancelUsecase
 }
@@ -44,13 +47,16 @@ func NewUsecase(
 ) *Usecase {
 	return &Usecase{
 		Command: Command{
-			CreateUsecase:   command.NewCreateUsecase(contextDuration, loadsRepo, usersRepo, rbacService, taskQueue),
-			AssignUsecase:   command.NewAssignUsecase(contextDuration, loadsRepo, usersRepo, rbacService, taskQueue),
-			AcceptUsecase:   command.NewAcceptUsecase(contextDuration, loadsRepo, taskQueue),
-			StartUsecase:    command.NewStartUsecase(contextDuration, loadsRepo, taskQueue),
-			CompleteUsecase: command.NewCompleteUsecase(contextDuration, loadsRepo, taskQueue),
-			ConfirmUsecase:  command.NewConfirmUsecase(contextDuration, loadsRepo, rbacService, taskQueue),
-			CancelUsecase:   command.NewCancelUsecase(contextDuration, loadsRepo, rbacService, taskQueue),
+			CreateUsecase:         command.NewCreateUsecase(contextDuration, loadsRepo, usersRepo, rbacService, taskQueue),
+			AssignUsecase:         command.NewAssignUsecase(contextDuration, loadsRepo, usersRepo, rbacService, taskQueue),
+			AcceptUsecase:         command.NewAcceptUsecase(contextDuration, loadsRepo, taskQueue),
+			BeginPickupUsecase:    command.NewBeginPickupUsecase(contextDuration, loadsRepo, taskQueue),
+			ConfirmPickupUsecase:  command.NewConfirmPickupUsecase(contextDuration, loadsRepo, taskQueue),
+			StartUsecase:          command.NewStartUsecase(contextDuration, loadsRepo, taskQueue),
+			BeginDropoffUsecase:   command.NewBeginDropoffUsecase(contextDuration, loadsRepo, taskQueue),
+			ConfirmDropoffUsecase: command.NewConfirmDropoffUsecase(contextDuration, loadsRepo, taskQueue),
+			ConfirmUsecase:        command.NewConfirmUsecase(contextDuration, loadsRepo, rbacService, taskQueue),
+			CancelUsecase:         command.NewCancelUsecase(contextDuration, loadsRepo, rbacService, taskQueue),
 		},
 		Query: Query{
 			GetUsecase:         query.NewGetUsecase(contextDuration, loadsRepo),

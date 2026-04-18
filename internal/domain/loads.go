@@ -12,13 +12,16 @@ import (
 type LoadStatus string
 
 const (
-	LoadStatusCreated   LoadStatus = "created"
-	LoadStatusAssigned  LoadStatus = "assigned"
-	LoadStatusAccepted  LoadStatus = "accepted"
-	LoadStatusInTransit LoadStatus = "in_transit"
-	LoadStatusCompleted LoadStatus = "completed"
-	LoadStatusConfirmed LoadStatus = "confirmed"
-	LoadStatusCancelled LoadStatus = "cancelled"
+	LoadStatusCreated     LoadStatus = "created"
+	LoadStatusAssigned    LoadStatus = "assigned"
+	LoadStatusAccepted    LoadStatus = "accepted"
+	LoadStatusPickingUp   LoadStatus = "picking_up"
+	LoadStatusPickedUp    LoadStatus = "picked_up"
+	LoadStatusInTransit   LoadStatus = "in_transit"
+	LoadStatusDroppingOff LoadStatus = "dropping_off"
+	LoadStatusDroppedOff  LoadStatus = "dropped_off"
+	LoadStatusConfirmed   LoadStatus = "confirmed"
+	LoadStatusCancelled   LoadStatus = "cancelled"
 )
 
 func (s LoadStatus) String() string {
@@ -116,30 +119,67 @@ func (l *Load) Accept() error {
 	return nil
 }
 
-// StartTrip transitions to in-transit, activating GPS tracking.
-func (l *Load) StartTrip() error {
+// BeginPickup transitions accepted → picking_up (carrier is driving to pickup location).
+func (l *Load) BeginPickup() error {
 	if l.Status != LoadStatusAccepted {
-		return errors.New("can only start trip on an accepted load")
+		return errors.New("can only begin pickup on an accepted load")
+	}
+	l.Status = LoadStatusPickingUp
+	l.UpdatedAt = time.Now()
+	return nil
+}
+
+// ConfirmPickup transitions picking_up → picked_up (cargo loaded onto truck).
+func (l *Load) ConfirmPickup() error {
+	if l.Status != LoadStatusPickingUp {
+		return errors.New("can only confirm pickup on a picking_up load")
+	}
+	l.Status = LoadStatusPickedUp
+	l.UpdatedAt = time.Now()
+	return nil
+}
+
+// StartTrip transitions picked_up → in_transit (truck en route to destination).
+// Also accepts legacy accepted status during client transition window.
+func (l *Load) StartTrip() error {
+	if l.Status != LoadStatusPickedUp && l.Status != LoadStatusAccepted {
+		return errors.New("can only start trip on a picked_up load")
 	}
 	l.Status = LoadStatusInTransit
 	l.UpdatedAt = time.Now()
 	return nil
 }
 
-// CompleteByCarrier marks the load as completed by the carrier.
-func (l *Load) CompleteByCarrier() error {
+// BeginDropoff transitions in_transit → dropping_off (carrier arrived at destination).
+func (l *Load) BeginDropoff() error {
 	if l.Status != LoadStatusInTransit {
-		return errors.New("can only complete an in-transit load")
+		return errors.New("can only begin dropoff on an in_transit load")
 	}
-	l.Status = LoadStatusCompleted
+	l.Status = LoadStatusDroppingOff
 	l.UpdatedAt = time.Now()
 	return nil
 }
 
+// ConfirmDropoff transitions dropping_off → dropped_off (cargo unloaded).
+func (l *Load) ConfirmDropoff() error {
+	if l.Status != LoadStatusDroppingOff {
+		return errors.New("can only confirm dropoff on a dropping_off load")
+	}
+	l.Status = LoadStatusDroppedOff
+	l.UpdatedAt = time.Now()
+	return nil
+}
+
+// CompleteByCarrier is a legacy alias for ConfirmDropoff kept for backward compatibility.
+func (l *Load) CompleteByCarrier() error {
+	return l.ConfirmDropoff()
+}
+
 // ConfirmByOwner confirms the load completion by the cargo owner.
+// Accepts dropped_off (new) or completed (legacy) status.
 func (l *Load) ConfirmByOwner() error {
-	if l.Status != LoadStatusCompleted {
-		return errors.New("can only confirm a carrier completed load")
+	if l.Status != LoadStatusDroppedOff {
+		return errors.New("can only confirm a dropped_off load")
 	}
 	l.Status = LoadStatusConfirmed
 	l.UpdatedAt = time.Now()
@@ -165,14 +205,17 @@ type LoadFilter struct {
 }
 
 type LoadStats struct {
-	Created   int
-	Assigned  int
-	Accepted  int
-	InTransit int
-	Completed int
-	Confirmed int
-	Canceled  int
-	Total     int
+	Created     int
+	Assigned    int
+	Accepted    int
+	PickingUp   int
+	PickedUp    int
+	InTransit   int
+	DroppingOff int
+	DroppedOff  int
+	Confirmed   int
+	Canceled    int
+	Total       int
 }
 
 type LoadRepository interface {

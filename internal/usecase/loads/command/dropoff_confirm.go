@@ -15,21 +15,21 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 )
 
-type CompleteUsecase struct {
+type ConfirmDropoffUsecase struct {
 	contextDuration time.Duration
 	loadsRepo       domain.LoadRepository
 	taskQueue       *asynq.Client
 }
 
-func NewCompleteUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository, taskQueue *asynq.Client) *CompleteUsecase {
-	return &CompleteUsecase{contextDuration: contextDuration, loadsRepo: loadsRepo, taskQueue: taskQueue}
+func NewConfirmDropoffUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository, taskQueue *asynq.Client) *ConfirmDropoffUsecase {
+	return &ConfirmDropoffUsecase{contextDuration: contextDuration, loadsRepo: loadsRepo, taskQueue: taskQueue}
 }
 
-func (u *CompleteUsecase) Complete(ctx context.Context, loadID string) (err error) {
+func (u *ConfirmDropoffUsecase) ConfirmDropoff(ctx context.Context, loadID string) (err error) {
 	ctx, cancel := context.WithTimeout(ctx, u.contextDuration)
 	defer cancel()
 
-	ctx, end := otlp.Start(ctx, otel.Tracer("loads"), "CompleteByCarrier",
+	ctx, end := otlp.Start(ctx, otel.Tracer("loads"), "ConfirmDropoff",
 		attribute.String("load_id", loadID),
 	)
 	defer func() { end(err) }()
@@ -49,7 +49,7 @@ func (u *CompleteUsecase) Complete(ctx context.Context, loadID string) (err erro
 		return err
 	}
 
-	if err := load.CompleteByCarrier(); err != nil {
+	if err := load.ConfirmDropoff(); err != nil {
 		return inerr.NewErrValidation("status", err.Error())
 	}
 
@@ -58,15 +58,14 @@ func (u *CompleteUsecase) Complete(ctx context.Context, loadID string) (err erro
 		return err
 	}
 
-	// Enqueue push notification to cargo owner
 	task, err := tasks.NewSendPushNotificationTask(
 		load.MemberID.String(),
 		tasks.PushNotification{
-			Title: "Поездка завершена",
-			Body:  "Водитель завершил поездку: " + load.Title,
+			Title: "Груз доставлен",
+			Body:  "Водитель завершил доставку: " + load.Title,
 			Metadata: map[string]string{
 				"load_id": load.ID.String(),
-				"action":  "completed",
+				"action":  "dropped_off",
 			},
 		},
 	)

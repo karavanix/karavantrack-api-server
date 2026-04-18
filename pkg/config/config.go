@@ -40,6 +40,15 @@ type Config struct {
 		Sslmode  string
 	}
 
+	S3 struct {
+		Endpoint      string
+		AccessKey     string
+		SecretKey     string
+		Region        string
+		PublicBucket  string
+		PrivateBucket string
+	}
+
 	Redis struct {
 		Host     string
 		Port     string
@@ -131,6 +140,14 @@ func New() (*Config, error) {
 	c.DB.User = getEnv("DB_USERNAME", "postgres")
 	c.DB.Password = getEnv("DB_PASSWORD", "")
 	c.DB.Sslmode = getEnv("DB_SSLMODE", "disable")
+
+	// s3 configuration
+	c.S3.Endpoint = getEnv("S3_ENDPOINT", "")
+	c.S3.Region = getEnv("S3_REGION", "")
+	c.S3.AccessKey = getEnv("S3_ACCESS_KEY", "")
+	c.S3.SecretKey = getEnv("S3_SECRET_KEY", "")
+	c.S3.PrivateBucket = getEnv("S3_PRIVATE_BUCKET", "app-private")
+	c.S3.PublicBucket = getEnv("S3_PUBLIC_BUCKET", "app-public")
 
 	// Redis
 	c.Redis.Host = getEnv("REDIS_HOST", "localhost")

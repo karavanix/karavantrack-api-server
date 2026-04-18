@@ -100,8 +100,11 @@ func (r *loadsRepo) FindActiveByCarrierID(ctx context.Context, carrierID uuid.UU
 			carrierID.String(),
 			bun.Tuple([]string{
 				domain.LoadStatusAccepted.String(),
+				domain.LoadStatusPickingUp.String(),
+				domain.LoadStatusPickedUp.String(),
 				domain.LoadStatusInTransit.String(),
-				domain.LoadStatusCompleted.String(),
+				domain.LoadStatusDroppingOff.String(),
+				domain.LoadStatusDroppedOff.String(),
 			}),
 		).
 		OrderBy("created_at", bun.OrderDesc).
@@ -123,8 +126,11 @@ func (r *loadsRepo) FindActiveByCarrierIDs(ctx context.Context, carrierIDs []uui
 			bun.In(carrierIDs),
 			bun.Tuple([]string{
 				domain.LoadStatusAccepted.String(),
+				domain.LoadStatusPickingUp.String(),
+				domain.LoadStatusPickedUp.String(),
 				domain.LoadStatusInTransit.String(),
-				domain.LoadStatusCompleted.String(),
+				domain.LoadStatusDroppingOff.String(),
+				domain.LoadStatusDroppedOff.String(),
 			}),
 		).
 		OrderBy("created_at", bun.OrderDesc)
@@ -199,8 +205,11 @@ func (r *loadsRepo) FindStats(ctx context.Context, filter domain.LoadFilter) (*d
 		ColumnExpr("COUNT(*) FILTER (WHERE status = ?) AS created", domain.LoadStatusCreated).
 		ColumnExpr("COUNT(*) FILTER (WHERE status = ?) AS assigned", domain.LoadStatusAssigned).
 		ColumnExpr("COUNT(*) FILTER (WHERE status = ?) AS accepted", domain.LoadStatusAccepted).
+		ColumnExpr("COUNT(*) FILTER (WHERE status = ?) AS picking_up", domain.LoadStatusPickingUp).
+		ColumnExpr("COUNT(*) FILTER (WHERE status = ?) AS picked_up", domain.LoadStatusPickedUp).
 		ColumnExpr("COUNT(*) FILTER (WHERE status = ?) AS in_transit", domain.LoadStatusInTransit).
-		ColumnExpr("COUNT(*) FILTER (WHERE status = ?) AS completed", domain.LoadStatusCompleted).
+		ColumnExpr("COUNT(*) FILTER (WHERE status = ?) AS dropping_off", domain.LoadStatusDroppingOff).
+		ColumnExpr("COUNT(*) FILTER (WHERE status = ?) AS dropped_off", domain.LoadStatusDroppedOff).
 		ColumnExpr("COUNT(*) FILTER (WHERE status = ?) AS confirmed", domain.LoadStatusConfirmed).
 		ColumnExpr("COUNT(*) FILTER (WHERE status = ?) AS canceled", domain.LoadStatusCancelled).
 		ColumnExpr("COUNT(*) AS total")

@@ -25,11 +25,14 @@ func RegisterRoutes(r chi.Router, opts *delivery.HandlerOptions) {
 		r.Get("/carriers/companies/{id}", companyH.GetCarrierCompany())
 
 		// Load actions
-		r.Get("/loads/pending", companyH.ListPending())
-		r.Get("/loads/active", companyH.GetActive())
+		r.Get("/loads/pending", loadsH.ListPending())
+		r.Get("/loads/active", loadsH.GetActive())
 		r.Post("/loads/{id}/accept", loadsH.Accept())
+		r.Post("/loads/{id}/pickup/begin", loadsH.BeginPickup())
+		r.Post("/loads/{id}/pickup/confirm", loadsH.ConfirmPickup())
 		r.Post("/loads/{id}/start", loadsH.Start())
-		r.Post("/loads/{id}/complete", loadsH.Complete())
+		r.Post("/loads/{id}/dropoff/begin", loadsH.BeginDropoff())
+		r.Post("/loads/{id}/dropoff/confirm", loadsH.ConfirmDropoff())
 		r.Post("/loads/{id}/location", loadsH.RegisterLocation())
 	})
 }

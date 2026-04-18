@@ -11,6 +11,7 @@ func RegisterRoutes(r chi.Router, opts *delivery.HandlerOptions) {
 	authH := NewAuthHandler(opts)
 	usersH := NewUsersHandler(opts)
 	loadsH := NewLoadsHandler(opts)
+	attachmentsH := NewAttachmentsHandler(opts)
 	wsH := NewWSHandler(opts)
 
 	// Auth routes (public)
@@ -30,6 +31,12 @@ func RegisterRoutes(r chi.Router, opts *delivery.HandlerOptions) {
 
 		// Loads
 		r.Get("/loads/{id}", loadsH.Get())
+
+		// Attachments
+		r.Post("/attachments/image", attachmentsH.UploadImage())
+		r.Post("/attachments/file", attachmentsH.UploadFile())
+		r.Get("/attachments/{id}", attachmentsH.GetAttachment())
+		r.Get("/attachments/{id}/download", attachmentsH.DownloadAttachment())
 
 		// WebSocket
 		r.Get("/ws", wsH.WebSocketHandler)

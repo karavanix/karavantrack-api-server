@@ -23,11 +23,17 @@ func NewGetStatsUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepo
 }
 
 type GetStatsResponse struct {
-	Active    int `json:"active"`
-	Pending   int `json:"pending"`
-	Completed int `json:"completed"`
-	Canceled  int `json:"canceled"`
-	Total     int `json:"total"`
+	Created     int `json:"created"`
+	Assigned    int `json:"assigned"`
+	Accepted    int `json:"accepted"`
+	PickingUp   int `json:"picking_up"`
+	PickedUp    int `json:"picked_up"`
+	InTransit   int `json:"in_transit"`
+	DroppingOff int `json:"dropping_off"`
+	DroppedOff  int `json:"dropped_off"`
+	Confirmed   int `json:"confirmed"`
+	Cancelled   int `json:"canceled"`
+	Total       int `json:"total"`
 }
 
 func (u *GetStatsUsecase) GetStats(ctx context.Context, requesterID string, companyID string) (_ *GetStatsResponse, err error) {
@@ -68,11 +74,17 @@ func (u *GetStatsUsecase) GetStats(ctx context.Context, requesterID string, comp
 	}
 
 	result := &GetStatsResponse{
-		Active:    stats.Accepted + stats.InTransit + stats.Completed,
-		Pending:   stats.Created + stats.Assigned,
-		Completed: stats.Confirmed,
-		Canceled:  stats.Canceled,
-		Total:     stats.Total,
+		Created:     stats.Created,
+		Assigned:    stats.Assigned,
+		Accepted:    stats.Accepted,
+		PickingUp:   stats.PickingUp,
+		PickedUp:    stats.PickedUp,
+		InTransit:   stats.InTransit,
+		DroppingOff: stats.DroppingOff,
+		DroppedOff:  stats.DroppedOff,
+		Confirmed:   stats.Confirmed,
+		Cancelled:   stats.Canceled,
+		Total:       stats.Total,
 	}
 
 	return result, nil

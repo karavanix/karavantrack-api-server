@@ -15,21 +15,21 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 )
 
-type StartUsecase struct {
+type BeginPickupUsecase struct {
 	contextDuration time.Duration
 	loadsRepo       domain.LoadRepository
 	taskQueue       *asynq.Client
 }
 
-func NewStartUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository, taskQueue *asynq.Client) *StartUsecase {
-	return &StartUsecase{contextDuration: contextDuration, loadsRepo: loadsRepo, taskQueue: taskQueue}
+func NewBeginPickupUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository, taskQueue *asynq.Client) *BeginPickupUsecase {
+	return &BeginPickupUsecase{contextDuration: contextDuration, loadsRepo: loadsRepo, taskQueue: taskQueue}
 }
 
-func (u *StartUsecase) Start(ctx context.Context, loadID string) (err error) {
+func (u *BeginPickupUsecase) BeginPickup(ctx context.Context, loadID string) (err error) {
 	ctx, cancel := context.WithTimeout(ctx, u.contextDuration)
 	defer cancel()
 
-	ctx, end := otlp.Start(ctx, otel.Tracer("loads"), "StartTrip",
+	ctx, end := otlp.Start(ctx, otel.Tracer("loads"), "BeginPickup",
 		attribute.String("load_id", loadID),
 	)
 	defer func() { end(err) }()
@@ -49,7 +49,7 @@ func (u *StartUsecase) Start(ctx context.Context, loadID string) (err error) {
 		return err
 	}
 
-	if err := load.StartTrip(); err != nil {
+	if err := load.BeginPickup(); err != nil {
 		return inerr.NewErrValidation("status", err.Error())
 	}
 
@@ -58,15 +58,14 @@ func (u *StartUsecase) Start(ctx context.Context, loadID string) (err error) {
 		return err
 	}
 
-	// Enqueue push notification to cargo owner
 	task, err := tasks.NewSendPushNotificationTask(
 		load.MemberID.String(),
 		tasks.PushNotification{
-			Title: "Поездка начата",
-			Body:  "Водитель начал поездку: " + load.Title,
+			Title: "Начало погрузки",
+			Body:  "Водитель выезжает на погрузку: " + load.Title,
 			Metadata: map[string]string{
 				"load_id": load.ID.String(),
-				"action":  "started",
+				"action":  "picking_up",
 			},
 		},
 	)

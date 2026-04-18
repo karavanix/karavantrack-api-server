@@ -49,7 +49,7 @@ func NewLoadsHandler(opts *delivery.HandlerOptions) *loadsHandler {
 // @Failure      404 {object} outerr.Response
 // @Failure      500 {object} outerr.Response
 // @Router       /loads/pending [get]
-func (h *companyHandler) ListPending() http.HandlerFunc {
+func (h *loadsHandler) ListPending() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, ok := app.UserID[string](r.Context())
 		if !ok {
@@ -90,7 +90,7 @@ func (h *companyHandler) ListPending() http.HandlerFunc {
 // @Failure      404 {object} outerr.Response
 // @Failure      500 {object} outerr.Response
 // @Router       /loads/active [get]
-func (h *companyHandler) GetActive() http.HandlerFunc {
+func (h *loadsHandler) GetActive() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, ok := app.UserID[string](r.Context())
 		if !ok {
@@ -162,21 +162,90 @@ func (h *loadsHandler) Start() http.HandlerFunc {
 	}
 }
 
-// Complete godoc
+// BeginPickup godoc
 // @Security     BearerAuth
-// @Summary      Complete load
-// @Description  Complete a load (by carrier)
+// @Summary      Begin pickup
+// @Description  Carrier is driving to pickup location (accepted → picking_up)
 // @Tags         Loads
 // @Produce      json
 // @Param        id   path      string  true  "Load ID"
 // @Success      200
 // @Failure      401  {object} outerr.Response
-// @Router       /loads/{id}/complete [post]
-func (h *loadsHandler) Complete() http.HandlerFunc {
+// @Router       /loads/{id}/pickup/begin [post]
+func (h *loadsHandler) BeginPickup() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		loadID := chi.URLParam(r, "id")
 
-		if err := h.loadsUsecase.Command.Complete(r.Context(), loadID); err != nil {
+		if err := h.loadsUsecase.Command.BeginPickup(r.Context(), loadID); err != nil {
+			outerr.HandleHTTP(w, r, err)
+			return
+		}
+
+		render.Status(r, http.StatusOK)
+	}
+}
+
+// ConfirmPickup godoc
+// @Security     BearerAuth
+// @Summary      Confirm pickup
+// @Description  Cargo loaded onto truck (picking_up → picked_up)
+// @Tags         Loads
+// @Produce      json
+// @Param        id   path      string  true  "Load ID"
+// @Success      200
+// @Failure      401  {object} outerr.Response
+// @Router       /loads/{id}/pickup/confirm [post]
+func (h *loadsHandler) ConfirmPickup() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		loadID := chi.URLParam(r, "id")
+
+		if err := h.loadsUsecase.Command.ConfirmPickup(r.Context(), loadID); err != nil {
+			outerr.HandleHTTP(w, r, err)
+			return
+		}
+
+		render.Status(r, http.StatusOK)
+	}
+}
+
+// BeginDropoff godoc
+// @Security     BearerAuth
+// @Summary      Begin dropoff
+// @Description  Carrier arrived at destination (in_transit → dropping_off)
+// @Tags         Loads
+// @Produce      json
+// @Param        id   path      string  true  "Load ID"
+// @Success      200
+// @Failure      401  {object} outerr.Response
+// @Router       /loads/{id}/dropoff/begin [post]
+func (h *loadsHandler) BeginDropoff() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		loadID := chi.URLParam(r, "id")
+
+		if err := h.loadsUsecase.Command.BeginDropoff(r.Context(), loadID); err != nil {
+			outerr.HandleHTTP(w, r, err)
+			return
+		}
+
+		render.Status(r, http.StatusOK)
+	}
+}
+
+// ConfirmDropoff godoc
+// @Security     BearerAuth
+// @Summary      Confirm dropoff
+// @Description  Cargo unloaded at destination (dropping_off → dropped_off)
+// @Tags         Loads
+// @Produce      json
+// @Param        id   path      string  true  "Load ID"
+// @Success      200
+// @Failure      401  {object} outerr.Response
+// @Router       /loads/{id}/dropoff/confirm [post]
+func (h *loadsHandler) ConfirmDropoff() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		loadID := chi.URLParam(r, "id")
+
+		if err := h.loadsUsecase.Command.ConfirmDropoff(r.Context(), loadID); err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
 		}

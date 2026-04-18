@@ -131,6 +131,40 @@ definitions:
       role:
         type: string
     type: object
+  command.UploadFileResponse:
+    properties:
+      createdAt:
+        type: string
+      filename:
+        type: string
+      id:
+        type: string
+      mimeType:
+        type: string
+      publicURL:
+        type: string
+      status:
+        type: string
+      visibility:
+        type: string
+    type: object
+  command.UploadImageResponse:
+    properties:
+      createdAt:
+        type: string
+      filename:
+        type: string
+      id:
+        type: string
+      mimeType:
+        type: string
+      publicURL:
+        type: string
+      status:
+        type: string
+      visibility:
+        type: string
+    type: object
   github_com_karavanix_karavantrack-api-server_internal_usecase_companies_command.CreateRequest:
     properties:
       name:
@@ -216,6 +250,23 @@ definitions:
       message:
         type: string
     type: object
+  query.AttachmentResponse:
+    properties:
+      createdAt:
+        type: string
+      filename:
+        type: string
+      id:
+        type: string
+      mimeType:
+        type: string
+      publicURL:
+        type: string
+      status:
+        type: string
+      visibility:
+        type: string
+    type: object
   query.CompanyResponse:
     properties:
       created_at:
@@ -279,13 +330,25 @@ definitions:
     type: object
   query.GetStatsResponse:
     properties:
-      active:
+      accepted:
+        type: integer
+      assigned:
         type: integer
       canceled:
         type: integer
-      completed:
+      confirmed:
         type: integer
-      pending:
+      created:
+        type: integer
+      dropped_off:
+        type: integer
+      dropping_off:
+        type: integer
+      in_transit:
+        type: integer
+      picked_up:
+        type: integer
+      picking_up:
         type: integer
       total:
         type: integer
@@ -431,6 +494,208 @@ info:
   contact: {}
   title: Shippers API
 paths:
+  /attachments/{id}:
+    get:
+      parameters:
+      - description: Attachment ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/query.AttachmentResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "404":
+          description: Not found
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/outerr.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: Get attachment metadata
+      tags:
+      - Attachments
+  /attachments/{id}/download:
+    get:
+      parameters:
+      - description: Attachment ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "404":
+          description: Not found
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/outerr.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: Download attachment file
+      tags:
+      - Attachments
+  /attachments/file:
+    post:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: File to upload
+        in: formData
+        name: file
+        required: true
+        type: file
+      - description: Visibility of attachment
+        in: formData
+        name: visibility
+        required: true
+        type: string
+      - description: Folder to upload attachment
+        in: formData
+        name: folder
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/command.UploadFileResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "404":
+          description: Not found
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "413":
+          description: Request entity too large
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/outerr.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: Upload attachment
+      tags:
+      - Attachments
+  /attachments/image:
+    post:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: Image to upload
+        in: formData
+        name: file
+        required: true
+        type: file
+      - description: Visibility of attachment
+        in: formData
+        name: visibility
+        required: true
+        type: string
+      - description: Folder to upload attachment
+        in: formData
+        name: folder
+        type: string
+      - description: Width of image
+        in: formData
+        name: width
+        type: integer
+      - description: Height of image
+        in: formData
+        name: height
+        type: integer
+      - description: Compress image
+        in: formData
+        name: compress
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/command.UploadImageResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "404":
+          description: Not found
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "413":
+          description: Request entity too large
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/outerr.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: Upload image attachment
+      tags:
+      - Attachments
   /auth/login:
     post:
       consumes:

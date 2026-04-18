@@ -16,7 +16,6 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/handlers/shippers"
 	apimiddleware "github.com/karavanix/karavantrack-api-server/internal/delivery/api/middleware"
 	"github.com/riandyrn/otelchi"
-	"github.com/riandyrn/otelchi/metric"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 
 	_ "github.com/karavanix/karavantrack-api-server/internal/delivery/api/docs/carrier"
@@ -26,28 +25,26 @@ import (
 func NewRouter(options *delivery.HandlerOptions) http.Handler {
 	router := chi.NewRouter()
 
-	baseCfg := metric.NewBaseConfig(
-		options.Config.APP,
-	)
+	// OpenTelemetry trace middleware
 	router.Use(
-		otelchi.Middleware(options.Config.APP, otelchi.WithFilter(func(r *http.Request) bool {
-			if r.URL.Path == "/ping" || strings.HasSuffix(r.URL.Path, "/api/swagger") {
-				return false
-			}
-			return true
-		}), otelchi.WithChiRoutes(router)),
-		metric.NewRequestDurationMillis(baseCfg),
-		metric.NewRequestInFlight(baseCfg),
-		metric.NewResponseSizeBytes(baseCfg),
+		otelchi.Middleware(options.Config.APP,
+			otelchi.WithFilter(func(r *http.Request) bool {
+				if r.URL.Path == "/healthz" || r.URL.Path == "/metrics" || strings.HasPrefix(r.URL.Path, "/api/swagger") {
+					return false
+				}
+				return true
+			}),
+			otelchi.WithChiRoutes(router),
+		),
 	)
 
-	router.Use(metrics.Collector(metrics.CollectorOpts{
-		Host:  false,
-		Proto: true,
-		Skip: func(r *http.Request) bool {
-			return r.Method != "OPTIONS"
-		},
-	}))
+	// Prometheus metrics middleware
+	router.Use(
+		metrics.Collector(metrics.CollectorOpts{
+			Host:  false,
+			Proto: true,
+		}),
+	)
 
 	router.Use(chimiddleware.RealIP)
 	router.Use(chimiddleware.Recoverer)
