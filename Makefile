@@ -12,7 +12,7 @@ build:
 	go build -o ./bin/${APP} ${CMD_DIR}/main.go
 
 build-linux:
-	CGO_ENABLED=0 GOARCH="amd64" GOOS=linux go build -ldflags="-s -w" -o ./bin/${APP} ${CMD_DIR}/main.go
+	CGO_ENABLED=1 GOARCH="amd64" GOOS=linux go build -ldflags="-s -w" -o ./bin/${APP} ${CMD_DIR}/main.go
 test:
 	go test -v -race -timeout 30s ./...
 
