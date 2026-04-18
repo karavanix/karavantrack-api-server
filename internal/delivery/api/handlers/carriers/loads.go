@@ -85,7 +85,7 @@ func (h *loadsHandler) ListPending() http.HandlerFunc {
 // @Description  Get the current active load for the authenticated carrier (accepted, in_transit, or completed)
 // @Tags         Loads
 // @Produce      json
-// @Success      200 {object} query.LoadResponse
+// @Success      200 {object} query.LoadDetailResponse
 // @Failure      401 {object} outerr.Response
 // @Failure      403 {object} outerr.Response
 // @Failure      404 {object} outerr.Response
@@ -99,6 +99,7 @@ func (h *loadsHandler) GetActive() http.HandlerFunc {
 			return
 		}
 
+		var resp *query.LoadDetailResponse
 		resp, err := h.loadsUsecase.Query.GetActive(r.Context(), userID)
 		if err != nil {
 			outerr.HandleHTTP(w, r, err)

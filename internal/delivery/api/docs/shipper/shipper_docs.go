@@ -1246,7 +1246,7 @@ const docTemplateshipper = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/query.LoadResponse"
+                            "$ref": "#/definitions/query.LoadDetailResponse"
                         }
                     },
                     "401": {
@@ -1882,7 +1882,16 @@ const docTemplateshipper = `{
                 "carrier_id"
             ],
             "properties": {
+                "attachment_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "carrier_id": {
+                    "type": "string"
+                },
+                "note": {
                     "type": "string"
                 }
             }
@@ -2387,6 +2396,52 @@ const docTemplateshipper = `{
                 }
             }
         },
+        "query.HistoryAttachmentResponse": {
+            "type": "object",
+            "properties": {
+                "attachment_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "history_id": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "query.HistoryResponse": {
+            "type": "object",
+            "properties": {
+                "attachments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/query.HistoryAttachmentResponse"
+                    }
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "from_status": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "note": {
+                    "type": "string"
+                },
+                "to_status": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
         "query.ListCarriersResponse": {
             "type": "object",
             "properties": {
@@ -2409,6 +2464,71 @@ const docTemplateshipper = `{
                     "type": "string"
                 },
                 "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "query.LoadDetailResponse": {
+            "type": "object",
+            "properties": {
+                "carrier_id": {
+                    "type": "string"
+                },
+                "company_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "dropoff_address": {
+                    "type": "string"
+                },
+                "dropoff_at": {
+                    "type": "string"
+                },
+                "dropoff_lat": {
+                    "type": "number"
+                },
+                "dropoff_lng": {
+                    "type": "number"
+                },
+                "history": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/query.HistoryResponse"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "member_id": {
+                    "type": "string"
+                },
+                "pickup_address": {
+                    "type": "string"
+                },
+                "pickup_at": {
+                    "type": "string"
+                },
+                "pickup_lat": {
+                    "type": "number"
+                },
+                "pickup_lng": {
+                    "type": "number"
+                },
+                "reference_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "updated_at": {
                     "type": "string"
                 }
             }

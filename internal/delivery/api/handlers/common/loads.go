@@ -9,6 +9,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/validation"
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/outerr"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/loads"
+	"github.com/karavanix/karavantrack-api-server/internal/usecase/loads/query"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/location"
 	"github.com/karavanix/karavantrack-api-server/pkg/config"
 )
@@ -36,7 +37,7 @@ func NewLoadsHandler(opts *delivery.HandlerOptions) *loadsHandler {
 // @Tags         Loads
 // @Produce      json
 // @Param        id   path      string  true  "Load ID"
-// @Success      200  {object} query.LoadResponse
+// @Success      200  {object} query.LoadDetailResponse
 // @Failure      401  {object} outerr.Response
 // @Failure      404  {object} outerr.Response
 // @Router       /loads/{id} [get]
@@ -44,6 +45,7 @@ func (h *loadsHandler) Get() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		loadID := chi.URLParam(r, "id")
 
+		var resp *query.LoadDetailResponse
 		resp, err := h.loadsUsecase.Query.Get(r.Context(), loadID)
 		if err != nil {
 			outerr.HandleHTTP(w, r, err)
