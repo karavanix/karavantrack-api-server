@@ -133,7 +133,7 @@ func (u *CreateUsecase) Create(ctx context.Context, requesterID string, req *Cre
 	}
 
 	if carrier != nil {
-		load.Assign(carrier.ID)
+		load.Assign("", carrier.ID)
 	}
 
 	if err := u.loadsRepo.Save(ctx, load); err != nil {

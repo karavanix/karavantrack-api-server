@@ -27,7 +27,12 @@ func NewAcceptUsecase(contextDuration time.Duration, loadsRepo domain.LoadReposi
 	return &AcceptUsecase{contextDuration: contextDuration, loadsRepo: loadsRepo, taskQueue: taskQueue}
 }
 
-func (u *AcceptUsecase) Accept(ctx context.Context, loadID string, userID string) (err error) {
+type AcceptRequest struct {
+	Note          string   `json:"note"`
+	AttachmentIDs []string `json:"attachment_ids"`
+}
+
+func (u *AcceptUsecase) Accept(ctx context.Context, loadID string, userID string, req *AcceptRequest) (err error) {
 	ctx, cancel := context.WithTimeout(ctx, u.contextDuration)
 	defer cancel()
 
@@ -38,8 +43,9 @@ func (u *AcceptUsecase) Accept(ctx context.Context, loadID string, userID string
 	defer func() { end(err) }()
 
 	var input struct {
-		loadID    uuid.UUID
-		carrierID uuid.UUID
+		loadID        uuid.UUID
+		carrierID     uuid.UUID
+		attachmentIDs []uuid.UUID
 	}
 	{
 		input.loadID, err = uuid.Parse(loadID)
@@ -50,6 +56,14 @@ func (u *AcceptUsecase) Accept(ctx context.Context, loadID string, userID string
 		input.carrierID, err = uuid.Parse(userID)
 		if err != nil {
 			return inerr.NewErrValidation("user_id", "invalid user ID")
+		}
+
+		for _, idStr := range req.AttachmentIDs {
+			attID, err := uuid.Parse(idStr)
+			if err != nil {
+				return inerr.NewErrValidation("attachment_ids", "invalid attachment ID: "+idStr)
+			}
+			input.attachmentIDs = append(input.attachmentIDs, attID)
 		}
 	}
 
@@ -67,7 +81,7 @@ func (u *AcceptUsecase) Accept(ctx context.Context, loadID string, userID string
 		return err
 	}
 
-	if err := load.Accept(); err != nil {
+	if err := load.Accept(req.Note, input.attachmentIDs...); err != nil {
 		return inerr.NewErrValidation("status", err.Error())
 	}
 

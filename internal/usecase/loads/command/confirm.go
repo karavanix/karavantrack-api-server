@@ -27,7 +27,12 @@ func NewConfirmUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepos
 	return &ConfirmUsecase{contextDuration: contextDuration, loadsRepo: loadsRepo, rbacService: rbacService, taskQueue: taskQueue}
 }
 
-func (u *ConfirmUsecase) Confirm(ctx context.Context, requesterID string, loadID string) (err error) {
+type ConfirmRequest struct {
+	Note          string   `json:"note"`
+	AttachmentIDs []string `json:"attachment_ids"`
+}
+
+func (u *ConfirmUsecase) Confirm(ctx context.Context, requesterID string, loadID string, req *ConfirmRequest) (err error) {
 	ctx, cancel := context.WithTimeout(ctx, u.contextDuration)
 	defer cancel()
 
@@ -37,8 +42,9 @@ func (u *ConfirmUsecase) Confirm(ctx context.Context, requesterID string, loadID
 	defer func() { end(err) }()
 
 	var input struct {
-		actorID uuid.UUID
-		loadID  uuid.UUID
+		actorID       uuid.UUID
+		loadID        uuid.UUID
+		attachmentIDs []uuid.UUID
 	}
 	{
 		input.actorID, err = uuid.Parse(requesterID)
@@ -49,6 +55,14 @@ func (u *ConfirmUsecase) Confirm(ctx context.Context, requesterID string, loadID
 		input.loadID, err = uuid.Parse(loadID)
 		if err != nil {
 			return inerr.NewErrValidation("load_id", err.Error())
+		}
+
+		for _, idStr := range req.AttachmentIDs {
+			attID, err := uuid.Parse(idStr)
+			if err != nil {
+				return inerr.NewErrValidation("attachment_ids", "invalid attachment ID: "+idStr)
+			}
+			input.attachmentIDs = append(input.attachmentIDs, attID)
 		}
 	}
 
@@ -70,7 +84,7 @@ func (u *ConfirmUsecase) Confirm(ctx context.Context, requesterID string, loadID
 		return inerr.ErrorPermissionDenied
 	}
 
-	if err := load.ConfirmByOwner(); err != nil {
+	if err := load.ConfirmByOwner(req.Note, input.attachmentIDs...); err != nil {
 		return inerr.NewErrValidation("status", err.Error())
 	}
 

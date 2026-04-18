@@ -137,7 +137,10 @@ func (h *loadsHandler) Confirm() http.HandlerFunc {
 
 		loadID := chi.URLParam(r, "id")
 
-		if err := h.loadsUsecase.Command.Confirm(r.Context(), userID, loadID); err != nil {
+		var req command.ConfirmRequest
+		_ = json.NewDecoder(r.Body).Decode(&req) // optional body
+
+		if err := h.loadsUsecase.Command.Confirm(r.Context(), userID, loadID, &req); err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
 		}
@@ -166,7 +169,10 @@ func (h *loadsHandler) Cancel() http.HandlerFunc {
 
 		loadID := chi.URLParam(r, "id")
 
-		if err := h.loadsUsecase.Command.Cancel(r.Context(), userID, loadID); err != nil {
+		var req command.CancelRequest
+		_ = json.NewDecoder(r.Body).Decode(&req) // optional body
+
+		if err := h.loadsUsecase.Command.Cancel(r.Context(), userID, loadID, &req); err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
 		}

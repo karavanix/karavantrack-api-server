@@ -35,7 +35,9 @@ func NewAssignUsecase(contextDuration time.Duration, loadsRepo domain.LoadReposi
 }
 
 type AssignRequest struct {
-	CarrierID string `json:"carrier_id" validate:"required"`
+	CarrierID     string   `json:"carrier_id" validate:"required"`
+	Note          string   `json:"note"`
+	AttachmentIDs []string `json:"attachment_ids"`
 }
 
 func (u *AssignUsecase) Assign(ctx context.Context, requesterID string, loadID string, req *AssignRequest) (err error) {
@@ -50,9 +52,10 @@ func (u *AssignUsecase) Assign(ctx context.Context, requesterID string, loadID s
 	defer func() { end(err) }()
 
 	var input struct {
-		actorID   uuid.UUID
-		loadID    uuid.UUID
-		carrierID uuid.UUID
+		actorID       uuid.UUID
+		loadID        uuid.UUID
+		carrierID     uuid.UUID
+		attachmentIDs []uuid.UUID
 	}
 	{
 
@@ -69,6 +72,14 @@ func (u *AssignUsecase) Assign(ctx context.Context, requesterID string, loadID s
 		input.actorID, err = uuid.Parse(requesterID)
 		if err != nil {
 			return inerr.NewErrValidation("requester_id", "invalid requester ID")
+		}
+
+		for _, idStr := range req.AttachmentIDs {
+			attID, err := uuid.Parse(idStr)
+			if err != nil {
+				return inerr.NewErrValidation("attachment_ids", "invalid attachment ID: "+idStr)
+			}
+			input.attachmentIDs = append(input.attachmentIDs, attID)
 		}
 	}
 
@@ -99,7 +110,7 @@ func (u *AssignUsecase) Assign(ctx context.Context, requesterID string, loadID s
 		return inerr.NewErrValidation("carrier_id", "user is not a carrier")
 	}
 
-	if err := load.Assign(carrier.ID); err != nil {
+	if err := load.Assign(req.Note, carrier.ID, input.attachmentIDs...); err != nil {
 		return inerr.NewErrValidation("status", err.Error())
 	}
 

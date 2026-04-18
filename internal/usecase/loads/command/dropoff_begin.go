@@ -25,7 +25,12 @@ func NewBeginDropoffUsecase(contextDuration time.Duration, loadsRepo domain.Load
 	return &BeginDropoffUsecase{contextDuration: contextDuration, loadsRepo: loadsRepo, taskQueue: taskQueue}
 }
 
-func (u *BeginDropoffUsecase) BeginDropoff(ctx context.Context, loadID string) (err error) {
+type BeginDropoffRequest struct {
+	Note          string   `json:"note"`
+	AttachmentIDs []string `json:"attachment_ids"`
+}
+
+func (u *BeginDropoffUsecase) BeginDropoff(ctx context.Context, loadID string, req *BeginDropoffRequest) (err error) {
 	ctx, cancel := context.WithTimeout(ctx, u.contextDuration)
 	defer cancel()
 
@@ -35,12 +40,21 @@ func (u *BeginDropoffUsecase) BeginDropoff(ctx context.Context, loadID string) (
 	defer func() { end(err) }()
 
 	var input struct {
-		loadID uuid.UUID
+		loadID        uuid.UUID
+		attachmentIDs []uuid.UUID
 	}
 	{
 		input.loadID, err = uuid.Parse(loadID)
 		if err != nil {
 			return inerr.NewErrValidation("load_id", "invalid load ID")
+		}
+
+		for _, idStr := range req.AttachmentIDs {
+			attID, err := uuid.Parse(idStr)
+			if err != nil {
+				return inerr.NewErrValidation("attachment_ids", "invalid attachment ID: "+idStr)
+			}
+			input.attachmentIDs = append(input.attachmentIDs, attID)
 		}
 	}
 
@@ -49,7 +63,7 @@ func (u *BeginDropoffUsecase) BeginDropoff(ctx context.Context, loadID string) (
 		return err
 	}
 
-	if err := load.BeginDropoff(); err != nil {
+	if err := load.BeginDropoff(req.Note, input.attachmentIDs...); err != nil {
 		return inerr.NewErrValidation("status", err.Error())
 	}
 

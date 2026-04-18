@@ -27,7 +27,12 @@ func NewCancelUsecase(contextDuration time.Duration, loadsRepo domain.LoadReposi
 	return &CancelUsecase{contextDuration: contextDuration, loadsRepo: loadsRepo, rbacService: rbacService, taskQueue: taskQueue}
 }
 
-func (u *CancelUsecase) Cancel(ctx context.Context, requesterID string, loadID string) (err error) {
+type CancelRequest struct {
+	Note          string   `json:"note"`
+	AttachmentIDs []string `json:"attachment_ids"`
+}
+
+func (u *CancelUsecase) Cancel(ctx context.Context, requesterID string, loadID string, req *CancelRequest) (err error) {
 	ctx, cancel := context.WithTimeout(ctx, u.contextDuration)
 	defer cancel()
 
@@ -37,8 +42,9 @@ func (u *CancelUsecase) Cancel(ctx context.Context, requesterID string, loadID s
 	defer func() { end(err) }()
 
 	var input struct {
-		actorID uuid.UUID
-		loadID  uuid.UUID
+		actorID       uuid.UUID
+		loadID        uuid.UUID
+		attachmentIDs []uuid.UUID
 	}
 	{
 		input.actorID, err = uuid.Parse(requesterID)
@@ -49,6 +55,14 @@ func (u *CancelUsecase) Cancel(ctx context.Context, requesterID string, loadID s
 		input.loadID, err = uuid.Parse(loadID)
 		if err != nil {
 			return inerr.NewErrValidation("load_id", "invalid load ID")
+		}
+
+		for _, idStr := range req.AttachmentIDs {
+			attID, err := uuid.Parse(idStr)
+			if err != nil {
+				return inerr.NewErrValidation("attachment_ids", "invalid attachment ID: "+idStr)
+			}
+			input.attachmentIDs = append(input.attachmentIDs, attID)
 		}
 	}
 
@@ -71,7 +85,7 @@ func (u *CancelUsecase) Cancel(ctx context.Context, requesterID string, loadID s
 		return inerr.ErrorPermissionDenied
 	}
 
-	if err := load.Cancel(); err != nil {
+	if err := load.Cancel(req.Note, input.attachmentIDs...); err != nil {
 		return inerr.NewErrValidation("status", err.Error())
 	}
 

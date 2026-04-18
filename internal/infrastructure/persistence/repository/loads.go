@@ -11,6 +11,32 @@ import (
 	"github.com/uptrace/bun"
 )
 
+// ---------------------------------------------------------------------------
+// ORM models
+// ---------------------------------------------------------------------------
+
+type LoadStatusHistoryAttachments struct {
+	bun.BaseModel `bun:"table:load_status_history_attachments,alias:lsha"`
+
+	ID           int64     `bun:"id,pk,autoincrement"`
+	HistoryID    int64     `bun:"history_id"`
+	AttachmentID string    `bun:"attachment_id,type:uuid"`
+	CreatedAt    time.Time `bun:"created_at"`
+}
+
+type LoadStatusHistories struct {
+	bun.BaseModel `bun:"table:load_status_histories,alias:lsh"`
+
+	ID          int64                           `bun:"id,pk,autoincrement"`
+	LoadID      string                          `bun:"load_id,type:uuid"`
+	UserID      *string                         `bun:"user_id,type:uuid,nullzero"`
+	FromStatus  string                          `bun:"from_status"`
+	ToStatus    string                          `bun:"to_status"`
+	Note        string                          `bun:"note"`
+	CreatedAt   time.Time                       `bun:"created_at"`
+	Attachments []*LoadStatusHistoryAttachments `bun:"rel:has-many,join:id=history_id"`
+}
+
 type Loads struct {
 	bun.BaseModel `bun:"table:loads,alias:l"`
 
@@ -34,7 +60,13 @@ type Loads struct {
 	DropoffAt        *time.Time `bun:"dropoff_at"`
 	CreatedAt        time.Time  `bun:"created_at"`
 	UpdatedAt        time.Time  `bun:"updated_at"`
+
+	History []*LoadStatusHistories `bun:"rel:has-many,join:id=load_id"`
 }
+
+// ---------------------------------------------------------------------------
+// Repository
+// ---------------------------------------------------------------------------
 
 type loadsRepo struct {
 	db bun.IDB
@@ -44,6 +76,8 @@ func NewLoadsRepo(db bun.IDB) domain.LoadRepository {
 	return &loadsRepo{db: db}
 }
 
+// Save upserts the load and persists any new history entries (ID == 0) along
+// with their new attachments.
 func (r *loadsRepo) Save(ctx context.Context, load *domain.Load) error {
 	db := postgres.FromContext(ctx, r.db)
 	model := r.toModel(load)
@@ -57,59 +91,73 @@ func (r *loadsRepo) Save(ctx context.Context, load *domain.Load) error {
 	if err != nil {
 		return postgres.Error(err, model)
 	}
+
+	// Persist new history entries and their attachments.
+	// The uniform rule at every level: ID == 0 means new, non-zero means already persisted.
+	for _, h := range load.History {
+		if h.ID == 0 {
+			histModel := r.toHistoryModel(h, load.ID)
+			if err := db.NewInsert().Model(histModel).Returning("id").Scan(ctx); err != nil {
+				return postgres.Error(err, histModel)
+			}
+			h.ID = histModel.ID // write back so the aggregate stays in sync
+		}
+
+		// Check attachments regardless of whether history is new or old —
+		// attachments can be added to an existing history entry too.
+		for _, att := range h.Attachments {
+			if att.ID != 0 {
+				continue // already persisted
+			}
+			attModel := r.toAttachmentModel(att, h.ID)
+			if err := db.NewInsert().Model(attModel).Returning("id").Scan(ctx); err != nil {
+				return postgres.Error(err, attModel)
+			}
+			att.ID = attModel.ID // write back
+		}
+	}
+
 	return nil
 }
 
 func (r *loadsRepo) FindByID(ctx context.Context, id uuid.UUID) (*domain.Load, error) {
 	db := postgres.FromContext(ctx, r.db)
 	var model Loads
-	err := db.NewSelect().Model(&model).Where("id = ?", id.String()).Scan(ctx)
+
+	err := db.NewSelect().
+		Model(&model).
+		Where("l.id = ?", id.String()).
+		Relation("History", func(q *bun.SelectQuery) *bun.SelectQuery {
+			return q.OrderExpr("lsh.id ASC")
+		}).
+		Relation("History.Attachments").
+		Scan(ctx)
 	if err != nil {
 		return nil, postgres.Error(err, &model)
 	}
+
 	return r.toDomain(&model), nil
-}
-
-func (r *loadsRepo) FindPendingByCarrierID(ctx context.Context, carrierID uuid.UUID) ([]*domain.Load, error) {
-	db := postgres.FromContext(ctx, r.db)
-	var models []Loads
-	err := db.NewSelect().
-		Model(&models).
-		Where("carrier_id = ? AND status = ?", carrierID.String(), domain.LoadStatusAssigned.String()).
-		OrderBy("created_at", bun.OrderAsc).
-		Scan(ctx)
-	if err != nil {
-		return nil, postgres.Error(err, &Loads{})
-	}
-
-	result := make([]*domain.Load, len(models))
-	for i := range models {
-		result[i] = r.toDomain(&models[i])
-	}
-
-	return result, nil
 }
 
 func (r *loadsRepo) FindActiveByCarrierID(ctx context.Context, carrierID uuid.UUID) (*domain.Load, error) {
 	db := postgres.FromContext(ctx, r.db)
 	var model Loads
 
-	q := db.NewSelect().Model(&model).
+	err := db.NewSelect().
+		Model(&model).
 		Where(
-			"carrier_id = ? AND status IN ?",
+			"l.carrier_id = ? AND l.status IN ?",
 			carrierID.String(),
-			bun.Tuple([]string{
-				domain.LoadStatusAccepted.String(),
-				domain.LoadStatusPickingUp.String(),
-				domain.LoadStatusPickedUp.String(),
-				domain.LoadStatusInTransit.String(),
-				domain.LoadStatusDroppingOff.String(),
-				domain.LoadStatusDroppedOff.String(),
-			}),
+			bun.In(activeStatuses()),
 		).
-		OrderBy("created_at", bun.OrderDesc).
-		Limit(1)
-	if err := q.Scan(ctx); err != nil {
+		OrderExpr("l.created_at DESC").
+		Limit(1).
+		Relation("History", func(q *bun.SelectQuery) *bun.SelectQuery {
+			return q.OrderExpr("lsh.id ASC")
+		}).
+		Relation("History.Attachments").
+		Scan(ctx)
+	if err != nil {
 		return nil, postgres.Error(err, &Loads{})
 	}
 
@@ -120,65 +168,59 @@ func (r *loadsRepo) FindActiveByCarrierIDs(ctx context.Context, carrierIDs []uui
 	db := postgres.FromContext(ctx, r.db)
 	var models []Loads
 
-	q := db.NewSelect().Model(&models).
-		Where(
-			"carrier_id IN (?) AND status IN ?",
-			bun.In(carrierIDs),
-			bun.Tuple([]string{
-				domain.LoadStatusAccepted.String(),
-				domain.LoadStatusPickingUp.String(),
-				domain.LoadStatusPickedUp.String(),
-				domain.LoadStatusInTransit.String(),
-				domain.LoadStatusDroppingOff.String(),
-				domain.LoadStatusDroppedOff.String(),
-			}),
-		).
-		OrderBy("created_at", bun.OrderDesc)
-	if err := q.Scan(ctx); err != nil {
+	ids := make([]string, len(carrierIDs))
+	for i, id := range carrierIDs {
+		ids[i] = id.String()
+	}
+
+	err := db.NewSelect().
+		Model(&models).
+		Where("l.carrier_id IN (?) AND l.status IN ?", bun.In(ids), bun.In(activeStatuses())).
+		OrderExpr("l.created_at DESC").
+		Relation("History", func(q *bun.SelectQuery) *bun.SelectQuery {
+			return q.OrderExpr("lsh.id ASC")
+		}).
+		Relation("History.Attachments").
+		Scan(ctx)
+	if err != nil {
 		return nil, postgres.Error(err, &Loads{})
 	}
 
 	result := make(map[uuid.UUID]*domain.Load)
-	for _, model := range models {
-		load := r.toDomain(&model)
+	for i := range models {
+		load := r.toDomain(&models[i])
 		if load == nil {
 			continue
 		}
-
-		if _, ok := result[load.CarrierID]; !ok {
+		if _, exists := result[load.CarrierID]; !exists {
 			result[load.CarrierID] = load
 		}
 	}
+
 	return result, nil
 }
 
 func (r *loadsRepo) FindAll(ctx context.Context, filter domain.LoadFilter) ([]*domain.Load, int, error) {
 	db := postgres.FromContext(ctx, r.db)
 	var models []Loads
-	q := db.NewSelect().Model(&models)
 
-	if filter.CompanyID != nil {
-		q = q.Where("company_id = ?", filter.CompanyID.String())
-	}
-	if filter.CarrierID != nil {
-		q = q.Where("carrier_id = ?", filter.CarrierID.String())
-	}
-	if len(filter.Status) > 0 {
-		q = q.Where("status IN ?", bun.Tuple(filter.Status))
-	}
+	q := db.NewSelect().
+		Model(&models).
+		Relation("History", func(q *bun.SelectQuery) *bun.SelectQuery {
+			return q.OrderExpr("lsh.id ASC")
+		}).
+		Relation("History.Attachments")
 
-	if filter.Limit > 0 {
-		q = q.Limit(filter.Limit)
-	} else {
-		q = q.Limit(50)
-	}
-	if filter.Offset > 0 {
-		q = q.Offset(filter.Offset)
+	q = applyLoadFilter(q, filter)
+	q = q.OrderExpr("l.created_at DESC")
+
+	if err := q.Scan(ctx); err != nil {
+		return nil, 0, postgres.Error(err, &Loads{})
 	}
 
-	q = q.OrderBy("created_at", bun.OrderDesc)
-
-	err := q.Scan(ctx)
+	countQ := db.NewSelect().TableExpr("loads AS l")
+	countQ = applyLoadFilterRaw(countQ, filter)
+	total, err := countQ.Count(ctx)
 	if err != nil {
 		return nil, 0, postgres.Error(err, &Loads{})
 	}
@@ -186,11 +228,6 @@ func (r *loadsRepo) FindAll(ctx context.Context, filter domain.LoadFilter) ([]*d
 	result := make([]*domain.Load, len(models))
 	for i := range models {
 		result[i] = r.toDomain(&models[i])
-	}
-
-	total, err := q.Count(ctx)
-	if err != nil {
-		return nil, 0, postgres.Error(err, &Loads{})
 	}
 
 	return result, total, nil
@@ -221,13 +258,67 @@ func (r *loadsRepo) FindStats(ctx context.Context, filter domain.LoadFilter) (*d
 		q = q.Where("carrier_id = ?", filter.CarrierID.String())
 	}
 
-	err := q.Scan(ctx, &stats)
-	if err != nil {
+	if err := q.Scan(ctx, &stats); err != nil {
 		return nil, postgres.Error(err, &Loads{})
 	}
 
 	return &stats, nil
 }
+
+// ---------------------------------------------------------------------------
+// Internal helpers
+// ---------------------------------------------------------------------------
+
+func activeStatuses() []string {
+	return []string{
+		domain.LoadStatusAccepted.String(),
+		domain.LoadStatusPickingUp.String(),
+		domain.LoadStatusPickedUp.String(),
+		domain.LoadStatusInTransit.String(),
+		domain.LoadStatusDroppingOff.String(),
+		domain.LoadStatusDroppedOff.String(),
+	}
+}
+
+func applyLoadFilter(q *bun.SelectQuery, filter domain.LoadFilter) *bun.SelectQuery {
+	if filter.CompanyID != nil {
+		q = q.Where("l.company_id = ?", filter.CompanyID.String())
+	}
+	if filter.CarrierID != nil {
+		q = q.Where("l.carrier_id = ?", filter.CarrierID.String())
+	}
+	if len(filter.Status) > 0 {
+		q = q.Where("l.status IN (?)", bun.In(filter.Status))
+	}
+	if filter.Limit > 0 {
+		q = q.Limit(filter.Limit)
+	} else {
+		q = q.Limit(50)
+	}
+	if filter.Offset > 0 {
+		q = q.Offset(filter.Offset)
+	}
+	return q
+}
+
+// applyLoadFilterRaw applies WHERE conditions to a raw table-expr query (used
+// for COUNT, which must not carry Limit/Offset).
+func applyLoadFilterRaw(q *bun.SelectQuery, filter domain.LoadFilter) *bun.SelectQuery {
+	if filter.CompanyID != nil {
+		q = q.Where("company_id = ?", filter.CompanyID.String())
+	}
+	if filter.CarrierID != nil {
+		q = q.Where("carrier_id = ?", filter.CarrierID.String())
+	}
+	if len(filter.Status) > 0 {
+		q = q.Where("status IN (?)", bun.In(filter.Status))
+	}
+	return q
+}
+
+// ---------------------------------------------------------------------------
+// Mapping: domain ↔ ORM
+// ---------------------------------------------------------------------------
 
 func (r *loadsRepo) toModel(e *domain.Load) *Loads {
 	if e == nil {
@@ -270,6 +361,31 @@ func (r *loadsRepo) toModel(e *domain.Load) *Loads {
 	return m
 }
 
+func (r *loadsRepo) toHistoryModel(h *domain.LoadStatusHistory, loadID uuid.UUID) *LoadStatusHistories {
+	m := &LoadStatusHistories{
+		ID:         h.ID,
+		LoadID:     loadID.String(),
+		FromStatus: h.FromStatus.String(),
+		ToStatus:   h.ToStatus.String(),
+		Note:       h.Note,
+		CreatedAt:  h.CreatedAt,
+	}
+	if h.UserID != uuid.Nil {
+		s := h.UserID.String()
+		m.UserID = &s
+	}
+	return m
+}
+
+func (r *loadsRepo) toAttachmentModel(att *domain.LoadStatusHistoryAttachment, historyID int64) *LoadStatusHistoryAttachments {
+	return &LoadStatusHistoryAttachments{
+		ID:           att.ID,
+		HistoryID:    historyID,
+		AttachmentID: att.AttachmentID.String(),
+		CreatedAt:    att.CreatedAt,
+	}
+}
+
 func (r *loadsRepo) toDomain(m *Loads) *domain.Load {
 	if m == nil {
 		return nil
@@ -305,6 +421,32 @@ func (r *loadsRepo) toDomain(m *Loads) *domain.Load {
 	}
 	if m.CarrierID != nil {
 		e.CarrierID, _ = uuid.Parse(*m.CarrierID)
+	}
+
+	e.History = make([]*domain.LoadStatusHistory, len(m.History))
+	for i, h := range m.History {
+		dh := &domain.LoadStatusHistory{
+			ID:         h.ID,
+			LoadID:     id,
+			FromStatus: domain.LoadStatus(h.FromStatus),
+			ToStatus:   domain.LoadStatus(h.ToStatus),
+			Note:       h.Note,
+			CreatedAt:  h.CreatedAt,
+		}
+		if h.UserID != nil {
+			dh.UserID, _ = uuid.Parse(*h.UserID)
+		}
+		dh.Attachments = make([]*domain.LoadStatusHistoryAttachment, len(h.Attachments))
+		for j, att := range h.Attachments {
+			attID, _ := uuid.Parse(att.AttachmentID)
+			dh.Attachments[j] = &domain.LoadStatusHistoryAttachment{
+				ID:           att.ID,
+				HistoryID:    att.HistoryID,
+				AttachmentID: attID,
+				CreatedAt:    att.CreatedAt,
+			}
+		}
+		e.History[i] = dh
 	}
 
 	return e

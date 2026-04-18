@@ -12,6 +12,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/outerr"
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/loads"
+	"github.com/karavanix/karavantrack-api-server/internal/usecase/loads/command"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/loads/query"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/location"
 	locationcmd "github.com/karavanix/karavantrack-api-server/internal/usecase/location/command"
@@ -129,7 +130,10 @@ func (h *loadsHandler) Accept() http.HandlerFunc {
 
 		loadID := chi.URLParam(r, "id")
 
-		if err := h.loadsUsecase.Command.Accept(r.Context(), loadID, userID); err != nil {
+		var req command.AcceptRequest
+		_ = json.NewDecoder(r.Body).Decode(&req) // optional body
+
+		if err := h.loadsUsecase.Command.Accept(r.Context(), loadID, userID, &req); err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
 		}
@@ -153,7 +157,10 @@ func (h *loadsHandler) Start() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		loadID := chi.URLParam(r, "id")
 
-		if err := h.loadsUsecase.Command.Start(r.Context(), loadID); err != nil {
+		var req command.StartRequest
+		_ = json.NewDecoder(r.Body).Decode(&req) // optional body
+
+		if err := h.loadsUsecase.Command.Start(r.Context(), loadID, &req); err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
 		}
@@ -176,7 +183,10 @@ func (h *loadsHandler) BeginPickup() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		loadID := chi.URLParam(r, "id")
 
-		if err := h.loadsUsecase.Command.BeginPickup(r.Context(), loadID); err != nil {
+		var req command.BeginPickupRequest
+		_ = json.NewDecoder(r.Body).Decode(&req) // optional body
+
+		if err := h.loadsUsecase.Command.BeginPickup(r.Context(), loadID, &req); err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
 		}
@@ -199,7 +209,10 @@ func (h *loadsHandler) ConfirmPickup() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		loadID := chi.URLParam(r, "id")
 
-		if err := h.loadsUsecase.Command.ConfirmPickup(r.Context(), loadID); err != nil {
+		var req command.ConfirmPickupRequest
+		_ = json.NewDecoder(r.Body).Decode(&req) // optional body
+
+		if err := h.loadsUsecase.Command.ConfirmPickup(r.Context(), loadID, &req); err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
 		}
@@ -222,7 +235,10 @@ func (h *loadsHandler) BeginDropoff() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		loadID := chi.URLParam(r, "id")
 
-		if err := h.loadsUsecase.Command.BeginDropoff(r.Context(), loadID); err != nil {
+		var req command.BeginDropoffRequest
+		_ = json.NewDecoder(r.Body).Decode(&req) // optional body
+
+		if err := h.loadsUsecase.Command.BeginDropoff(r.Context(), loadID, &req); err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
 		}
@@ -245,7 +261,10 @@ func (h *loadsHandler) ConfirmDropoff() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		loadID := chi.URLParam(r, "id")
 
-		if err := h.loadsUsecase.Command.ConfirmDropoff(r.Context(), loadID); err != nil {
+		var req command.ConfirmDropoffRequest
+		_ = json.NewDecoder(r.Body).Decode(&req) // optional body
+
+		if err := h.loadsUsecase.Command.ConfirmDropoff(r.Context(), loadID, &req); err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
 		}
