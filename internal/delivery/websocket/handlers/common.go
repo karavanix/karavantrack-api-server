@@ -72,6 +72,7 @@ func (h *Handler) Disconnect() wsrouter.HandlerFunc {
 			if err != nil {
 				logger.WarnContext(ctx, "failed to unsubscribe load location live consumer", "error", err)
 			}
+			go h.leaveLoad(context.Background(), loadID)
 		}
 
 		err = h.presenceService.Offline(ctx, userID)

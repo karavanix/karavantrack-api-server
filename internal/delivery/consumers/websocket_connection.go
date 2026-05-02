@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/gorilla/websocket"
 	"github.com/karavanix/karavantrack-api-server/internal/service/broker"
 	"github.com/karavanix/karavantrack-api-server/pkg/config"
 	"github.com/karavanix/karavantrack-api-server/pkg/wsrouter"
@@ -41,6 +42,9 @@ func (c *WebsocketConnectionConsumer) GetGroup() string {
 
 func (c *WebsocketConnectionConsumer) GetHandler() func(context.Context, broker.Message) error {
 	return func(ctx context.Context, msg broker.Message) error {
-		return nil
+		if c.conn == nil {
+			return nil
+		}
+		return c.conn.WriteMessage(websocket.TextMessage, msg.GetPayload())
 	}
 }

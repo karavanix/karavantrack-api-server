@@ -18,6 +18,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/service/notification"
 	"github.com/karavanix/karavantrack-api-server/internal/service/presence"
 	"github.com/karavanix/karavantrack-api-server/internal/service/rbac"
+	"github.com/karavanix/karavantrack-api-server/internal/service/watcher"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/auth"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/companies"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/loads"
@@ -143,6 +144,7 @@ func (s *ServerApp) Run() error {
 	presenceService := presence.NewService(s.config.Context.Timeout, presenceRepo)
 	notificationService := notification.NewService(fcmClient, fcmDevicesRepo)
 	rbacService := rbac.NewService(s.config.Context.Timeout, companyMembersRepo)
+	watcherService := watcher.NewService(s.redis)
 
 	// usecase
 	authUsecase := auth.NewUsecase(s.config.Context.Timeout, jwtProvider, usersRepo)
@@ -157,8 +159,10 @@ func (s *ServerApp) Run() error {
 		Validator:           validation.NewValidator(),
 		JWTProvider:         jwtProvider,
 		Broker:              s.bkr,
+		EventFactory:        eventFactory,
 		PresenceService:     presenceService,
 		NotificationService: notificationService,
+		WatcherService:      watcherService,
 		AuthUsecase:         authUsecase,
 		UsersUsecase:        usersUsecase,
 		CompaniesUsecase:    companiesUsecase,
