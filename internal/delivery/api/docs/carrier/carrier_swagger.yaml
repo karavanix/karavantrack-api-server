@@ -896,6 +896,46 @@ paths:
       summary: Get active load
       tags:
       - Loads
+  /loads/history:
+    get:
+      description: Get completed and cancelled loads for the authenticated carrier
+      parameters:
+      - description: Pagination Limit
+        in: query
+        name: limit
+        type: integer
+      - description: Pagination Offset
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/query.ListResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/outerr.Response'
+      security:
+      - BearerAuth: []
+      summary: Get load history
+      tags:
+      - Loads
   /loads/pending:
     get:
       parameters:

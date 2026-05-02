@@ -579,6 +579,69 @@
                 }
             }
         },
+        "/loads/history": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get completed and cancelled loads for the authenticated carrier",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Loads"
+                ],
+                "summary": "Get load history",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Pagination Limit",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination Offset",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/query.ListResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/loads/pending": {
             "get": {
                 "security": [
