@@ -26,6 +26,7 @@ func RegisterRoutes(r chi.Router, opts *delivery.HandlerOptions) {
 
 		// Load actions
 		r.Get("/loads/pending", loadsH.ListPending())
+		r.Get("/loads/history", loadsH.ListHistory())
 		r.Get("/loads/active", loadsH.GetActive())
 		r.Post("/loads/{id}/accept", loadsH.Accept())
 		r.Post("/loads/{id}/pickup/begin", loadsH.BeginPickup())

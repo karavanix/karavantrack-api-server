@@ -274,6 +274,52 @@ func (h *loadsHandler) ConfirmDropoff() http.HandlerFunc {
 	}
 }
 
+// ListHistory godoc
+// @Security     BearerAuth
+// @Summary      Get load history
+// @Description  Get completed and cancelled loads for the authenticated carrier
+// @Tags         Loads
+// @Produce      json
+// @Param        limit      query int    false "Pagination Limit"
+// @Param        offset     query int    false "Pagination Offset"
+// @Success      200 {object} query.ListResponse
+// @Failure      400 {object} outerr.Response
+// @Failure      401 {object} outerr.Response
+// @Failure      403 {object} outerr.Response
+// @Failure      500 {object} outerr.Response
+// @Router       /loads/history [get]
+func (h *loadsHandler) ListHistory() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := app.UserID[string](r.Context())
+		if !ok {
+			outerr.Forbidden(w, r, "missing user context")
+			return
+		}
+
+		var urlForm query.ListRequest
+		if err := form.NewDecoder().Decode(&urlForm, r.URL.Query()); err != nil {
+			outerr.BadRequest(w, r, "invalid request form: "+err.Error())
+			return
+		}
+
+		urlForm.CarrierID = userID
+		urlForm.Status = []string{
+			domain.LoadStatusDroppedOff.String(),
+			domain.LoadStatusConfirmed.String(),
+			domain.LoadStatusCancelled.String(),
+		}
+
+		resp, err := h.loadsUsecase.Query.List(r.Context(), &urlForm)
+		if err != nil {
+			outerr.HandleHTTP(w, r, err)
+			return
+		}
+
+		render.Status(r, http.StatusOK)
+		render.JSON(w, r, resp)
+	}
+}
+
 // RegisterLocation godoc
 // @Security     BearerAuth
 // @Summary      Register location point

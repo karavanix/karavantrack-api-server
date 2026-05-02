@@ -25,7 +25,7 @@ type Handler struct {
 	watcherService  watcher.Service
 	loadsUsecase    *loads.Usecase
 	locationUsecase *location.Usecase
-	keepalives      sync.Map // map[loadID string]context.CancelFunc
+	keepalives      sync.Map
 }
 
 func NewHandler(opts *delivery.HandlerOptions) *Handler {
