@@ -57,6 +57,6 @@ func NewLoadLocationPoint(
 type LoadLocationPointRepository interface {
 	Save(ctx context.Context, point *LoadLocationPoint) error
 	BatchSave(ctx context.Context, points []*LoadLocationPoint) error
-	FindByLoadID(ctx context.Context, loadID uuid.UUID, limit, offset int) ([]*LoadLocationPoint, error)
+	FindByLoadID(ctx context.Context, loadID uuid.UUID, limit, offset int) ([]*LoadLocationPoint, int, error)
 	FindLatestByLoadID(ctx context.Context, loadID uuid.UUID) (*LoadLocationPoint, error)
 }

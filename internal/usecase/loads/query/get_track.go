@@ -59,7 +59,7 @@ func (u *GetTrackUsecase) GetTrack(ctx context.Context, loadID string, limit, of
 		limit = 100
 	}
 
-	points, err := u.loadLocationPointRepo.FindByLoadID(ctx, input.loadID, limit, offset)
+	points, total, err := u.loadLocationPointRepo.FindByLoadID(ctx, input.loadID, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +67,7 @@ func (u *GetTrackUsecase) GetTrack(ctx context.Context, loadID string, limit, of
 	result := &GetTrackResponse{
 		LoadID: loadID,
 		Points: make([]*TrackPointResponse, len(points)),
-		Total:  len(points),
+		Total:  total,
 	}
 
 	for i, p := range points {

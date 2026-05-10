@@ -62,7 +62,7 @@ func (r *loadLocationPointsRepo) BatchSave(ctx context.Context, points []*domain
 	return nil
 }
 
-func (r *loadLocationPointsRepo) FindByLoadID(ctx context.Context, loadID uuid.UUID, limit, offset int) ([]*domain.LoadLocationPoint, error) {
+func (r *loadLocationPointsRepo) FindByLoadID(ctx context.Context, loadID uuid.UUID, limit, offset int) ([]*domain.LoadLocationPoint, int, error) {
 	db := postgres.FromContext(ctx, r.db)
 	var models []LoadLocationPoints
 	q := db.NewSelect().Model(&models).
@@ -80,14 +80,20 @@ func (r *loadLocationPointsRepo) FindByLoadID(ctx context.Context, loadID uuid.U
 
 	err := q.Scan(ctx)
 	if err != nil {
-		return nil, postgres.Error(err, &LoadLocationPoints{})
+		return nil, 0, postgres.Error(err, &LoadLocationPoints{})
+	}
+
+	count, err := q.Count(ctx)
+	if err != nil {
+		return nil, 0, postgres.Error(err, &LoadLocationPoints{})
 	}
 
 	result := make([]*domain.LoadLocationPoint, len(models))
 	for i := range models {
 		result[i] = r.toDomain(&models[i])
 	}
-	return result, nil
+
+	return result, count, nil
 }
 
 func (r *loadLocationPointsRepo) FindLatestByLoadID(ctx context.Context, loadID uuid.UUID) (*domain.LoadLocationPoint, error) {
