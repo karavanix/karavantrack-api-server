@@ -22,6 +22,7 @@ RUN apk add --no-cache \
     vips \
     ca-certificates
 
+COPY --from=builder /app/templates ./templates
 COPY --from=builder /app/bin/yoollive-api-server ./yoollive-api-server
 RUN chmod +x ./yoollive-api-server
 
