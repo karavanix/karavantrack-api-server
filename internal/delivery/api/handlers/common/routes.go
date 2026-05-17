@@ -17,8 +17,10 @@ func RegisterRoutes(r chi.Router, opts *delivery.HandlerOptions) {
 	// Auth routes (public)
 	r.Post("/auth/login", authH.Login())
 	r.Post("/auth/register", authH.Register())
+	r.Post("/auth/verify-email", authH.VerifyEmail())
 	r.Post("/auth/logout", authH.Logout())
 	r.Post("/auth/refresh", authH.Refresh())
+	r.Post("/auth/apple", authH.AppleSignIn())
 
 	// Common protected routes (any authenticated user)
 	r.Group(func(r chi.Router) {

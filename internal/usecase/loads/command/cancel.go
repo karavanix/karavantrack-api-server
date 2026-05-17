@@ -30,6 +30,8 @@ func NewCancelUsecase(contextDuration time.Duration, loadsRepo domain.LoadReposi
 type CancelRequest struct {
 	Note          string   `json:"note"`
 	AttachmentIDs []string `json:"attachment_ids"`
+	Lat           *float64 `json:"lat,omitempty"`
+	Lng           *float64 `json:"lng,omitempty"`
 }
 
 func (u *CancelUsecase) Cancel(ctx context.Context, requesterID string, loadID string, req *CancelRequest) (err error) {

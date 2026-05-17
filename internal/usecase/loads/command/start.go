@@ -16,18 +16,20 @@ import (
 )
 
 type StartUsecase struct {
-	contextDuration time.Duration
-	loadsRepo       domain.LoadRepository
-	taskQueue       *asynq.Client
+	contextDuration       time.Duration
+	loadsRepo             domain.LoadRepository
+	loadLocationPointRepo domain.LoadLocationPointRepository
+	taskQueue             *asynq.Client
 }
 
-func NewStartUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository, taskQueue *asynq.Client) *StartUsecase {
-	return &StartUsecase{contextDuration: contextDuration, loadsRepo: loadsRepo, taskQueue: taskQueue}
+func NewStartUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository, loadLocationPointRepo domain.LoadLocationPointRepository, taskQueue *asynq.Client) *StartUsecase {
+	return &StartUsecase{contextDuration: contextDuration, loadsRepo: loadsRepo, loadLocationPointRepo: loadLocationPointRepo, taskQueue: taskQueue}
 }
 
 type StartRequest struct {
-	Note          string   `json:"note"`
-	AttachmentIDs []string `json:"attachment_ids"`
+	Note          string         `json:"note"`
+	AttachmentIDs []string       `json:"attachment_ids"`
+	Location      *LocationInput `json:"location,omitempty"`
 }
 
 func (u *StartUsecase) Start(ctx context.Context, loadID string, req *StartRequest) (err error) {
@@ -63,7 +65,8 @@ func (u *StartUsecase) Start(ctx context.Context, loadID string, req *StartReque
 		return err
 	}
 
-	if err := load.StartTrip(req.Note, input.attachmentIDs...); err != nil {
+	history, err := load.StartTrip(req.Note, input.attachmentIDs...)
+	if err != nil {
 		return inerr.NewErrValidation("status", err.Error())
 	}
 
@@ -72,7 +75,20 @@ func (u *StartUsecase) Start(ctx context.Context, loadID string, req *StartReque
 		return err
 	}
 
-	// Enqueue push notification to cargo owner
+	if req.Location != nil {
+		recordedAt := time.Now()
+		if req.Location.RecordedAt != nil {
+			recordedAt = *req.Location.RecordedAt
+		}
+		point, err := domain.NewLoadLocationPoint(input.loadID, load.CarrierID, req.Location.Lat, req.Location.Lng, req.Location.AccuracyM, req.Location.SpeedMps, req.Location.HeadingDeg, recordedAt)
+		if err == nil {
+			point.StatusHistoryID = &history.ID
+			if err := u.loadLocationPointRepo.Save(ctx, point); err != nil {
+				logger.ErrorContext(ctx, "failed to save status location point", err)
+			}
+		}
+	}
+
 	task, err := tasks.NewSendPushNotificationTask(
 		load.MemberID.String(),
 		tasks.PushNotification{

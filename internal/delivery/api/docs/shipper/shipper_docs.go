@@ -329,6 +329,52 @@ const docTemplateshipper = `{
                 }
             }
         },
+        "/auth/apple": {
+            "post": {
+                "description": "Authenticate or register a user via Apple ID token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Apple Sign In",
+                "parameters": [
+                    {
+                        "description": "Apple ID token and optional profile fields",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/command.AppleSignInRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/command.AppleSignInResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/auth/login": {
             "post": {
                 "description": "Authenticate user with email/phone and password",
@@ -437,7 +483,7 @@ const docTemplateshipper = `{
         },
         "/auth/register": {
             "post": {
-                "description": "Register a new user and return tokens",
+                "description": "Create a new account and send a verification code to the provided email",
                 "consumes": [
                     "application/json"
                 ],
@@ -460,11 +506,8 @@ const docTemplateshipper = `{
                     }
                 ],
                 "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/command.RegisterResponse"
-                        }
+                    "200": {
+                        "description": "OK"
                     },
                     "400": {
                         "description": "Bad Request",
@@ -474,6 +517,46 @@ const docTemplateshipper = `{
                     },
                     "409": {
                         "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/verify-email": {
+            "post": {
+                "description": "Verify the OTP code sent to email and receive access tokens",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Verify email",
+                "parameters": [
+                    {
+                        "description": "Email and OTP code",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/command.VerifyEmailRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/command.VerifyEmailResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/outerr.Response"
                         }
@@ -1876,6 +1959,43 @@ const docTemplateshipper = `{
                 }
             }
         },
+        "command.AppleSignInRequest": {
+            "type": "object",
+            "required": [
+                "id_token"
+            ],
+            "properties": {
+                "first_name": {
+                    "type": "string"
+                },
+                "id_token": {
+                    "type": "string"
+                },
+                "last_name": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                }
+            }
+        },
+        "command.AppleSignInResponse": {
+            "type": "object",
+            "properties": {
+                "access_token": {
+                    "type": "string"
+                },
+                "is_new_user": {
+                    "type": "boolean"
+                },
+                "refresh_token": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                }
+            }
+        },
         "command.AssignRequest": {
             "type": "object",
             "required": [
@@ -2031,20 +2151,6 @@ const docTemplateshipper = `{
                 }
             }
         },
-        "command.RegisterResponse": {
-            "type": "object",
-            "properties": {
-                "access_token": {
-                    "type": "string"
-                },
-                "refresh_token": {
-                    "type": "string"
-                },
-                "role": {
-                    "type": "string"
-                }
-            }
-        },
         "command.UploadFileResponse": {
             "type": "object",
             "properties": {
@@ -2093,6 +2199,35 @@ const docTemplateshipper = `{
                     "type": "string"
                 },
                 "visibility": {
+                    "type": "string"
+                }
+            }
+        },
+        "command.VerifyEmailRequest": {
+            "type": "object",
+            "required": [
+                "code",
+                "email"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                }
+            }
+        },
+        "command.VerifyEmailResponse": {
+            "type": "object",
+            "properties": {
+                "access_token": {
+                    "type": "string"
+                },
+                "refresh_token": {
+                    "type": "string"
+                },
+                "role": {
                     "type": "string"
                 }
             }
@@ -2696,6 +2831,26 @@ const docTemplateshipper = `{
                 },
                 "speed_mps": {
                     "type": "number"
+                },
+                "status_event": {
+                    "$ref": "#/definitions/query.TrackStatusEvent"
+                }
+            }
+        },
+        "query.TrackStatusEvent": {
+            "type": "object",
+            "properties": {
+                "from_status": {
+                    "type": "string"
+                },
+                "history_id": {
+                    "type": "integer"
+                },
+                "note": {
+                    "type": "string"
+                },
+                "to_status": {
+                    "type": "string"
                 }
             }
         }

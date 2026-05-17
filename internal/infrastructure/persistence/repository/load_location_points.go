@@ -13,16 +13,17 @@ import (
 type LoadLocationPoints struct {
 	bun.BaseModel `bun:"table:load_location_points,alias:llp"`
 
-	ID         int64     `bun:"id,pk,autoincrement"`
-	LoadID     string    `bun:"load_id,type:uuid"`
-	CarrierID  string    `bun:"carrier_id,type:uuid"`
-	Lat        float64   `bun:"lat"`
-	Lng        float64   `bun:"lng"`
-	AccuracyM  *float32  `bun:"accuracy_m"`
-	SpeedMps   *float32  `bun:"speed_mps"`
-	HeadingDeg *float32  `bun:"heading_deg"`
-	RecordedAt time.Time `bun:"recorded_at"`
-	CreatedAt  time.Time `bun:"created_at"`
+	ID                int64     `bun:"id,pk,autoincrement"`
+	LoadID            string    `bun:"load_id,type:uuid"`
+	CarrierID         string    `bun:"carrier_id,type:uuid"`
+	Lat               float64   `bun:"lat"`
+	Lng               float64   `bun:"lng"`
+	AccuracyM         *float32  `bun:"accuracy_m"`
+	SpeedMps          *float32  `bun:"speed_mps"`
+	HeadingDeg        *float32  `bun:"heading_deg"`
+	RecordedAt        time.Time `bun:"recorded_at"`
+	CreatedAt         time.Time `bun:"created_at"`
+	StatusHistoryID   *int64    `bun:"load_status_history_id,nullzero"`
 }
 
 type loadLocationPointsRepo struct {
@@ -110,20 +111,40 @@ func (r *loadLocationPointsRepo) FindLatestByLoadID(ctx context.Context, loadID 
 	return r.toDomain(&model), nil
 }
 
+func (r *loadLocationPointsRepo) FindByStatusHistoryIDs(ctx context.Context, historyIDs []int64) ([]*domain.LoadLocationPoint, error) {
+	if len(historyIDs) == 0 {
+		return nil, nil
+	}
+	db := postgres.FromContext(ctx, r.db)
+	var models []LoadLocationPoints
+	err := db.NewSelect().Model(&models).
+		Where("load_status_history_id IN (?)", bun.In(historyIDs)).
+		Scan(ctx)
+	if err != nil {
+		return nil, postgres.Error(err, &LoadLocationPoints{})
+	}
+	result := make([]*domain.LoadLocationPoint, len(models))
+	for i := range models {
+		result[i] = r.toDomain(&models[i])
+	}
+	return result, nil
+}
+
 func (r *loadLocationPointsRepo) toModel(e *domain.LoadLocationPoint) *LoadLocationPoints {
 	if e == nil {
 		return nil
 	}
 	return &LoadLocationPoints{
-		LoadID:     e.LoadID.String(),
-		CarrierID:  e.CarrierID.String(),
-		Lat:        e.Lat,
-		Lng:        e.Lng,
-		AccuracyM:  e.AccuracyM,
-		SpeedMps:   e.SpeedMps,
-		HeadingDeg: e.HeadingDeg,
-		RecordedAt: e.RecordedAt,
-		CreatedAt:  e.CreatedAt,
+		LoadID:          e.LoadID.String(),
+		CarrierID:       e.CarrierID.String(),
+		Lat:             e.Lat,
+		Lng:             e.Lng,
+		AccuracyM:       e.AccuracyM,
+		SpeedMps:        e.SpeedMps,
+		HeadingDeg:      e.HeadingDeg,
+		RecordedAt:      e.RecordedAt,
+		CreatedAt:       e.CreatedAt,
+		StatusHistoryID: e.StatusHistoryID,
 	}
 }
 
@@ -134,15 +155,16 @@ func (r *loadLocationPointsRepo) toDomain(m *LoadLocationPoints) *domain.LoadLoc
 	loadID, _ := uuid.Parse(m.LoadID)
 	carrierID, _ := uuid.Parse(m.CarrierID)
 	return &domain.LoadLocationPoint{
-		ID:         m.ID,
-		LoadID:     loadID,
-		CarrierID:  carrierID,
-		Lat:        m.Lat,
-		Lng:        m.Lng,
-		AccuracyM:  m.AccuracyM,
-		SpeedMps:   m.SpeedMps,
-		HeadingDeg: m.HeadingDeg,
-		RecordedAt: m.RecordedAt,
-		CreatedAt:  m.CreatedAt,
+		ID:              m.ID,
+		LoadID:          loadID,
+		CarrierID:       carrierID,
+		Lat:             m.Lat,
+		Lng:             m.Lng,
+		AccuracyM:       m.AccuracyM,
+		SpeedMps:        m.SpeedMps,
+		HeadingDeg:      m.HeadingDeg,
+		RecordedAt:      m.RecordedAt,
+		CreatedAt:       m.CreatedAt,
+		StatusHistoryID: m.StatusHistoryID,
 	}
 }

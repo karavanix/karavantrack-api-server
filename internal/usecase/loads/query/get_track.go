@@ -14,20 +14,33 @@ import (
 
 type GetTrackUsecase struct {
 	contextDuration       time.Duration
+	loadsRepo             domain.LoadRepository
 	loadLocationPointRepo domain.LoadLocationPointRepository
 }
 
-func NewGetTrackUsecase(contextDuration time.Duration, loadLocationPointRepo domain.LoadLocationPointRepository) *GetTrackUsecase {
-	return &GetTrackUsecase{contextDuration: contextDuration, loadLocationPointRepo: loadLocationPointRepo}
+func NewGetTrackUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository, loadLocationPointRepo domain.LoadLocationPointRepository) *GetTrackUsecase {
+	return &GetTrackUsecase{
+		contextDuration:       contextDuration,
+		loadsRepo:             loadsRepo,
+		loadLocationPointRepo: loadLocationPointRepo,
+	}
+}
+
+type TrackStatusEvent struct {
+	HistoryID  int64  `json:"history_id"`
+	FromStatus string `json:"from_status"`
+	ToStatus   string `json:"to_status"`
+	Note       string `json:"note,omitempty"`
 }
 
 type TrackPointResponse struct {
-	Lat        float64   `json:"lat"`
-	Lng        float64   `json:"lng"`
-	AccuracyM  *float32  `json:"accuracy_m,omitempty"`
-	SpeedMps   *float32  `json:"speed_mps,omitempty"`
-	HeadingDeg *float32  `json:"heading_deg,omitempty"`
-	RecordedAt time.Time `json:"recorded_at"`
+	Lat         float64           `json:"lat"`
+	Lng         float64           `json:"lng"`
+	AccuracyM   *float32          `json:"accuracy_m,omitempty"`
+	SpeedMps    *float32          `json:"speed_mps,omitempty"`
+	HeadingDeg  *float32          `json:"heading_deg,omitempty"`
+	RecordedAt  time.Time         `json:"recorded_at"`
+	StatusEvent *TrackStatusEvent `json:"status_event,omitempty"`
 }
 
 type GetTrackResponse struct {
@@ -64,6 +77,25 @@ func (u *GetTrackUsecase) GetTrack(ctx context.Context, loadID string, limit, of
 		return nil, err
 	}
 
+	// Collect history IDs from points that are linked to a status change.
+	var historyIDs []int64
+	for _, p := range points {
+		if p.StatusHistoryID != nil {
+			historyIDs = append(historyIDs, *p.StatusHistoryID)
+		}
+	}
+
+	// Bulk-fetch the linked history rows and build a lookup map.
+	historyMap := make(map[int64]*domain.LoadStatusHistory)
+	if len(historyIDs) > 0 {
+		load, err := u.loadsRepo.FindByID(ctx, input.loadID)
+		if err == nil {
+			for _, h := range load.History {
+				historyMap[h.ID] = h
+			}
+		}
+	}
+
 	result := &GetTrackResponse{
 		LoadID: loadID,
 		Points: make([]*TrackPointResponse, len(points)),
@@ -71,7 +103,7 @@ func (u *GetTrackUsecase) GetTrack(ctx context.Context, loadID string, limit, of
 	}
 
 	for i, p := range points {
-		result.Points[i] = &TrackPointResponse{
+		tp := &TrackPointResponse{
 			Lat:        p.Lat,
 			Lng:        p.Lng,
 			AccuracyM:  p.AccuracyM,
@@ -79,6 +111,17 @@ func (u *GetTrackUsecase) GetTrack(ctx context.Context, loadID string, limit, of
 			HeadingDeg: p.HeadingDeg,
 			RecordedAt: p.RecordedAt,
 		}
+		if p.StatusHistoryID != nil {
+			if h, ok := historyMap[*p.StatusHistoryID]; ok {
+				tp.StatusEvent = &TrackStatusEvent{
+					HistoryID:  h.ID,
+					FromStatus: h.FromStatus.String(),
+					ToStatus:   h.ToStatus.String(),
+					Note:       h.Note,
+				}
+			}
+		}
+		result.Points[i] = tp
 	}
 
 	return result, nil

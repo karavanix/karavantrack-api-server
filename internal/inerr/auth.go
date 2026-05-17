@@ -6,6 +6,11 @@ var (
 	ErrorPermissionDenied = errors.New("permission denied")
 	ErrorWrongAlgo        = errors.New("wrong algorithm")
 	ErrorExpiredToken     = errors.New("token is expired")
+
+	ErrOTPNotFound        = errors.New("otp not found")
+	ErrOTPExpired         = errors.New("otp expired")
+	ErrOTPMismatch        = errors.New("otp mismatch")
+	ErrOTPTooManyAttempts = errors.New("otp too many attempts")
 )
 
 type ErrInvalidToken struct {

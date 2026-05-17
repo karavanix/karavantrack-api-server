@@ -26,6 +26,30 @@ definitions:
     - role
     - user_id
     type: object
+  command.AppleSignInRequest:
+    properties:
+      first_name:
+        type: string
+      id_token:
+        type: string
+      last_name:
+        type: string
+      role:
+        type: string
+    required:
+    - id_token
+    type: object
+  command.AppleSignInResponse:
+    properties:
+      access_token:
+        type: string
+      is_new_user:
+        type: boolean
+      refresh_token:
+        type: string
+      role:
+        type: string
+    type: object
   command.AssignRequest:
     properties:
       attachment_ids:
@@ -128,15 +152,6 @@ definitions:
     - password
     - role
     type: object
-  command.RegisterResponse:
-    properties:
-      access_token:
-        type: string
-      refresh_token:
-        type: string
-      role:
-        type: string
-    type: object
   command.UploadFileResponse:
     properties:
       createdAt:
@@ -169,6 +184,25 @@ definitions:
       status:
         type: string
       visibility:
+        type: string
+    type: object
+  command.VerifyEmailRequest:
+    properties:
+      code:
+        type: string
+      email:
+        type: string
+    required:
+    - code
+    - email
+    type: object
+  command.VerifyEmailResponse:
+    properties:
+      access_token:
+        type: string
+      refresh_token:
+        type: string
+      role:
         type: string
     type: object
   github_com_karavanix_karavantrack-api-server_internal_usecase_companies_command.CreateRequest:
@@ -568,6 +602,19 @@ definitions:
         type: string
       speed_mps:
         type: number
+      status_event:
+        $ref: '#/definitions/query.TrackStatusEvent'
+    type: object
+  query.TrackStatusEvent:
+    properties:
+      from_status:
+        type: string
+      history_id:
+        type: integer
+      note:
+        type: string
+      to_status:
+        type: string
     type: object
 info:
   contact: {}
@@ -775,6 +822,36 @@ paths:
       summary: Upload image attachment
       tags:
       - Attachments
+  /auth/apple:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate or register a user via Apple ID token
+      parameters:
+      - description: Apple ID token and optional profile fields
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/command.AppleSignInRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/command.AppleSignInResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/outerr.Response'
+      summary: Apple Sign In
+      tags:
+      - Auth
   /auth/login:
     post:
       consumes:
@@ -848,7 +925,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Register a new user and return tokens
+      description: Create a new account and send a verification code to the provided
+        email
       parameters:
       - description: Registration data
         in: body
@@ -859,10 +937,8 @@ paths:
       produces:
       - application/json
       responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/command.RegisterResponse'
+        "200":
+          description: OK
         "400":
           description: Bad Request
           schema:
@@ -872,6 +948,32 @@ paths:
           schema:
             $ref: '#/definitions/outerr.Response'
       summary: Register
+      tags:
+      - Auth
+  /auth/verify-email:
+    post:
+      consumes:
+      - application/json
+      description: Verify the OTP code sent to email and receive access tokens
+      parameters:
+      - description: Email and OTP code
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/command.VerifyEmailRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/command.VerifyEmailResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/outerr.Response'
+      summary: Verify email
       tags:
       - Auth
   /companies:

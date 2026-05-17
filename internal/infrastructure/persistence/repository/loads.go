@@ -233,6 +233,40 @@ func (r *loadsRepo) FindAll(ctx context.Context, filter domain.LoadFilter) ([]*d
 	return result, total, nil
 }
 
+func (r *loadsRepo) FindWithStaleGps(ctx context.Context, threshold time.Duration) ([]*domain.Load, error) {
+	db := postgres.FromContext(ctx, r.db)
+	var models []Loads
+
+	statuses := []string{
+		domain.LoadStatusPickingUp.String(),
+		domain.LoadStatusPickedUp.String(),
+		domain.LoadStatusInTransit.String(),
+		domain.LoadStatusDroppingOff.String(),
+	}
+
+	// Select loads in GPS-active statuses that have no location point
+	// received within the threshold window.
+	err := db.NewSelect().
+		Model(&models).
+		Where("l.status IN (?) AND l.carrier_id IS NOT NULL", bun.In(statuses)).
+		Where(`NOT EXISTS (
+			SELECT 1 FROM load_location_points llp
+			WHERE llp.load_id = l.id
+			  AND llp.recorded_at > NOW() - ?::interval
+		)`, threshold.String()).
+		OrderExpr("l.created_at DESC").
+		Scan(ctx)
+	if err != nil {
+		return nil, postgres.Error(err, &Loads{})
+	}
+
+	result := make([]*domain.Load, len(models))
+	for i := range models {
+		result[i] = r.toDomain(&models[i])
+	}
+	return result, nil
+}
+
 func (r *loadsRepo) FindStats(ctx context.Context, filter domain.LoadFilter) (*domain.LoadStats, error) {
 	db := postgres.FromContext(ctx, r.db)
 

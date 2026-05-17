@@ -2,29 +2,38 @@ package command
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
 	"github.com/karavanix/karavantrack-api-server/internal/domain/shared"
 	"github.com/karavanix/karavantrack-api-server/internal/inerr"
+	"github.com/karavanix/karavantrack-api-server/internal/service/email"
+	"github.com/karavanix/karavantrack-api-server/internal/service/otp"
 	"github.com/karavanix/karavantrack-api-server/pkg/logger"
 	"github.com/karavanix/karavantrack-api-server/pkg/otlp"
-	"github.com/karavanix/karavantrack-api-server/pkg/security"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 )
 
 type RegisterUsecase struct {
 	contextTDuration time.Duration
-	jwtProvider      *security.JWTProvider
 	usersRepo        domain.UserRepository
+	otpSvc           *otp.Service
+	emailSvc         *email.Service
 }
 
-func NewRegisterUsecase(contextTDuration time.Duration, jwtProvider *security.JWTProvider, usersRepo domain.UserRepository) *RegisterUsecase {
+func NewRegisterUsecase(
+	contextTDuration time.Duration,
+	usersRepo domain.UserRepository,
+	otpSvc *otp.Service,
+	emailSvc *email.Service,
+) *RegisterUsecase {
 	return &RegisterUsecase{
 		contextTDuration: contextTDuration,
-		jwtProvider:      jwtProvider,
 		usersRepo:        usersRepo,
+		otpSvc:           otpSvc,
+		emailSvc:         emailSvc,
 	}
 }
 
@@ -37,13 +46,7 @@ type RegisterRequest struct {
 	Role      string `json:"role" validate:"required,oneof=shipper carrier"`
 }
 
-type RegisterResponse struct {
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
-	Role         string `json:"role"`
-}
-
-func (r *RegisterUsecase) Register(ctx context.Context, req *RegisterRequest) (_ *RegisterResponse, err error) {
+func (r *RegisterUsecase) Register(ctx context.Context, req *RegisterRequest) (err error) {
 	ctx, cancel := context.WithTimeout(ctx, r.contextTDuration)
 	defer cancel()
 
@@ -60,53 +63,70 @@ func (r *RegisterUsecase) Register(ctx context.Context, req *RegisterRequest) (_
 		password shared.Password
 		role     shared.Role
 	}
-	{
-		if req.Email != "" {
-			input.email, err = shared.NewEmail(req.Email)
-			if err != nil {
-				return nil, inerr.NewErrValidation("email", err.Error())
-			}
-		}
 
-		if req.Phone != "" {
-			input.phone, err = shared.NewPhone(req.Phone)
-			if err != nil {
-				return nil, inerr.NewErrValidation("phone", err.Error())
-			}
-		}
-
-		input.password, err = shared.NewPassword(req.Password)
+	if req.Email != "" {
+		input.email, err = shared.NewEmail(req.Email)
 		if err != nil {
-			return nil, inerr.NewErrValidation("password", err.Error())
-		}
-
-		input.role = shared.Role(req.Role)
-		if !input.role.IsValid() {
-			return nil, inerr.NewErrValidation("role", "invalid role")
+			return inerr.NewErrValidation("email", err.Error())
 		}
 	}
 
-	user, err := domain.NewUser(req.FirstName, req.LastName, input.email, input.phone, input.password, input.role)
-	if err != nil {
-		logger.ErrorContext(ctx, "failed to create user", err)
-		return nil, err
+	if req.Phone != "" {
+		input.phone, err = shared.NewPhone(req.Phone)
+		if err != nil {
+			return inerr.NewErrValidation("phone", err.Error())
+		}
 	}
 
-	err = r.usersRepo.Save(ctx, user)
+	input.password, err = shared.NewPassword(req.Password)
 	if err != nil {
-		logger.ErrorContext(ctx, "failed to save user", err)
-		return nil, err
+		return inerr.NewErrValidation("password", err.Error())
 	}
 
-	creds, err := r.jwtProvider.GenerateTokens(user.ID.String(), input.role.String())
-	if err != nil {
-		logger.ErrorContext(ctx, "failed to generate tokens", err)
-		return nil, err
+	input.role = shared.Role(req.Role)
+	if !input.role.IsValid() {
+		return inerr.NewErrValidation("role", "invalid role")
 	}
 
-	return &RegisterResponse{
-		AccessToken:  creds.AccessToken,
-		RefreshToken: creds.RefreshToken,
-		Role:         req.Role,
-	}, nil
+	var user *domain.User
+
+	if input.email != "" {
+		existing, findErr := r.usersRepo.FindByEmail(ctx, input.email)
+		if findErr != nil && !errors.Is(findErr, inerr.ErrNotFound{}) {
+			logger.ErrorContext(ctx, "failed to check existing user", findErr)
+			return findErr
+		}
+
+		if existing != nil {
+			if existing.Status != domain.UserStatusPending {
+				return inerr.NewErrConflict("email")
+			}
+			// Pending user exists — re-send OTP without recreating the user.
+			user = existing
+		}
+	}
+
+	if user == nil {
+		user, err = domain.NewPendingUser(req.FirstName, req.LastName, input.email, input.phone, input.password.Hash(), input.role)
+		if err != nil {
+			return err
+		}
+		if err = r.usersRepo.Save(ctx, user); err != nil {
+			logger.ErrorContext(ctx, "failed to save pending user", err)
+			return err
+		}
+	}
+
+	code, err := r.otpSvc.Generate(ctx, input.email.String())
+	if err != nil {
+		logger.ErrorContext(ctx, "failed to generate otp", err)
+		return err
+	}
+
+	if err = r.emailSvc.SendVerificationCode(ctx, user.ID, input.email.String(), code); err != nil {
+		logger.ErrorContext(ctx, "failed to send verification email", err)
+		return err
+	}
+
+	return nil
 }

@@ -90,6 +90,82 @@ func NewUserInvited(
 	}, nil
 }
 
+// NewUserWithHashedPassword creates an active user from a pre-computed bcrypt hash.
+// Used after email OTP verification, where the hash was stored in Redis during registration.
+func NewUserWithHashedPassword(
+	firstName string,
+	lastName string,
+	email shared.Email,
+	phone shared.Phone,
+	passwordHash string,
+	role shared.Role,
+) (*User, error) {
+	if email == "" && phone == "" {
+		return nil, errors.New("email or phone is required")
+	}
+	if !role.IsValid() {
+		return nil, errors.New("invalid role")
+	}
+	return &User{
+		ID:           uuid.New(),
+		FirstName:    firstName,
+		LastName:     lastName,
+		Email:        email,
+		Phone:        phone,
+		PasswordHash: passwordHash,
+		Role:         role,
+		Status:       UserStatusActive,
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
+	}, nil
+}
+
+// NewPendingUser creates a user with pending status from a pre-computed bcrypt hash.
+// Used during email registration before OTP verification.
+func NewPendingUser(
+	firstName string,
+	lastName string,
+	email shared.Email,
+	phone shared.Phone,
+	passwordHash string,
+	role shared.Role,
+) (*User, error) {
+	if email == "" && phone == "" {
+		return nil, errors.New("email or phone is required")
+	}
+	if !role.IsValid() {
+		return nil, errors.New("invalid role")
+	}
+	return &User{
+		ID:           uuid.New(),
+		FirstName:    firstName,
+		LastName:     lastName,
+		Email:        email,
+		Phone:        phone,
+		PasswordHash: passwordHash,
+		Role:         role,
+		Status:       UserStatusPending,
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
+	}, nil
+}
+
+func NewUserFromApple(firstName, lastName string, email shared.Email, role shared.Role) (*User, error) {
+	if !role.IsValid() {
+		return nil, errors.New("invalid role")
+	}
+	return &User{
+		ID:        uuid.New(),
+		FirstName: firstName,
+		LastName:  lastName,
+		Email:     email,
+		Role:      role,
+		Status:    UserStatusActive,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}, nil
+}
+
 func (u *User) Update(firstName, lastName string) {
 	if firstName != "" {
 		u.FirstName = firstName

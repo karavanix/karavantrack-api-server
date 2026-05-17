@@ -62,6 +62,26 @@ type Config struct {
 		RefreshTTL    time.Duration
 	}
 
+	Apple struct {
+		BundleID string
+	}
+
+	SMTP struct {
+		Host     string
+		Port     int
+		Username string
+		Password string
+		Name     string
+		From     string
+	}
+
+	OTP struct {
+		Length      int
+		TTL         time.Duration
+		Secret      string
+		MaxAttempts int
+	}
+
 	Firebase struct {
 		AuthKey string
 	}
@@ -164,6 +184,25 @@ func New() (*Config, error) {
 
 	if c.JWT.RefreshTTL, err = getEnvDuration("JWT_REFRESH_TTL", "670h"); err != nil {
 		return nil, fmt.Errorf("JWT_REFRESH_TTL: %w", err)
+	}
+
+	// Apple
+	c.Apple.BundleID = getEnv("APPLE_BUNDLE_ID", "")
+
+	// SMTP
+	c.SMTP.Host = getEnv("SMTP_HOST", "")
+	c.SMTP.Port = getEnvInt("SMTP_PORT", 587)
+	c.SMTP.Username = getEnv("SMTP_USERNAME", "")
+	c.SMTP.Password = getEnv("SMTP_PASSWORD", "")
+	c.SMTP.Name = getEnv("SMTP_NAME", "KaravanTrack")
+	c.SMTP.From = getEnv("SMTP_FROM", "")
+
+	// OTP
+	c.OTP.Length = getEnvInt("OTP_LENGTH", 6)
+	c.OTP.MaxAttempts = getEnvInt("OTP_MAX_ATTEMPTS", 3)
+	c.OTP.Secret = getEnv("OTP_SECRET", "")
+	if c.OTP.TTL, err = getEnvDuration("OTP_TTL", "15m"); err != nil {
+		return nil, fmt.Errorf("OTP_TTL: %w", err)
 	}
 
 	// Firebase

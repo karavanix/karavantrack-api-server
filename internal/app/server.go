@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"html/template"
 	"net/http"
 
 	"github.com/golang-jwt/jwt/v4"
@@ -15,11 +16,15 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/infrastructure/persistence/cache"
 	"github.com/karavanix/karavantrack-api-server/internal/infrastructure/persistence/repository"
 	"github.com/karavanix/karavantrack-api-server/internal/service/broker"
+	"github.com/karavanix/karavantrack-api-server/internal/service/email"
 	"github.com/karavanix/karavantrack-api-server/internal/service/notification"
+	"github.com/karavanix/karavantrack-api-server/internal/service/otp"
 	"github.com/karavanix/karavantrack-api-server/internal/service/presence"
 	"github.com/karavanix/karavantrack-api-server/internal/service/rbac"
 	"github.com/karavanix/karavantrack-api-server/internal/service/watcher"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/auth"
+	"github.com/karavanix/karavantrack-api-server/pkg/apple"
+	"github.com/karavanix/karavantrack-api-server/pkg/smtp"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/companies"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/loads"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/location"
@@ -130,6 +135,7 @@ func (s *ServerApp) Run() error {
 
 	// cache
 	presenceRepo := cache.NewPresenceRedisStore(s.config, s.redis)
+	otpStore := cache.NewOTPStore(s.redis)
 
 	// repository
 	usersRepo := repository.NewUsersRepo(s.db)
@@ -139,15 +145,60 @@ func (s *ServerApp) Run() error {
 	loadsRepo := repository.NewLoadsRepo(s.db)
 	loadLocationsPointsRepo := repository.NewLoadLocationPointsRepo(s.db)
 	fcmDevicesRepo := repository.NewFCMDevicesRepo(s.db)
+	oauthAccountsRepo := repository.NewOAuthAccountsRepo(s.db)
+	emailsRepo := repository.NewEmailsRepo(s.db)
+
+	// apple
+	appleSignInClient, err := apple.NewClient(context.Background(), s.config.Apple.BundleID)
+	if err != nil {
+		return fmt.Errorf("failed to create Apple client: %w", err)
+	}
+
+	// smtp
+	smtpMailer, err := smtp.New(smtp.Config{
+		Host:     s.config.SMTP.Host,
+		Port:     s.config.SMTP.Port,
+		Username: s.config.SMTP.Username,
+		Password: s.config.SMTP.Password,
+		Name:     s.config.SMTP.Name,
+		From:     s.config.SMTP.From,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create SMTP client: %w", err)
+	}
+
+	// email template
+	emailTmpl, err := template.ParseFiles("templates/email_verification.html")
+	if err != nil {
+		return fmt.Errorf("failed to load email template: %w", err)
+	}
 
 	// service
 	presenceService := presence.NewService(s.config.Context.Timeout, presenceRepo)
 	notificationService := notification.NewService(fcmClient, fcmDevicesRepo)
 	rbacService := rbac.NewService(s.config.Context.Timeout, companyMembersRepo)
 	watcherService := watcher.NewService(s.redis)
+	otpService := otp.NewService(otpStore, otp.Config{
+		Secret:      []byte(s.config.OTP.Secret),
+		TTL:         s.config.OTP.TTL,
+		MaxAttempts: s.config.OTP.MaxAttempts,
+		Length:      s.config.OTP.Length,
+	})
+	emailService := email.NewService(smtpMailer, emailsRepo, emailTmpl, s.config.SMTP.From, s.config.OTP.TTL)
 
 	// usecase
-	authUsecase := auth.NewUsecase(s.config.Context.Timeout, jwtProvider, usersRepo)
+	authUsecase := auth.NewUsecase(
+		s.config.Context.Timeout,
+		jwtProvider,
+		txManager,
+		usersRepo,
+		oauthAccountsRepo,
+		appleSignInClient,
+		auth.Config{
+			OTPService:   otpService,
+			EmailService: emailService,
+		},
+	)
 	usersUsecase := users.NewUsecase(s.config.Context.Timeout, usersRepo, loadsRepo, fcmDevicesRepo)
 	companiesUsecase := companies.NewUsecase(s.config.Context.Timeout, txManager, companiesRepo, companyMembersRepo, companyCarriersRepo, usersRepo, loadsRepo, rbacService)
 	loadsUsecase := loads.NewUsecase(s.config.Context.Timeout, loadsRepo, usersRepo, loadLocationsPointsRepo, rbacService, s.taskQueue)

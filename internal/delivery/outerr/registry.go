@@ -165,6 +165,46 @@ func NewRegistry() *Registry {
 		},
 	)
 
+	r.RegisterMatch(func(err error) bool { return errors.Is(err, inerr.ErrOTPNotFound) },
+		func(err error) Mapping {
+			return Mapping{
+				HTTPStatus: http.StatusBadRequest,
+				Code:       CodeOTPNotFound,
+				Message:    "verification code not found or already used",
+			}
+		},
+	)
+
+	r.RegisterMatch(func(err error) bool { return errors.Is(err, inerr.ErrOTPExpired) },
+		func(err error) Mapping {
+			return Mapping{
+				HTTPStatus: http.StatusBadRequest,
+				Code:       CodeOTPExpired,
+				Message:    "verification code has expired",
+			}
+		},
+	)
+
+	r.RegisterMatch(func(err error) bool { return errors.Is(err, inerr.ErrOTPMismatch) },
+		func(err error) Mapping {
+			return Mapping{
+				HTTPStatus: http.StatusBadRequest,
+				Code:       CodeOTPMismatch,
+				Message:    "invalid verification code",
+			}
+		},
+	)
+
+	r.RegisterMatch(func(err error) bool { return errors.Is(err, inerr.ErrOTPTooManyAttempts) },
+		func(err error) Mapping {
+			return Mapping{
+				HTTPStatus: http.StatusTooManyRequests,
+				Code:       CodeOTPTooMany,
+				Message:    "too many failed attempts, please request a new code",
+			}
+		},
+	)
+
 	r.RegisterMatch(
 		func(err error) bool {
 			return errors.Is(err, inerr.ErrHttp{})

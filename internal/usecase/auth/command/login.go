@@ -80,6 +80,10 @@ func (l *LoginUsecase) Login(ctx context.Context, req *LoginRequest) (_ *LoginRe
 		return nil, inerr.ErrorPermissionDenied
 	}
 
+	if user.Status == domain.UserStatusPending {
+		return nil, inerr.ErrorPermissionDenied
+	}
+
 	if err := input.password.Verify(user.PasswordHash); err != nil {
 		return nil, inerr.ErrorPermissionDenied
 	}

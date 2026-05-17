@@ -9,16 +9,17 @@ import (
 )
 
 type LoadLocationPoint struct {
-	ID         int64
-	LoadID     uuid.UUID
-	CarrierID  uuid.UUID
-	Lat        float64
-	Lng        float64
-	AccuracyM  *float32
-	SpeedMps   *float32
-	HeadingDeg *float32
-	RecordedAt time.Time
-	CreatedAt  time.Time
+	ID                int64
+	LoadID            uuid.UUID
+	CarrierID         uuid.UUID
+	Lat               float64
+	Lng               float64
+	AccuracyM         *float32
+	SpeedMps          *float32
+	HeadingDeg        *float32
+	RecordedAt        time.Time
+	CreatedAt         time.Time
+	StatusHistoryID   *int64
 }
 
 func NewLoadLocationPoint(
@@ -59,4 +60,5 @@ type LoadLocationPointRepository interface {
 	BatchSave(ctx context.Context, points []*LoadLocationPoint) error
 	FindByLoadID(ctx context.Context, loadID uuid.UUID, limit, offset int) ([]*LoadLocationPoint, int, error)
 	FindLatestByLoadID(ctx context.Context, loadID uuid.UUID) (*LoadLocationPoint, error)
+	FindByStatusHistoryIDs(ctx context.Context, historyIDs []int64) ([]*LoadLocationPoint, error)
 }

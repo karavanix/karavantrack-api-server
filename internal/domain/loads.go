@@ -150,59 +150,64 @@ func (l *Load) Accept(note string, attachmentIDs ...uuid.UUID) error {
 }
 
 // BeginPickup transitions accepted → picking_up (carrier is driving to pickup location).
-func (l *Load) BeginPickup(note string, attachmentIDs ...uuid.UUID) error {
+func (l *Load) BeginPickup(note string, attachmentIDs ...uuid.UUID) (*LoadStatusHistory, error) {
 	if l.Status != LoadStatusAccepted {
-		return errors.New("can only begin pickup on an accepted load")
+		return nil, errors.New("can only begin pickup on an accepted load")
 	}
 	l.Status = LoadStatusPickingUp
 	l.UpdatedAt = time.Now()
-	l.History = append(l.History, l.newHistory(LoadStatusAccepted, LoadStatusPickingUp, note, attachmentIDs...))
-	return nil
+	h := l.newHistory(LoadStatusAccepted, LoadStatusPickingUp, note, attachmentIDs...)
+	l.History = append(l.History, h)
+	return h, nil
 }
 
 // ConfirmPickup transitions picking_up → picked_up (cargo loaded onto truck).
-func (l *Load) ConfirmPickup(note string, attachmentIDs ...uuid.UUID) error {
+func (l *Load) ConfirmPickup(note string, attachmentIDs ...uuid.UUID) (*LoadStatusHistory, error) {
 	if l.Status != LoadStatusPickingUp {
-		return errors.New("can only confirm pickup on a picking_up load")
+		return nil, errors.New("can only confirm pickup on a picking_up load")
 	}
 	l.Status = LoadStatusPickedUp
 	l.UpdatedAt = time.Now()
-	l.History = append(l.History, l.newHistory(LoadStatusPickingUp, LoadStatusPickedUp, note, attachmentIDs...))
-	return nil
+	h := l.newHistory(LoadStatusPickingUp, LoadStatusPickedUp, note, attachmentIDs...)
+	l.History = append(l.History, h)
+	return h, nil
 }
 
 // StartTrip transitions picked_up → in_transit (truck en route to destination).
 // Also accepts legacy accepted status during client transition window.
-func (l *Load) StartTrip(note string, attachmentIDs ...uuid.UUID) error {
+func (l *Load) StartTrip(note string, attachmentIDs ...uuid.UUID) (*LoadStatusHistory, error) {
 	if l.Status != LoadStatusPickedUp && l.Status != LoadStatusAccepted {
-		return errors.New("can only start trip on a picked_up load")
+		return nil, errors.New("can only start trip on a picked_up load")
 	}
 	l.Status = LoadStatusInTransit
 	l.UpdatedAt = time.Now()
-	l.History = append(l.History, l.newHistory(LoadStatusPickedUp, LoadStatusInTransit, note, attachmentIDs...))
-	return nil
+	h := l.newHistory(LoadStatusPickedUp, LoadStatusInTransit, note, attachmentIDs...)
+	l.History = append(l.History, h)
+	return h, nil
 }
 
 // BeginDropoff transitions in_transit → dropping_off (carrier arrived at destination).
-func (l *Load) BeginDropoff(note string, attachmentIDs ...uuid.UUID) error {
+func (l *Load) BeginDropoff(note string, attachmentIDs ...uuid.UUID) (*LoadStatusHistory, error) {
 	if l.Status != LoadStatusInTransit {
-		return errors.New("can only begin dropoff on an in_transit load")
+		return nil, errors.New("can only begin dropoff on an in_transit load")
 	}
 	l.Status = LoadStatusDroppingOff
 	l.UpdatedAt = time.Now()
-	l.History = append(l.History, l.newHistory(LoadStatusInTransit, LoadStatusDroppingOff, note, attachmentIDs...))
-	return nil
+	h := l.newHistory(LoadStatusInTransit, LoadStatusDroppingOff, note, attachmentIDs...)
+	l.History = append(l.History, h)
+	return h, nil
 }
 
 // ConfirmDropoff transitions dropping_off → dropped_off (cargo unloaded).
-func (l *Load) ConfirmDropoff(note string, attachmentIDs ...uuid.UUID) error {
+func (l *Load) ConfirmDropoff(note string, attachmentIDs ...uuid.UUID) (*LoadStatusHistory, error) {
 	if l.Status != LoadStatusDroppingOff {
-		return errors.New("can only confirm dropoff on a dropping_off load")
+		return nil, errors.New("can only confirm dropoff on a dropping_off load")
 	}
 	l.Status = LoadStatusDroppedOff
 	l.UpdatedAt = time.Now()
-	l.History = append(l.History, l.newHistory(LoadStatusDroppingOff, LoadStatusDroppedOff, note, attachmentIDs...))
-	return nil
+	h := l.newHistory(LoadStatusDroppingOff, LoadStatusDroppedOff, note, attachmentIDs...)
+	l.History = append(l.History, h)
+	return h, nil
 }
 
 // ConfirmByOwner confirms the load completion by the cargo owner.
@@ -281,4 +286,5 @@ type LoadRepository interface {
 	FindActiveByCarrierIDs(ctx context.Context, carrierIDs []uuid.UUID) (map[uuid.UUID]*Load, error)
 	FindAll(ctx context.Context, filter LoadFilter) ([]*Load, int, error)
 	FindStats(ctx context.Context, filter LoadFilter) (*LoadStats, error)
+	FindWithStaleGps(ctx context.Context, threshold time.Duration) ([]*Load, error)
 }

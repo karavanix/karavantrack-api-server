@@ -67,12 +67,12 @@ func (h *authHander) Login() http.HandlerFunc {
 
 // Register godoc
 // @Summary      Register
-// @Description  Register a new user and return tokens
+// @Description  Create a new account and send a verification code to the provided email
 // @Tags         Auth
 // @Accept       json
 // @Produce      json
 // @Param        body body command.RegisterRequest true "Registration data"
-// @Success      201  {object} command.RegisterResponse
+// @Success      200
 // @Failure      400  {object} outerr.Response
 // @Failure      409  {object} outerr.Response
 // @Router       /auth/register [post]
@@ -89,13 +89,46 @@ func (h *authHander) Register() http.HandlerFunc {
 			return
 		}
 
-		resp, err := h.authUsecase.Command.Register(r.Context(), &req)
+		err := h.authUsecase.Command.Register(r.Context(), &req)
 		if err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
 		}
 
-		render.Status(r, http.StatusCreated)
+		render.Status(r, http.StatusOK)
+	}
+}
+
+// VerifyEmail godoc
+// @Summary      Verify email
+// @Description  Verify the OTP code sent to email and receive access tokens
+// @Tags         Auth
+// @Accept       json
+// @Produce      json
+// @Param        body body command.VerifyEmailRequest true "Email and OTP code"
+// @Success      200  {object} command.VerifyEmailResponse
+// @Failure      400  {object} outerr.Response
+// @Router       /auth/verify-email [post]
+func (h *authHander) VerifyEmail() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req command.VerifyEmailRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			outerr.BadRequest(w, r, "invalid request body")
+			return
+		}
+
+		if err := h.validator.Validate(req); err != nil {
+			outerr.HandleHTTP(w, r, err)
+			return
+		}
+
+		resp, err := h.authUsecase.Command.VerifyEmail(r.Context(), &req)
+		if err != nil {
+			outerr.HandleHTTP(w, r, err)
+			return
+		}
+
+		render.Status(r, http.StatusOK)
 		render.JSON(w, r, resp)
 	}
 }
@@ -111,6 +144,41 @@ func (h *authHander) Register() http.HandlerFunc {
 func (h *authHander) Logout() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		render.Status(r, http.StatusOK)
+	}
+}
+
+// AppleSignIn godoc
+// @Summary      Apple Sign In
+// @Description  Authenticate or register a user via Apple ID token
+// @Tags         Auth
+// @Accept       json
+// @Produce      json
+// @Param        body body command.AppleSignInRequest true "Apple ID token and optional profile fields"
+// @Success      200  {object} command.AppleSignInResponse
+// @Failure      400  {object} outerr.Response
+// @Failure      403  {object} outerr.Response
+// @Router       /auth/apple [post]
+func (h *authHander) AppleSignIn() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req command.AppleSignInRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			outerr.BadRequest(w, r, "invalid request body")
+			return
+		}
+
+		if err := h.validator.Validate(req); err != nil {
+			outerr.HandleHTTP(w, r, err)
+			return
+		}
+
+		resp, err := h.authUsecase.Command.AppleSignIn(r.Context(), &req)
+		if err != nil {
+			outerr.HandleHTTP(w, r, err)
+			return
+		}
+
+		render.Status(r, http.StatusOK)
+		render.JSON(w, r, resp)
 	}
 }
 
