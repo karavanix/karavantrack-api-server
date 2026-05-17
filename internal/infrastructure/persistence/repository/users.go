@@ -69,7 +69,7 @@ func (r *usersRepo) Save(ctx context.Context, user *domain.User) error {
 		Set("updated_at = EXCLUDED.updated_at").
 		Exec(ctx)
 	if err != nil {
-		return err
+		return postgres.Error(err, model)
 	}
 
 	return nil
@@ -82,7 +82,7 @@ func (r *usersRepo) FindByEmail(ctx context.Context, email shared.Email) (*domai
 		Where("email = ?", email.String()).
 		Scan(ctx)
 	if err != nil {
-		return nil, err
+		return nil, postgres.Error(err, model)
 	}
 
 	return r.toDomain(&model), nil
