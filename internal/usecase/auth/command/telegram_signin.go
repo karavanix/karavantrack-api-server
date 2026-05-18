@@ -45,14 +45,8 @@ func NewTelegramSignInUsecase(
 }
 
 type TelegramSignInRequest struct {
-	ID        string `json:"id"         validate:"required"`
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
-	Username  string `json:"username"`
-	PhotoURL  string `json:"photo_url"`
-	AuthDate  string `json:"auth_date"  validate:"required"`
-	Hash      string `json:"hash"       validate:"required"`
-	Role      string `json:"role"`
+	IDToken string `json:"id_token" validate:"required"`
+	Role    string `json:"role"`
 }
 
 type TelegramSignInResponse struct {
@@ -69,27 +63,9 @@ func (u *TelegramSignInUsecase) TelegramSignIn(ctx context.Context, req *Telegra
 	ctx, end := otlp.Start(ctx, otel.Tracer("auth"), "TelegramSignIn")
 	defer func() { end(err) }()
 
-	data := map[string]string{
-		"id":        req.ID,
-		"auth_date": req.AuthDate,
-		"hash":      req.Hash,
-	}
-	if req.FirstName != "" {
-		data["first_name"] = req.FirstName
-	}
-	if req.LastName != "" {
-		data["last_name"] = req.LastName
-	}
-	if req.Username != "" {
-		data["username"] = req.Username
-	}
-	if req.PhotoURL != "" {
-		data["photo_url"] = req.PhotoURL
-	}
-
-	userInfo, err := u.telegramClient.Verify(data)
+	userInfo, err := u.telegramClient.Verify(ctx, req.IDToken)
 	if err != nil {
-		logger.ErrorContext(ctx, "telegram auth verification failed", err)
+		logger.ErrorContext(ctx, "telegram OIDC verification failed", err)
 		return nil, inerr.ErrorPermissionDenied
 	}
 

@@ -156,7 +156,10 @@ func (s *ServerApp) Run() error {
 	}
 
 	// telegram
-	telegramClient := telegram.NewClient(s.config.Telegram.BotToken)
+	telegramClient, err := telegram.NewClient(context.Background(), s.config.Telegram.ClientID)
+	if err != nil {
+		return fmt.Errorf("failed to create Telegram OIDC client: %w", err)
+	}
 
 	// smtp
 	smtpMailer, err := smtp.New(smtp.Config{

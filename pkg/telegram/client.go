@@ -1,14 +1,18 @@
 package telegram
 
 import (
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/hex"
+	"context"
 	"fmt"
-	"sort"
 	"strconv"
-	"strings"
 	"time"
+
+	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v2/jwt"
+)
+
+const (
+	telegramJWKSURL = "https://oauth.telegram.org/.well-known/jwks.json"
+	telegramIssuer  = "https://oauth.telegram.org"
 )
 
 type UserInfo struct {
@@ -20,65 +24,66 @@ type UserInfo struct {
 }
 
 type Client struct {
-	secretKey []byte
+	clientID  string
+	jwksCache *jwk.Cache
 }
 
-func NewClient(botToken string) *Client {
-	h := sha256.Sum256([]byte(botToken))
-	return &Client{secretKey: h[:]}
+func NewClient(ctx context.Context, clientID string) (*Client, error) {
+	cache := jwk.NewCache(ctx)
+
+	if err := cache.Register(telegramJWKSURL, jwk.WithMinRefreshInterval(15*time.Minute)); err != nil {
+		return nil, fmt.Errorf("telegram: failed to register JWKS cache: %w", err)
+	}
+
+	if _, err := cache.Refresh(ctx, telegramJWKSURL); err != nil {
+		return nil, fmt.Errorf("telegram: initial JWKS fetch failed: %w", err)
+	}
+
+	return &Client{clientID: clientID, jwksCache: cache}, nil
 }
 
-// Verify validates Telegram's HMAC-SHA256 hash and returns user info.
-// data must contain all fields sent by the Telegram Login Widget (excluding nothing).
-func (c *Client) Verify(data map[string]string) (*UserInfo, error) {
-	hash, ok := data["hash"]
-	if !ok || hash == "" {
-		return nil, fmt.Errorf("telegram: missing hash")
-	}
-
-	authDateStr, ok := data["auth_date"]
-	if !ok || authDateStr == "" {
-		return nil, fmt.Errorf("telegram: missing auth_date")
-	}
-	authDate, err := strconv.ParseInt(authDateStr, 10, 64)
+// Verify validates a Telegram OIDC id_token and returns the authenticated user's info.
+func (c *Client) Verify(ctx context.Context, idToken string) (*UserInfo, error) {
+	keySet, err := c.jwksCache.Get(ctx, telegramJWKSURL)
 	if err != nil {
-		return nil, fmt.Errorf("telegram: invalid auth_date")
-	}
-	if time.Now().Unix()-authDate > 86400 {
-		return nil, fmt.Errorf("telegram: auth_date is stale")
+		return nil, fmt.Errorf("telegram: failed to get JWKS: %w", err)
 	}
 
-	var pairs []string
-	for k, v := range data {
-		if k != "hash" {
-			pairs = append(pairs, k+"="+v)
-		}
-	}
-	sort.Strings(pairs)
-	checkString := strings.Join(pairs, "\n")
-
-	mac := hmac.New(sha256.New, c.secretKey)
-	mac.Write([]byte(checkString))
-	expected := hex.EncodeToString(mac.Sum(nil))
-
-	if !hmac.Equal([]byte(expected), []byte(hash)) {
-		return nil, fmt.Errorf("telegram: hash mismatch")
-	}
-
-	idStr, ok := data["id"]
-	if !ok || idStr == "" {
-		return nil, fmt.Errorf("telegram: missing id")
-	}
-	id, err := strconv.ParseInt(idStr, 10, 64)
+	token, err := jwt.Parse(
+		[]byte(idToken),
+		jwt.WithKeySet(keySet),
+		jwt.WithValidate(true),
+		jwt.WithIssuer(telegramIssuer),
+		jwt.WithAudience(c.clientID),
+	)
 	if err != nil {
-		return nil, fmt.Errorf("telegram: invalid id")
+		return nil, fmt.Errorf("telegram: invalid id_token: %w", err)
+	}
+
+	sub := token.Subject()
+	if sub == "" {
+		return nil, fmt.Errorf("telegram: missing sub claim")
+	}
+
+	id, err := strconv.ParseInt(sub, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("telegram: non-numeric sub claim: %s", sub)
 	}
 
 	return &UserInfo{
 		ID:        id,
-		FirstName: data["first_name"],
-		LastName:  data["last_name"],
-		Username:  data["username"],
-		PhotoURL:  data["photo_url"],
+		FirstName: claimStr(token, "given_name"),
+		LastName:  claimStr(token, "family_name"),
+		Username:  claimStr(token, "preferred_username"),
+		PhotoURL:  claimStr(token, "picture"),
 	}, nil
+}
+
+func claimStr(token jwt.Token, key string) string {
+	v, ok := token.Get(key)
+	if !ok {
+		return ""
+	}
+	s, _ := v.(string)
+	return s
 }
