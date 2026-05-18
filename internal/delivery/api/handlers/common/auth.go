@@ -257,7 +257,7 @@ function onTelegramAuth(user) {
   params.set('auth_date', user.auth_date);
   params.set('hash', user.hash);
   // Redirect to deep-link scheme; Flutter WebView intercepts this URL
-  window.location.href = 'karavantrack://auth/telegram?' + params.toString();
+  window.location.href = 'yool://auth/telegram?' + params.toString();
 }
 </script>
 </body>
