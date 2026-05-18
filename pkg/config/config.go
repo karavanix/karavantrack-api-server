@@ -67,7 +67,8 @@ type Config struct {
 	}
 
 	Telegram struct {
-		ClientID string
+		IOSClientID     string
+		AndroidClientID string
 	}
 
 	SMTP struct {
@@ -193,8 +194,9 @@ func New() (*Config, error) {
 	// Apple
 	c.Apple.BundleID = getEnv("APPLE_BUNDLE_ID", "")
 
-	// Telegram
-	c.Telegram.ClientID = getEnv("TELEGRAM_CLIENT_ID", "")
+	// Telegram — separate client IDs per platform
+	c.Telegram.IOSClientID     = getEnv("TELEGRAM_IOS_CLIENT_ID", "")
+	c.Telegram.AndroidClientID = getEnv("TELEGRAM_ANDROID_CLIENT_ID", "")
 
 	// SMTP
 	c.SMTP.Host = getEnv("SMTP_HOST", "")

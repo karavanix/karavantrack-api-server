@@ -155,8 +155,12 @@ func (s *ServerApp) Run() error {
 		return fmt.Errorf("failed to create Apple client: %w", err)
 	}
 
-	// telegram
-	telegramClient, err := telegram.NewClient(context.Background(), s.config.Telegram.ClientID)
+	// telegram — accepts tokens from either the iOS or Android native app
+	telegramClient, err := telegram.NewClient(
+		context.Background(),
+		s.config.Telegram.IOSClientID,
+		s.config.Telegram.AndroidClientID,
+	)
 	if err != nil {
 		return fmt.Errorf("failed to create Telegram OIDC client: %w", err)
 	}
