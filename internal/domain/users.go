@@ -150,6 +150,21 @@ func NewPendingUser(
 	}, nil
 }
 
+func NewUserFromTelegram(firstName, lastName string, role shared.Role) (*User, error) {
+	if !role.IsValid() {
+		return nil, errors.New("invalid role")
+	}
+	return &User{
+		ID:        uuid.New(),
+		FirstName: firstName,
+		LastName:  lastName,
+		Role:      role,
+		Status:    UserStatusActive,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}, nil
+}
+
 func NewUserFromApple(firstName, lastName string, email shared.Email, role shared.Role) (*User, error) {
 	if !role.IsValid() {
 		return nil, errors.New("invalid role")

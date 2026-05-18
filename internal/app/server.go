@@ -24,6 +24,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/service/watcher"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/auth"
 	"github.com/karavanix/karavantrack-api-server/pkg/apple"
+	"github.com/karavanix/karavantrack-api-server/pkg/telegram"
 	"github.com/karavanix/karavantrack-api-server/pkg/smtp"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/companies"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/loads"
@@ -154,6 +155,9 @@ func (s *ServerApp) Run() error {
 		return fmt.Errorf("failed to create Apple client: %w", err)
 	}
 
+	// telegram
+	telegramClient := telegram.NewClient(s.config.Telegram.BotToken)
+
 	// smtp
 	smtpMailer, err := smtp.New(smtp.Config{
 		Host:     s.config.SMTP.Host,
@@ -194,6 +198,7 @@ func (s *ServerApp) Run() error {
 		usersRepo,
 		oauthAccountsRepo,
 		appleSignInClient,
+		telegramClient,
 		auth.Config{
 			OTPService:   otpService,
 			EmailService: emailService,
