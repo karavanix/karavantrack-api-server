@@ -67,8 +67,7 @@ type Config struct {
 	}
 
 	Telegram struct {
-		BotToken    string
-		BotUsername string
+		ClientID string
 	}
 
 	SMTP struct {
@@ -195,8 +194,7 @@ func New() (*Config, error) {
 	c.Apple.BundleID = getEnv("APPLE_BUNDLE_ID", "")
 
 	// Telegram
-	c.Telegram.BotToken    = getEnv("TELEGRAM_BOT_TOKEN", "placeholder")
-	c.Telegram.BotUsername = getEnv("TELEGRAM_BOT_USERNAME", "placeholder_bot")
+	c.Telegram.ClientID = getEnv("TELEGRAM_CLIENT_ID", "")
 
 	// SMTP
 	c.SMTP.Host = getEnv("SMTP_HOST", "")
