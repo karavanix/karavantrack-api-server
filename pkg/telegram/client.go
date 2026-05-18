@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/lestrrat-go/jwx/v2/jwk"
@@ -28,8 +29,9 @@ type Client struct {
 	jwksCache        *jwk.Cache
 }
 
-// NewClient creates a Telegram OIDC client that accepts tokens issued for any
-// of the provided clientIDs (one per platform: iOS, Android, web, etc.).
+// NewClient creates a Telegram OIDC client that accepts tokens whose aud claim
+// matches any of the provided IDs. Pass the bot-level client ID plus any
+// platform-specific native app IDs so the check covers all possible aud values.
 func NewClient(ctx context.Context, clientIDs ...string) (*Client, error) {
 	cache := jwk.NewCache(ctx)
 
@@ -71,6 +73,8 @@ func (c *Client) Verify(ctx context.Context, idToken string) (*UserInfo, error) 
 	}
 
 	// Verify the token was issued for one of our registered client IDs.
+	// Telegram may put the bot-level client ID or the platform-specific native
+	// app ID in aud depending on which OAuth client initiated the flow.
 	audienceOK := false
 	for _, aud := range token.Audience() {
 		if c.allowedAudiences[aud] {
@@ -92,13 +96,28 @@ func (c *Client) Verify(ctx context.Context, idToken string) (*UserInfo, error) 
 		return nil, fmt.Errorf("telegram: non-numeric sub claim: %s", sub)
 	}
 
+	// Telegram issues a single "name" claim (full name) rather than separate
+	// given_name / family_name. Split on the first space.
+	firstName, lastName := splitName(claimStr(token, "name"))
+
 	return &UserInfo{
 		ID:        id,
-		FirstName: claimStr(token, "given_name"),
-		LastName:  claimStr(token, "family_name"),
+		FirstName: firstName,
+		LastName:  lastName,
 		Username:  claimStr(token, "preferred_username"),
 		PhotoURL:  claimStr(token, "picture"),
 	}, nil
+}
+
+func splitName(name string) (string, string) {
+	if name == "" {
+		return "", ""
+	}
+	parts := strings.SplitN(strings.TrimSpace(name), " ", 2)
+	if len(parts) == 1 {
+		return parts[0], ""
+	}
+	return parts[0], parts[1]
 }
 
 func claimStr(token jwt.Token, key string) string {

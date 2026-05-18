@@ -155,9 +155,11 @@ func (s *ServerApp) Run() error {
 		return fmt.Errorf("failed to create Apple client: %w", err)
 	}
 
-	// telegram — accepts tokens from either the iOS or Android native app
+	// telegram — accepts tokens from the bot-level OAuth client and both native
+	// platform app clients; covers whichever ID Telegram puts in the aud claim.
 	telegramClient, err := telegram.NewClient(
 		context.Background(),
+		s.config.Telegram.ClientID,
 		s.config.Telegram.IOSClientID,
 		s.config.Telegram.AndroidClientID,
 	)
