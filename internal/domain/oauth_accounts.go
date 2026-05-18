@@ -9,7 +9,10 @@ import (
 
 type OAuthProvider string
 
-const OAuthProviderApple OAuthProvider = "apple"
+const (
+	OAuthProviderApple    OAuthProvider = "apple"
+	OAuthProviderTelegram OAuthProvider = "telegram"
+)
 
 type OAuthAccount struct {
 	ID                uuid.UUID

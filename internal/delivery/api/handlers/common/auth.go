@@ -2,6 +2,7 @@ package common
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/go-chi/render"
@@ -179,6 +180,92 @@ func (h *authHander) AppleSignIn() http.HandlerFunc {
 
 		render.Status(r, http.StatusOK)
 		render.JSON(w, r, resp)
+	}
+}
+
+// TelegramSignIn godoc
+// @Summary      Telegram Sign In
+// @Description  Authenticate or register a user via Telegram Login Widget data
+// @Tags         Auth
+// @Accept       json
+// @Produce      json
+// @Param        body body command.TelegramSignInRequest true "Telegram auth data"
+// @Success      200  {object} command.TelegramSignInResponse
+// @Failure      400  {object} outerr.Response
+// @Failure      403  {object} outerr.Response
+// @Router       /auth/telegram [post]
+func (h *authHander) TelegramSignIn() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req command.TelegramSignInRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			outerr.BadRequest(w, r, "invalid request body")
+			return
+		}
+
+		if err := h.validator.Validate(req); err != nil {
+			outerr.HandleHTTP(w, r, err)
+			return
+		}
+
+		resp, err := h.authUsecase.Command.TelegramSignIn(r.Context(), &req)
+		if err != nil {
+			outerr.HandleHTTP(w, r, err)
+			return
+		}
+
+		render.Status(r, http.StatusOK)
+		render.JSON(w, r, resp)
+	}
+}
+
+// TelegramWidget serves an HTML page with the Telegram Login Widget for mobile WebView auth.
+func (h *authHander) TelegramWidget() http.HandlerFunc {
+	const widgetHTML = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sign in with Telegram</title>
+<style>
+  body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;
+       background:#f5f5f5;font-family:-apple-system,sans-serif;}
+  .card{background:#fff;border-radius:16px;padding:32px 24px;text-align:center;
+        box-shadow:0 4px 24px rgba(0,0,0,.08);max-width:320px;width:100%%;}
+  h2{margin:0 0 8px;font-size:20px;color:#111;}
+  p{margin:0 0 24px;color:#888;font-size:14px;}
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>Sign in with Telegram</h2>
+  <p>Tap the button below to continue</p>
+  <script async src="https://telegram.org/js/telegram-widget.js?22"
+    data-telegram-login="%s"
+    data-size="large"
+    data-onauth="onTelegramAuth(user)"
+    data-request-access="write">
+  </script>
+</div>
+<script>
+function onTelegramAuth(user) {
+  var params = new URLSearchParams();
+  params.set('id', user.id);
+  if (user.first_name) params.set('first_name', user.first_name);
+  if (user.last_name)  params.set('last_name',  user.last_name);
+  if (user.username)   params.set('username',   user.username);
+  if (user.photo_url)  params.set('photo_url',  user.photo_url);
+  params.set('auth_date', user.auth_date);
+  params.set('hash', user.hash);
+  // Redirect to deep-link scheme; Flutter WebView intercepts this URL
+  window.location.href = 'karavantrack://auth/telegram?' + params.toString();
+}
+</script>
+</body>
+</html>`
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		fmt.Fprintf(w, widgetHTML, h.cfg.Telegram.BotUsername)
 	}
 }
 

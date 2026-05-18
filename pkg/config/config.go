@@ -66,6 +66,11 @@ type Config struct {
 		BundleID string
 	}
 
+	Telegram struct {
+		BotToken    string
+		BotUsername string
+	}
+
 	SMTP struct {
 		Host     string
 		Port     int
@@ -188,6 +193,10 @@ func New() (*Config, error) {
 
 	// Apple
 	c.Apple.BundleID = getEnv("APPLE_BUNDLE_ID", "")
+
+	// Telegram
+	c.Telegram.BotToken    = getEnv("TELEGRAM_BOT_TOKEN", "placeholder")
+	c.Telegram.BotUsername = getEnv("TELEGRAM_BOT_USERNAME", "placeholder_bot")
 
 	// SMTP
 	c.SMTP.Host = getEnv("SMTP_HOST", "")

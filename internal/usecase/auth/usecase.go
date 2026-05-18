@@ -10,6 +10,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/pkg/apple"
 	"github.com/karavanix/karavantrack-api-server/pkg/database/postgres"
 	"github.com/karavanix/karavantrack-api-server/pkg/security"
+	"github.com/karavanix/karavantrack-api-server/pkg/telegram"
 )
 
 type Command struct {
@@ -17,6 +18,7 @@ type Command struct {
 	*command.LoginUsecase
 	*command.RefreshTokenUsecase
 	*command.AppleSignInUsecase
+	*command.TelegramSignInUsecase
 	*command.VerifyEmailUsecase
 }
 
@@ -40,15 +42,17 @@ func NewUsecase(
 	usersRepo domain.UserRepository,
 	oauthAccountsRepo domain.OAuthAccountRepository,
 	appleClient *apple.Client,
+	telegramClient *telegram.Client,
 	cfg Config,
 ) *Usecase {
 	return &Usecase{
 		Command: Command{
-			RegisterUsecase:     command.NewRegisterUsecase(contextDuration, usersRepo, cfg.OTPService, cfg.EmailService),
-			LoginUsecase:        command.NewLoginUsecase(contextDuration, jwtProvider, usersRepo),
-			RefreshTokenUsecase: command.NewRefreshTokenUsecase(contextDuration, jwtProvider, usersRepo),
-			AppleSignInUsecase:  command.NewAppleSignInUsecase(contextDuration, jwtProvider, appleClient, txManager, usersRepo, oauthAccountsRepo),
-			VerifyEmailUsecase:  command.NewVerifyEmailUsecase(contextDuration, jwtProvider, usersRepo, cfg.OTPService),
+			RegisterUsecase:       command.NewRegisterUsecase(contextDuration, usersRepo, cfg.OTPService, cfg.EmailService),
+			LoginUsecase:          command.NewLoginUsecase(contextDuration, jwtProvider, usersRepo),
+			RefreshTokenUsecase:   command.NewRefreshTokenUsecase(contextDuration, jwtProvider, usersRepo),
+			AppleSignInUsecase:    command.NewAppleSignInUsecase(contextDuration, jwtProvider, appleClient, txManager, usersRepo, oauthAccountsRepo),
+			TelegramSignInUsecase: command.NewTelegramSignInUsecase(contextDuration, jwtProvider, telegramClient, txManager, usersRepo, oauthAccountsRepo),
+			VerifyEmailUsecase:    command.NewVerifyEmailUsecase(contextDuration, jwtProvider, usersRepo, cfg.OTPService),
 		},
 		Query: Query{},
 	}
