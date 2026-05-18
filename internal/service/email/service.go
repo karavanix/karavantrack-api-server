@@ -42,7 +42,14 @@ func (s *Service) SendVerificationCode(ctx context.Context, userID uuid.UUID, to
 		return err
 	}
 
-	record, err := domain.NewEmail(userID, emailTypeVerification, s.from, to, "Verify your email", body)
+	record, err := domain.NewEmail(
+		userID,
+		emailTypeVerification,
+		s.from,
+		to,
+		"Подтверждение почты — Yool",
+		body,
+	)
 	if err != nil {
 		return err
 	}

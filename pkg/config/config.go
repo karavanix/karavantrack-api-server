@@ -194,7 +194,7 @@ func New() (*Config, error) {
 	c.SMTP.Port = getEnvInt("SMTP_PORT", 587)
 	c.SMTP.Username = getEnv("SMTP_USERNAME", "")
 	c.SMTP.Password = getEnv("SMTP_PASSWORD", "")
-	c.SMTP.Name = getEnv("SMTP_NAME", "KaravanTrack")
+	c.SMTP.Name = getEnv("SMTP_NAME", "Yool")
 	c.SMTP.From = getEnv("SMTP_FROM", "")
 
 	// OTP
