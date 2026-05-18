@@ -24,11 +24,13 @@ type UserInfo struct {
 }
 
 type Client struct {
-	clientID  string
-	jwksCache *jwk.Cache
+	allowedAudiences map[string]bool
+	jwksCache        *jwk.Cache
 }
 
-func NewClient(ctx context.Context, clientID string) (*Client, error) {
+// NewClient creates a Telegram OIDC client that accepts tokens issued for any
+// of the provided clientIDs (one per platform: iOS, Android, web, etc.).
+func NewClient(ctx context.Context, clientIDs ...string) (*Client, error) {
 	cache := jwk.NewCache(ctx)
 
 	if err := cache.Register(telegramJWKSURL, jwk.WithMinRefreshInterval(15*time.Minute)); err != nil {
@@ -39,7 +41,14 @@ func NewClient(ctx context.Context, clientID string) (*Client, error) {
 		return nil, fmt.Errorf("telegram: initial JWKS fetch failed: %w", err)
 	}
 
-	return &Client{clientID: clientID, jwksCache: cache}, nil
+	allowed := make(map[string]bool, len(clientIDs))
+	for _, id := range clientIDs {
+		if id != "" {
+			allowed[id] = true
+		}
+	}
+
+	return &Client{allowedAudiences: allowed, jwksCache: cache}, nil
 }
 
 // Verify validates a Telegram OIDC id_token and returns the authenticated user's info.
@@ -49,15 +58,28 @@ func (c *Client) Verify(ctx context.Context, idToken string) (*UserInfo, error) 
 		return nil, fmt.Errorf("telegram: failed to get JWKS: %w", err)
 	}
 
+	// Parse and validate signature + standard claims, but NOT audience —
+	// we check audience manually below to support multiple client IDs.
 	token, err := jwt.Parse(
 		[]byte(idToken),
 		jwt.WithKeySet(keySet),
 		jwt.WithValidate(true),
 		jwt.WithIssuer(telegramIssuer),
-		jwt.WithAudience(c.clientID),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("telegram: invalid id_token: %w", err)
+	}
+
+	// Verify the token was issued for one of our registered client IDs.
+	audienceOK := false
+	for _, aud := range token.Audience() {
+		if c.allowedAudiences[aud] {
+			audienceOK = true
+			break
+		}
+	}
+	if !audienceOK {
+		return nil, fmt.Errorf("telegram: token audience %v is not in the allowed client ID list", token.Audience())
 	}
 
 	sub := token.Subject()
