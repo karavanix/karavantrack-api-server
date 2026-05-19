@@ -160,6 +160,7 @@ func (s *ServerApp) Run() error {
 	telegramClient, err := telegram.NewClient(
 		context.Background(),
 		s.config.Telegram.ClientID,
+		s.config.Telegram.ClientSecret,
 		s.config.Telegram.IOSClientID,
 		s.config.Telegram.AndroidClientID,
 	)

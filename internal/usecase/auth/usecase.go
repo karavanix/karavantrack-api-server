@@ -19,6 +19,7 @@ type Command struct {
 	*command.RefreshTokenUsecase
 	*command.AppleSignInUsecase
 	*command.TelegramSignInUsecase
+	*command.TelegramOAuthUsecase
 	*command.VerifyEmailUsecase
 }
 
@@ -52,6 +53,7 @@ func NewUsecase(
 			RefreshTokenUsecase:   command.NewRefreshTokenUsecase(contextDuration, jwtProvider, usersRepo),
 			AppleSignInUsecase:    command.NewAppleSignInUsecase(contextDuration, jwtProvider, appleClient, txManager, usersRepo, oauthAccountsRepo),
 			TelegramSignInUsecase: command.NewTelegramSignInUsecase(contextDuration, jwtProvider, telegramClient, txManager, usersRepo, oauthAccountsRepo),
+			TelegramOAuthUsecase:  command.NewTelegramOAuthUsecase(contextDuration, jwtProvider, telegramClient, txManager, usersRepo, oauthAccountsRepo),
 			VerifyEmailUsecase:    command.NewVerifyEmailUsecase(contextDuration, jwtProvider, usersRepo, cfg.OTPService),
 		},
 		Query: Query{},

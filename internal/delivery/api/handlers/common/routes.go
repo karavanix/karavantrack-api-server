@@ -22,6 +22,7 @@ func RegisterRoutes(r chi.Router, opts *delivery.HandlerOptions) {
 	r.Post("/auth/refresh", authH.Refresh())
 	r.Post("/auth/apple", authH.AppleSignIn())
 	r.Post("/auth/telegram", authH.TelegramSignIn())
+	r.Post("/auth/telegram/callback", authH.TelegramOAuth())
 
 	// Common protected routes (any authenticated user)
 	r.Group(func(r chi.Router) {

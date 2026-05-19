@@ -70,6 +70,9 @@ type Config struct {
 		// ClientID is the bot-level OAuth 2.0 client ID from BotFather
 		// (env: TELEGRAM_CLIENT_ID). This is what Telegram puts in the JWT aud claim.
 		ClientID string
+		// ClientSecret is the OAuth 2.0 client secret from BotFather
+		// (env: TELEGRAM_CLIENT_SECRET). Used server-side only for code exchange.
+		ClientSecret string
 		// IOSClientID and AndroidClientID are the per-platform native app IDs
 		// embedded in the redirect URLs (app{id}-login.tg.dev). They are passed
 		// to the mobile SDK and may also appear as aud in native-SDK-issued tokens.
@@ -202,6 +205,7 @@ func New() (*Config, error) {
 
 	// Telegram — bot-level client ID + per-platform native app IDs
 	c.Telegram.ClientID        = getEnv("TELEGRAM_CLIENT_ID", "")
+	c.Telegram.ClientSecret    = getEnv("TELEGRAM_CLIENT_SECRET", "")
 	c.Telegram.IOSClientID     = getEnv("TELEGRAM_IOS_CLIENT_ID", "")
 	c.Telegram.AndroidClientID = getEnv("TELEGRAM_ANDROID_CLIENT_ID", "")
 
