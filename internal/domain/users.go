@@ -150,14 +150,18 @@ func NewPendingUser(
 	}, nil
 }
 
-func NewUserFromTelegram(firstName, lastName string, role shared.Role) (*User, error) {
+func NewUserFromTelegram(firstName, lastName string, phone shared.Phone, role shared.Role) (*User, error) {
 	if !role.IsValid() {
 		return nil, errors.New("invalid role")
+	}
+	if !phone.IsValid() {
+		return nil, errors.New("phone number is required for Telegram registration")
 	}
 	return &User{
 		ID:        uuid.New(),
 		FirstName: firstName,
 		LastName:  lastName,
+		Phone:     phone,
 		Role:      role,
 		Status:    UserStatusActive,
 		CreatedAt: time.Now(),

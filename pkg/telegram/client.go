@@ -17,11 +17,12 @@ const (
 )
 
 type UserInfo struct {
-	ID        int64
-	FirstName string
-	LastName  string
-	Username  string
-	PhotoURL  string
+	ID          int64
+	FirstName   string
+	LastName    string
+	Username    string
+	PhotoURL    string
+	PhoneNumber string
 }
 
 type Client struct {
@@ -101,11 +102,12 @@ func (c *Client) Verify(ctx context.Context, idToken string) (*UserInfo, error) 
 	firstName, lastName := splitName(claimStr(token, "name"))
 
 	return &UserInfo{
-		ID:        id,
-		FirstName: firstName,
-		LastName:  lastName,
-		Username:  claimStr(token, "preferred_username"),
-		PhotoURL:  claimStr(token, "picture"),
+		ID:          id,
+		FirstName:   firstName,
+		LastName:    lastName,
+		Username:    claimStr(token, "preferred_username"),
+		PhotoURL:    claimStr(token, "picture"),
+		PhoneNumber: claimStr(token, "phone_number"),
 	}, nil
 }
 

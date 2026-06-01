@@ -94,9 +94,14 @@ func (u *TelegramSignInUsecase) TelegramSignIn(ctx context.Context, req *Telegra
 			return nil, inerr.NewErrValidation("role", "role is required for new Telegram users: shipper or carrier")
 		}
 
+		phone, err := shared.NewPhone(userInfo.PhoneNumber)
+		if err != nil {
+			return nil, inerr.NewErrValidation("phone", "phone number is required: ensure the Telegram client requests the 'phone' scope")
+		}
+
 		var newUser *domain.User
 		txErr := u.txManager.WithTx(ctx, func(ctx context.Context) error {
-			newUser, err = domain.NewUserFromTelegram(userInfo.FirstName, userInfo.LastName, role)
+			newUser, err = domain.NewUserFromTelegram(userInfo.FirstName, userInfo.LastName, phone, role)
 			if err != nil {
 				return err
 			}
