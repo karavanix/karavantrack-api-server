@@ -214,6 +214,42 @@ func (h *authHander) TelegramSignIn() http.HandlerFunc {
 	}
 }
 
+// TelegramOAuth godoc
+// @Summary      Telegram OAuth (web code exchange)
+// @Description  Exchange a Telegram authorization code for app tokens. The code exchange
+// @Description  is performed server-side so the client secret is never exposed to the browser.
+// @Tags         Auth
+// @Accept       json
+// @Produce      json
+// @Param        body body command.TelegramOAuthRequest true "Authorization code, redirect_uri and optional role"
+// @Success      200  {object} command.TelegramSignInResponse
+// @Failure      400  {object} outerr.Response
+// @Failure      403  {object} outerr.Response
+// @Router       /auth/telegram/callback [post]
+func (h *authHander) TelegramOAuth() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req command.TelegramOAuthRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			outerr.BadRequest(w, r, "invalid request body")
+			return
+		}
+
+		if err := h.validator.Validate(req); err != nil {
+			outerr.HandleHTTP(w, r, err)
+			return
+		}
+
+		resp, err := h.authUsecase.Command.TelegramOAuth(r.Context(), &req)
+		if err != nil {
+			outerr.HandleHTTP(w, r, err)
+			return
+		}
+
+		render.Status(r, http.StatusOK)
+		render.JSON(w, r, resp)
+	}
+}
+
 // Refresh godoc
 // @Summary      Refresh tokens
 // @Description  Exchange a valid refresh token for a new token pair

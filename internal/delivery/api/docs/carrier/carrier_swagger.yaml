@@ -101,6 +101,38 @@ definitions:
     - password
     - role
     type: object
+  command.TelegramOAuthRequest:
+    properties:
+      code:
+        type: string
+      redirect_uri:
+        type: string
+      role:
+        type: string
+    required:
+    - code
+    - redirect_uri
+    type: object
+  command.TelegramSignInRequest:
+    properties:
+      id_token:
+        type: string
+      role:
+        type: string
+    required:
+    - id_token
+    type: object
+  command.TelegramSignInResponse:
+    properties:
+      access_token:
+        type: string
+      is_new_user:
+        type: boolean
+      refresh_token:
+        type: string
+      role:
+        type: string
+    type: object
   command.UploadFileResponse:
     properties:
       createdAt:
@@ -681,6 +713,68 @@ paths:
           schema:
             $ref: '#/definitions/outerr.Response'
       summary: Register
+      tags:
+      - Auth
+  /auth/telegram:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate or register a user via a Telegram OIDC id_token
+      parameters:
+      - description: Telegram OIDC id_token and optional role
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/command.TelegramSignInRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/command.TelegramSignInResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/outerr.Response'
+      summary: Telegram Sign In (OAuth 2.0 / OIDC)
+      tags:
+      - Auth
+  /auth/telegram/callback:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Exchange a Telegram authorization code for app tokens. The code exchange
+        is performed server-side so the client secret is never exposed to the browser.
+      parameters:
+      - description: Authorization code, redirect_uri and optional role
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/command.TelegramOAuthRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/command.TelegramSignInResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/outerr.Response'
+      summary: Telegram OAuth (web code exchange)
       tags:
       - Auth
   /auth/verify-email:
