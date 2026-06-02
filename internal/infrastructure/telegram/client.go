@@ -2,46 +2,32 @@ package telegram
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/karavanix/karavantrack-api-server/internal/domain"
+	"github.com/karavanix/karavantrack-api-server/pkg/config"
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/lestrrat-go/jwx/v2/jwt"
+	"resty.dev/v3"
 )
 
 const (
-	telegramJWKSURL  = "https://oauth.telegram.org/.well-known/jwks.json"
-	telegramIssuer   = "https://oauth.telegram.org"
-	telegramTokenURL = "https://oauth.telegram.org/token"
+	telegramBaseURL = "https://oauth.telegram.org"
+	telegramJWKSURL = "https://oauth.telegram.org/.well-known/jwks.json"
+	telegramIssuer  = "https://oauth.telegram.org"
 )
 
-type UserInfo struct {
-	ID          int64
-	FirstName   string
-	LastName    string
-	Username    string
-	PhotoURL    string
-	PhoneNumber string
-}
-
-type Client struct {
+type telegramClient struct {
 	clientID         string
-	clientSecret     string
 	allowedAudiences map[string]bool
 	jwksCache        *jwk.Cache
+	httpClient       *resty.Client
 }
 
-// NewClient creates a Telegram OIDC client that accepts tokens whose aud claim
-// matches any of the provided IDs. Pass the bot-level client ID plus any
-// platform-specific native app IDs so the check covers all possible aud values.
-// clientSecret is optional — only needed for server-side authorization-code exchange.
-func NewClient(ctx context.Context, clientID, clientSecret string, extraClientIDs ...string) (*Client, error) {
+func New(ctx context.Context, cfg *config.Config) (domain.TelegramProvider, error) {
 	cache := jwk.NewCache(ctx)
 
 	if err := cache.Register(telegramJWKSURL, jwk.WithMinRefreshInterval(15*time.Minute)); err != nil {
@@ -52,72 +38,58 @@ func NewClient(ctx context.Context, clientID, clientSecret string, extraClientID
 		return nil, fmt.Errorf("telegram: initial JWKS fetch failed: %w", err)
 	}
 
-	allIDs := append([]string{clientID}, extraClientIDs...)
-	allowed := make(map[string]bool, len(allIDs))
-	for _, id := range allIDs {
+	ids := []string{cfg.Telegram.ClientID, cfg.Telegram.IOSClientID, cfg.Telegram.AndroidClientID}
+	allowed := make(map[string]bool, len(ids))
+	for _, id := range ids {
 		if id != "" {
 			allowed[id] = true
 		}
 	}
 
-	return &Client{
-		clientID:         clientID,
-		clientSecret:     clientSecret,
+	client := resty.New().
+		SetBaseURL(telegramBaseURL).
+		SetBasicAuth(cfg.Telegram.ClientID, cfg.Telegram.ClientSecret).
+		SetResponseBodyUnlimitedReads(true)
+
+	return &telegramClient{
+		clientID:         cfg.Telegram.ClientID,
 		allowedAudiences: allowed,
 		jwksCache:        cache,
+		httpClient:       client,
 	}, nil
 }
 
-type tokenResponse struct {
-	IDToken string `json:"id_token"`
-	Error   string `json:"error"`
-}
+func (c *telegramClient) ExchangeCode(ctx context.Context, code, redirectURI, codeVerifier string) (string, error) {
+	var result tokenResponse
+	var errResult errorResponse
 
-// ExchangeCode exchanges a Telegram OAuth authorization code for an OIDC id_token.
-// The client_secret is used server-side only and never exposed to the browser.
-func (c *Client) ExchangeCode(ctx context.Context, code, redirectURI string) (string, error) {
-	body := url.Values{
-		"grant_type":   {"authorization_code"},
-		"code":         {code},
-		"redirect_uri": {redirectURI},
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, telegramTokenURL, strings.NewReader(body.Encode()))
-	if err != nil {
-		return "", fmt.Errorf("telegram: build token request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.SetBasicAuth(c.clientID, c.clientSecret)
-
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := c.httpClient.R().
+		SetContext(ctx).
+		SetFormData(map[string]string{
+			"grant_type":    "authorization_code",
+			"code":          code,
+			"redirect_uri":  redirectURI,
+			"code_verifier": codeVerifier,
+		}).
+		SetResult(&result).
+		SetError(&errResult).
+		Post("/token")
 	if err != nil {
 		return "", fmt.Errorf("telegram: token request failed: %w", err)
 	}
-	defer resp.Body.Close()
 
-	raw, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("telegram: read token response: %w", err)
+	if resp.IsError() {
+		return "", fmt.Errorf("telegram: token exchange failed (status %d): %s", resp.StatusCode(), errResult.ErrorDescription)
 	}
 
-	var tok tokenResponse
-	if err := json.Unmarshal(raw, &tok); err != nil {
-		return "", fmt.Errorf("telegram: parse token response: %w", err)
-	}
-
-	if resp.StatusCode != http.StatusOK || tok.Error != "" {
-		return "", fmt.Errorf("telegram: token exchange failed (status %d): %s", resp.StatusCode, tok.Error)
-	}
-
-	if tok.IDToken == "" {
+	if result.IDToken == "" {
 		return "", fmt.Errorf("telegram: no id_token in token response")
 	}
 
-	return tok.IDToken, nil
+	return result.IDToken, nil
 }
 
-// Verify validates a Telegram OIDC id_token and returns the authenticated user's info.
-func (c *Client) Verify(ctx context.Context, idToken string) (*UserInfo, error) {
+func (c *telegramClient) Verify(ctx context.Context, idToken string) (*domain.TelegramUserInfo, error) {
 	keySet, err := c.jwksCache.Get(ctx, telegramJWKSURL)
 	if err != nil {
 		return nil, fmt.Errorf("telegram: failed to get JWKS: %w", err)
@@ -159,11 +131,9 @@ func (c *Client) Verify(ctx context.Context, idToken string) (*UserInfo, error) 
 		return nil, fmt.Errorf("telegram: non-numeric sub claim: %s", sub)
 	}
 
-	// Telegram issues a single "name" claim (full name) rather than separate
-	// given_name / family_name. Split on the first space.
 	firstName, lastName := splitName(claimStr(token, "name"))
 
-	return &UserInfo{
+	return &domain.TelegramUserInfo{
 		ID:          id,
 		FirstName:   firstName,
 		LastName:    lastName,

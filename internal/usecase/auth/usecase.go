@@ -10,7 +10,6 @@ import (
 	"github.com/karavanix/karavantrack-api-server/pkg/apple"
 	"github.com/karavanix/karavantrack-api-server/pkg/database/postgres"
 	"github.com/karavanix/karavantrack-api-server/pkg/security"
-	"github.com/karavanix/karavantrack-api-server/pkg/telegram"
 )
 
 type Command struct {
@@ -21,6 +20,7 @@ type Command struct {
 	*command.TelegramSignInUsecase
 	*command.TelegramOAuthUsecase
 	*command.VerifyEmailUsecase
+	*command.GeneratePKCEUsecase
 }
 
 type Query struct {
@@ -43,7 +43,8 @@ func NewUsecase(
 	usersRepo domain.UserRepository,
 	oauthAccountsRepo domain.OAuthAccountRepository,
 	appleClient *apple.Client,
-	telegramClient *telegram.Client,
+	telegramClient domain.TelegramProvider,
+	pkceRepo domain.PKCERepository,
 	cfg Config,
 ) *Usecase {
 	return &Usecase{
@@ -53,8 +54,9 @@ func NewUsecase(
 			RefreshTokenUsecase:   command.NewRefreshTokenUsecase(contextDuration, jwtProvider, usersRepo),
 			AppleSignInUsecase:    command.NewAppleSignInUsecase(contextDuration, jwtProvider, appleClient, txManager, usersRepo, oauthAccountsRepo),
 			TelegramSignInUsecase: command.NewTelegramSignInUsecase(contextDuration, jwtProvider, telegramClient, txManager, usersRepo, oauthAccountsRepo),
-			TelegramOAuthUsecase:  command.NewTelegramOAuthUsecase(contextDuration, jwtProvider, telegramClient, txManager, usersRepo, oauthAccountsRepo),
+			TelegramOAuthUsecase:  command.NewTelegramOAuthUsecase(contextDuration, jwtProvider, telegramClient, txManager, usersRepo, oauthAccountsRepo, pkceRepo),
 			VerifyEmailUsecase:    command.NewVerifyEmailUsecase(contextDuration, jwtProvider, usersRepo, cfg.OTPService),
+			GeneratePKCEUsecase:   command.NewGeneratePKCEUsecase(contextDuration, pkceRepo),
 		},
 		Query: Query{},
 	}

@@ -23,14 +23,12 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/service/rbac"
 	"github.com/karavanix/karavantrack-api-server/internal/service/watcher"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/auth"
-	"github.com/karavanix/karavantrack-api-server/pkg/apple"
-	"github.com/karavanix/karavantrack-api-server/pkg/telegram"
-	"github.com/karavanix/karavantrack-api-server/pkg/smtp"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/companies"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/loads"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/location"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/users"
 	"github.com/karavanix/karavantrack-api-server/pkg/app"
+	"github.com/karavanix/karavantrack-api-server/pkg/apple"
 	"github.com/karavanix/karavantrack-api-server/pkg/config"
 	"github.com/karavanix/karavantrack-api-server/pkg/database/postgres"
 	"github.com/karavanix/karavantrack-api-server/pkg/firebase"
@@ -39,6 +37,8 @@ import (
 	"github.com/karavanix/karavantrack-api-server/pkg/otlp"
 	"github.com/karavanix/karavantrack-api-server/pkg/redis"
 	"github.com/karavanix/karavantrack-api-server/pkg/security"
+	"github.com/karavanix/karavantrack-api-server/pkg/smtp"
+	"github.com/karavanix/karavantrack-api-server/internal/infrastructure/telegram"
 	"github.com/uptrace/bun"
 )
 
@@ -137,6 +137,7 @@ func (s *ServerApp) Run() error {
 	// cache
 	presenceRepo := cache.NewPresenceRedisStore(s.config, s.redis)
 	otpStore := cache.NewOTPStore(s.redis)
+	pkceStore := cache.NewPKCEStore(s.config, s.redis)
 
 	// repository
 	usersRepo := repository.NewUsersRepo(s.db)
@@ -157,13 +158,7 @@ func (s *ServerApp) Run() error {
 
 	// telegram — accepts tokens from the bot-level OAuth client and both native
 	// platform app clients; covers whichever ID Telegram puts in the aud claim.
-	telegramClient, err := telegram.NewClient(
-		context.Background(),
-		s.config.Telegram.ClientID,
-		s.config.Telegram.ClientSecret,
-		s.config.Telegram.IOSClientID,
-		s.config.Telegram.AndroidClientID,
-	)
+	telegramClient, err := telegram.New(context.Background(), s.config)
 	if err != nil {
 		return fmt.Errorf("failed to create Telegram OIDC client: %w", err)
 	}
@@ -209,6 +204,7 @@ func (s *ServerApp) Run() error {
 		oauthAccountsRepo,
 		appleSignInClient,
 		telegramClient,
+		pkceStore,
 		auth.Config{
 			OTPService:   otpService,
 			EmailService: emailService,

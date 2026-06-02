@@ -13,14 +13,13 @@ import (
 	"github.com/karavanix/karavantrack-api-server/pkg/logger"
 	"github.com/karavanix/karavantrack-api-server/pkg/otlp"
 	"github.com/karavanix/karavantrack-api-server/pkg/security"
-	"github.com/karavanix/karavantrack-api-server/pkg/telegram"
 	"go.opentelemetry.io/otel"
 )
 
 type TelegramSignInUsecase struct {
 	contextDuration   time.Duration
 	jwtProvider       *security.JWTProvider
-	telegramClient    *telegram.Client
+	telegramClient    domain.TelegramProvider
 	txManager         postgres.TxManager
 	usersRepo         domain.UserRepository
 	oauthAccountsRepo domain.OAuthAccountRepository
@@ -29,7 +28,7 @@ type TelegramSignInUsecase struct {
 func NewTelegramSignInUsecase(
 	contextDuration time.Duration,
 	jwtProvider *security.JWTProvider,
-	telegramClient *telegram.Client,
+	telegramClient domain.TelegramProvider,
 	txManager postgres.TxManager,
 	usersRepo domain.UserRepository,
 	oauthAccountsRepo domain.OAuthAccountRepository,

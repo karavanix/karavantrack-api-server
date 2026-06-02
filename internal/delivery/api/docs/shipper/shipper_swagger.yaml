@@ -63,6 +63,13 @@ definitions:
     required:
     - carrier_id
     type: object
+  command.GeneratePKCEResponse:
+    properties:
+      code_challenge:
+        type: string
+      state:
+        type: string
+    type: object
   command.InviteRequest:
     properties:
       contact:
@@ -160,9 +167,12 @@ definitions:
         type: string
       role:
         type: string
+      state:
+        type: string
     required:
     - code
     - redirect_uri
+    - state
     type: object
   command.TelegramSignInRequest:
     properties:
@@ -925,6 +935,29 @@ paths:
         "200":
           description: OK
       summary: Logout
+      tags:
+      - Auth
+  /auth/pkce:
+    post:
+      consumes:
+      - application/json
+      description: Generate PKCE
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/command.GeneratePKCEResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/outerr.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/outerr.Response'
+      summary: Generate PKCE
       tags:
       - Auth
   /auth/refresh:

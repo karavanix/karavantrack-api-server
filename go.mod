@@ -150,4 +150,5 @@ require (
 	google.golang.org/grpc v1.78.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
+	resty.dev/v3 v3.0.0-beta.3 // indirect
 )

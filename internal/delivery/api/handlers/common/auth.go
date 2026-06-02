@@ -27,6 +27,31 @@ func NewAuthHandler(opts *delivery.HandlerOptions) *authHander {
 	}
 }
 
+// GeneratePKCE godoc
+// @Summary      Generate PKCE
+// @Description  Generate PKCE
+// @Tags         Auth
+// @Accept       json
+// @Produce      json
+// @Success      200 {object} command.GeneratePKCEResponse
+// @Failure      400 {object} outerr.Response
+// @Failure      500 {object} outerr.Response
+// @Router       /auth/pkce [post]
+func (h *authHander) GeneratePKCE() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+
+		var resp *command.GeneratePKCEResponse
+		resp, err := h.authUsecase.Command.GeneratePKCE(ctx)
+		if err != nil {
+			outerr.HandleHTTP(w, r, err)
+			return
+		}
+
+		render.JSON(w, r, resp)
+	}
+}
+
 // Login godoc
 // @Summary      Login
 // @Description  Authenticate user with email/phone and password

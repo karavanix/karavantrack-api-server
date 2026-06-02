@@ -441,6 +441,41 @@ const docTemplateshipper = `{
                 }
             }
         },
+        "/auth/pkce": {
+            "post": {
+                "description": "Generate PKCE",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Generate PKCE",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/command.GeneratePKCEResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/auth/refresh": {
             "post": {
                 "description": "Exchange a valid refresh token for a new token pair",
@@ -2108,6 +2143,17 @@ const docTemplateshipper = `{
                 }
             }
         },
+        "command.GeneratePKCEResponse": {
+            "type": "object",
+            "properties": {
+                "code_challenge": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                }
+            }
+        },
         "command.InviteRequest": {
             "type": "object",
             "required": [
@@ -2247,7 +2293,8 @@ const docTemplateshipper = `{
             "type": "object",
             "required": [
                 "code",
-                "redirect_uri"
+                "redirect_uri",
+                "state"
             ],
             "properties": {
                 "code": {
@@ -2257,6 +2304,9 @@ const docTemplateshipper = `{
                     "type": "string"
                 },
                 "role": {
+                    "type": "string"
+                },
+                "state": {
                     "type": "string"
                 }
             }

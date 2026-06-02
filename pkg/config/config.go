@@ -27,6 +27,10 @@ type Config struct {
 		Password string
 	}
 
+	PKCE struct {
+		CachePrefix string
+	}
+
 	Context struct {
 		Timeout time.Duration
 	}
@@ -167,6 +171,9 @@ func New() (*Config, error) {
 		return nil, fmt.Errorf("CONTEXT_TIMEOUT: %w", err)
 	}
 
+	// PKCE
+	c.PKCE.CachePrefix = getEnv("PKCE_CACHE_PREFIX", "pkce")
+
 	// Database
 	c.DB.Host = getEnv("DB_HOST", "localhost")
 	c.DB.Port = getEnv("DB_PORT", "5432")
@@ -204,9 +211,9 @@ func New() (*Config, error) {
 	c.Apple.BundleID = getEnv("APPLE_BUNDLE_ID", "")
 
 	// Telegram — bot-level client ID + per-platform native app IDs
-	c.Telegram.ClientID        = getEnv("TELEGRAM_CLIENT_ID", "")
-	c.Telegram.ClientSecret    = getEnv("TELEGRAM_CLIENT_SECRET", "")
-	c.Telegram.IOSClientID     = getEnv("TELEGRAM_IOS_CLIENT_ID", "")
+	c.Telegram.ClientID = getEnv("TELEGRAM_CLIENT_ID", "")
+	c.Telegram.ClientSecret = getEnv("TELEGRAM_CLIENT_SECRET", "")
+	c.Telegram.IOSClientID = getEnv("TELEGRAM_IOS_CLIENT_ID", "")
 	c.Telegram.AndroidClientID = getEnv("TELEGRAM_ANDROID_CLIENT_ID", "")
 
 	// SMTP
