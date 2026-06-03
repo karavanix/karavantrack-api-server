@@ -239,6 +239,29 @@ func (h *authHander) TelegramSignIn() http.HandlerFunc {
 	}
 }
 
+// TelegramOAuthRedirect godoc
+// @Summary      Telegram OAuth redirect
+// @Description  Receives the OAuth redirect from Telegram and bounces the user
+// @Description  back into the mobile app via a yoollive:// custom URL scheme.
+// @Tags         Auth
+// @Param        code  query string true "Authorization code"
+// @Param        state query string true "PKCE state"
+// @Success      302
+// @Failure      400 {object} outerr.Response
+// @Router       /auth/telegram/callback [get]
+func (h *authHander) TelegramOAuthRedirect() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		code := r.URL.Query().Get("code")
+		state := r.URL.Query().Get("state")
+		if code == "" || state == "" {
+			outerr.BadRequest(w, r, "missing code or state")
+			return
+		}
+		target := "yoollive://tglogin?code=" + code + "&state=" + state
+		http.Redirect(w, r, target, http.StatusFound)
+	}
+}
+
 // TelegramOAuth godoc
 // @Summary      Telegram OAuth (web code exchange)
 // @Description  Exchange a Telegram authorization code for app tokens. The code exchange

@@ -169,10 +169,6 @@ definitions:
         type: string
       state:
         type: string
-    required:
-    - code
-    - redirect_uri
-    - state
     type: object
   command.TelegramSignInRequest:
     properties:
@@ -1046,6 +1042,31 @@ paths:
       tags:
       - Auth
   /auth/telegram/callback:
+    get:
+      description: |-
+        Receives the OAuth redirect from Telegram and bounces the user
+        back into the mobile app via a yoollive:// custom URL scheme.
+      parameters:
+      - description: Authorization code
+        in: query
+        name: code
+        required: true
+        type: string
+      - description: PKCE state
+        in: query
+        name: state
+        required: true
+        type: string
+      responses:
+        "302":
+          description: Found
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/outerr.Response'
+      summary: Telegram OAuth redirect
+      tags:
+      - Auth
     post:
       consumes:
       - application/json

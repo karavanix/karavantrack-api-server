@@ -606,6 +606,40 @@ const docTemplatecarrier = `{
             }
         },
         "/auth/telegram/callback": {
+            "get": {
+                "description": "Receives the OAuth redirect from Telegram and bounces the user\nback into the mobile app via a yoollive:// custom URL scheme.",
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Telegram OAuth redirect",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization code",
+                        "name": "code",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "PKCE state",
+                        "name": "state",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "Found"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    }
+                }
+            },
             "post": {
                 "description": "Exchange a Telegram authorization code for app tokens. The code exchange\nis performed server-side so the client secret is never exposed to the browser.",
                 "consumes": [
@@ -1596,11 +1630,6 @@ const docTemplatecarrier = `{
         },
         "command.TelegramOAuthRequest": {
             "type": "object",
-            "required": [
-                "code",
-                "redirect_uri",
-                "state"
-            ],
             "properties": {
                 "code": {
                     "type": "string"

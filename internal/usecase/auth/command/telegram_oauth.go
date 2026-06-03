@@ -48,9 +48,9 @@ func NewTelegramOAuthUsecase(
 }
 
 type TelegramOAuthRequest struct {
-	Code        string `json:"code"         validate:"required"`
-	State       string `json:"state"        validate:"required"`
-	RedirectURI string `json:"redirect_uri" validate:"required"`
+	Code        string `json:"code"`
+	State       string `json:"state"`
+	RedirectURI string `json:"redirect_uri"`
 	Role        string `json:"role"`
 }
 
