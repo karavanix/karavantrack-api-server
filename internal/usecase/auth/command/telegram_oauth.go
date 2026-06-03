@@ -122,34 +122,49 @@ func (u *TelegramOAuthUsecase) TelegramOAuth(ctx context.Context, req *TelegramO
 			return nil, err
 		}
 	} else {
-		role := shared.Role(req.Role)
-		if !role.IsValid() {
-			return nil, inerr.NewErrValidation("role", "role is required for new Telegram users: shipper or carrier")
-		}
-
 		phone, err := shared.NewPhone(userInfo.PhoneNumber)
 		if err != nil {
 			return nil, inerr.NewErrValidation("phone", "phone number is required: ensure the Telegram client requests the 'phone' scope")
 		}
 
-		var newUser *domain.User
-		txErr := u.txManager.WithTx(ctx, func(ctx context.Context) error {
-			newUser, err = domain.NewUserFromTelegram(userInfo.FirstName, userInfo.LastName, phone, role)
-			if err != nil {
-				return err
-			}
-			if err = u.usersRepo.Save(ctx, newUser); err != nil {
-				return err
-			}
-			account := domain.NewOAuthAccount(newUser.ID, domain.OAuthProviderTelegram, providerAccountID)
-			return u.oauthAccountsRepo.Save(ctx, account)
-		})
-		if txErr != nil {
-			logger.ErrorContext(ctx, "failed to create telegram user", txErr)
-			return nil, txErr
+		existingUser, err := u.usersRepo.FindByPhone(ctx, phone)
+		if err != nil && !errors.As(err, &inerr.ErrNotFound{}) {
+			logger.ErrorContext(ctx, "failed to look up user by phone", err)
+			return nil, err
 		}
-		user = newUser
-		isNewUser = true
+
+		if existingUser != nil {
+			account := domain.NewOAuthAccount(existingUser.ID, domain.OAuthProviderTelegram, providerAccountID)
+			if err = u.oauthAccountsRepo.Save(ctx, account); err != nil {
+				logger.ErrorContext(ctx, "failed to link oauth account to existing user", err)
+				return nil, err
+			}
+			user = existingUser
+		} else {
+			role := shared.Role(req.Role)
+			if !role.IsValid() {
+				return nil, inerr.NewErrValidation("role", "role is required for new Telegram users: shipper or carrier")
+			}
+
+			var newUser *domain.User
+			txErr := u.txManager.WithTx(ctx, func(ctx context.Context) error {
+				newUser, err = domain.NewUserFromTelegram(userInfo.FirstName, userInfo.LastName, phone, role)
+				if err != nil {
+					return err
+				}
+				if err = u.usersRepo.Save(ctx, newUser); err != nil {
+					return err
+				}
+				account := domain.NewOAuthAccount(newUser.ID, domain.OAuthProviderTelegram, providerAccountID)
+				return u.oauthAccountsRepo.Save(ctx, account)
+			})
+			if txErr != nil {
+				logger.ErrorContext(ctx, "failed to create telegram user", txErr)
+				return nil, txErr
+			}
+			user = newUser
+			isNewUser = true
+		}
 	}
 
 	creds, err := u.jwtProvider.GenerateTokens(user.ID.String(), user.Role.String())
