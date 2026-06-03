@@ -102,7 +102,7 @@ func (u *TelegramOAuthUsecase) TelegramOAuth(ctx context.Context, req *TelegramO
 		return nil, inerr.ErrorPermissionDenied
 	}
 
-	providerAccountID := strconv.FormatInt(userInfo.ID, 10)
+	providerAccountID := strconv.FormatUint(userInfo.ID, 10)
 
 	oauthAccount, err := u.oauthAccountsRepo.FindByProviderAndProviderAccountID(
 		ctx, domain.OAuthProviderTelegram, providerAccountID,

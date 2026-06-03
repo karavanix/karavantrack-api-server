@@ -3,7 +3,7 @@ package domain
 import "context"
 
 type TelegramUserInfo struct {
-	ID          int64
+	ID          uint64
 	FirstName   string
 	LastName    string
 	Username    string

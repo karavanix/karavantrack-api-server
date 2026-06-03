@@ -126,7 +126,7 @@ func (c *telegramClient) Verify(ctx context.Context, idToken string) (*domain.Te
 		return nil, fmt.Errorf("telegram: missing sub claim")
 	}
 
-	id, err := strconv.ParseInt(sub, 10, 64)
+	id, err := strconv.ParseUint(sub, 10, 64)
 	if err != nil {
 		return nil, fmt.Errorf("telegram: non-numeric sub claim: %s", sub)
 	}

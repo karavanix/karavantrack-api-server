@@ -68,7 +68,7 @@ func (u *TelegramSignInUsecase) TelegramSignIn(ctx context.Context, req *Telegra
 		return nil, inerr.ErrorPermissionDenied
 	}
 
-	providerAccountID := strconv.FormatInt(userInfo.ID, 10)
+	providerAccountID := strconv.FormatUint(userInfo.ID, 10)
 
 	oauthAccount, err := u.oauthAccountsRepo.FindByProviderAndProviderAccountID(
 		ctx, domain.OAuthProviderTelegram, providerAccountID,
