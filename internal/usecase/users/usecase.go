@@ -11,6 +11,7 @@ import (
 type Command struct {
 	*command.InviteUsecase
 	*command.UpdateUsecase
+	*command.DeleteUsecase
 	*command.RegisterDeviceUsecase
 }
 
@@ -35,6 +36,7 @@ func NewUsecase(
 		Command: Command{
 			InviteUsecase:         command.NewInviteUsecase(contextDuration, usersRepo),
 			UpdateUsecase:         command.NewUpdateUsecase(contextDuration, usersRepo),
+			DeleteUsecase:         command.NewDeleteUsecase(contextDuration, usersRepo),
 			RegisterDeviceUsecase: command.NewRegisterDeviceUsecase(contextDuration, fcmDevicesRepo),
 		},
 		Query: Query{

@@ -240,6 +240,7 @@ type UserFilter struct {
 type UserRepository interface {
 	Save(ctx context.Context, user *User) error
 	Update(ctx context.Context, user *User) error
+	Delete(ctx context.Context, id uuid.UUID) error
 	FindByEmail(ctx context.Context, email shared.Email) (*User, error)
 	FindByPhone(ctx context.Context, phone shared.Phone) (*User, error)
 	FindByEmailOrPhone(ctx context.Context, email shared.Email, phone shared.Phone) (*User, error)

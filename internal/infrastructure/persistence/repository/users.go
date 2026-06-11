@@ -53,6 +53,17 @@ func (r *usersRepo) Update(ctx context.Context, user *domain.User) error {
 	return nil
 }
 
+func (r *usersRepo) Delete(ctx context.Context, id uuid.UUID) error {
+	db := postgres.FromContext(ctx, r.db)
+	_, err := db.NewDelete().Model((*Users)(nil)).
+		Where("id = ?", id.String()).
+		Exec(ctx)
+	if err != nil {
+		return postgres.Error(err, &Users{})
+	}
+	return nil
+}
+
 func (r *usersRepo) Save(ctx context.Context, user *domain.User) error {
 	db := postgres.FromContext(ctx, r.db)
 	var model = r.toModel(user)

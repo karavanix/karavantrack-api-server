@@ -33,6 +33,7 @@ func RegisterRoutes(r chi.Router, opts *delivery.HandlerOptions) {
 		// Users
 		r.Get("/users/me", usersH.GetMe())
 		r.Put("/users/me", usersH.UpdateMe())
+		r.Delete("/users/me", usersH.DeleteMe())
 		r.Post("/users/me/devices", usersH.RegisterDevice())
 
 		// Loads

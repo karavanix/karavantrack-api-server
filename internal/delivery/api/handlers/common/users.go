@@ -90,6 +90,33 @@ func (h *usersHandler) UpdateMe() http.HandlerFunc {
 	}
 }
 
+// DeleteMe godoc
+// @Security     BearerAuth
+// @Summary      Delete current user
+// @Description  Permanently deletes the authenticated user's account and all associated data
+// @Tags         Users
+// @Produce      json
+// @Success      200
+// @Failure      401  {object} outerr.Response
+// @Failure      404  {object} outerr.Response
+// @Router       /users/me [delete]
+func (h *usersHandler) DeleteMe() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := app.UserID[string](r.Context())
+		if !ok {
+			outerr.Forbidden(w, r, "missing user context")
+			return
+		}
+
+		if err := h.usersUsecase.Command.Delete(r.Context(), userID); err != nil {
+			outerr.HandleHTTP(w, r, err)
+			return
+		}
+
+		render.Status(r, http.StatusOK)
+	}
+}
+
 // RegisterDevice godoc
 // @Security     BearerAuth
 // @Summary      Register FCM device
