@@ -131,6 +131,11 @@ type Config struct {
 			LoadLocationPointCreated string
 		}
 	}
+
+	// PublicAppBaseURL is the public web app's origin, used to build
+	// shareable links like {PublicAppBaseURL}/invite/{token} and
+	// {PublicAppBaseURL}/track/{token}.
+	PublicAppBaseURL string
 }
 
 func New() (*Config, error) {
@@ -251,6 +256,9 @@ func New() (*Config, error) {
 
 	c.Nats.DynamicSubjects.WebsocketConnection = "websocket.connection.%s"
 	c.Nats.DynamicSubjects.LoadLocationPointCreated = "load.location.point.%s"
+
+	// Public URLs
+	c.PublicAppBaseURL = getEnv("PUBLIC_APP_BASE_URL", "https://app.yool.live")
 
 	return c, nil
 }

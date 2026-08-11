@@ -16,6 +16,7 @@ import (
 func RegisterRoutes(r chi.Router, opts *delivery.HandlerOptions) {
 	loadsH := NewLoadsHandler(opts)
 	companyH := NewCompanyHandler(opts)
+	invitesH := NewInvitesHandler(opts)
 
 	// Carrier-specific routes (RoleCarrier only)
 	r.Group(func(r chi.Router) {
@@ -35,5 +36,8 @@ func RegisterRoutes(r chi.Router, opts *delivery.HandlerOptions) {
 		r.Post("/loads/{id}/dropoff/begin", loadsH.BeginDropoff())
 		r.Post("/loads/{id}/dropoff/confirm", loadsH.ConfirmDropoff())
 		r.Post("/loads/{id}/location", loadsH.RegisterLocation())
+
+		// Invite actions
+		r.Post("/invites/{token}/accept", invitesH.Accept())
 	})
 }

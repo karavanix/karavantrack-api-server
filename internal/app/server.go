@@ -15,6 +15,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/events"
 	"github.com/karavanix/karavantrack-api-server/internal/infrastructure/persistence/cache"
 	"github.com/karavanix/karavantrack-api-server/internal/infrastructure/persistence/repository"
+	"github.com/karavanix/karavantrack-api-server/internal/infrastructure/telegram"
 	"github.com/karavanix/karavantrack-api-server/internal/service/broker"
 	"github.com/karavanix/karavantrack-api-server/internal/service/email"
 	"github.com/karavanix/karavantrack-api-server/internal/service/notification"
@@ -24,8 +25,10 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/service/watcher"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/auth"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/companies"
+	"github.com/karavanix/karavantrack-api-server/internal/usecase/invites"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/loads"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/location"
+	"github.com/karavanix/karavantrack-api-server/internal/usecase/tracking"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/users"
 	"github.com/karavanix/karavantrack-api-server/pkg/app"
 	"github.com/karavanix/karavantrack-api-server/pkg/apple"
@@ -38,7 +41,6 @@ import (
 	"github.com/karavanix/karavantrack-api-server/pkg/redis"
 	"github.com/karavanix/karavantrack-api-server/pkg/security"
 	"github.com/karavanix/karavantrack-api-server/pkg/smtp"
-	"github.com/karavanix/karavantrack-api-server/internal/infrastructure/telegram"
 	"github.com/uptrace/bun"
 )
 
@@ -149,6 +151,8 @@ func (s *ServerApp) Run() error {
 	fcmDevicesRepo := repository.NewFCMDevicesRepo(s.db)
 	oauthAccountsRepo := repository.NewOAuthAccountsRepo(s.db)
 	emailsRepo := repository.NewEmailsRepo(s.db)
+	loadInvitesRepo := repository.NewLoadInvitesRepo(s.db)
+	loadTrackingLinksRepo := repository.NewLoadTrackingLinksRepo(s.db)
 
 	// apple
 	appleSignInClient, err := apple.NewClient(context.Background(), s.config.Apple.BundleID)
@@ -214,6 +218,8 @@ func (s *ServerApp) Run() error {
 	companiesUsecase := companies.NewUsecase(s.config.Context.Timeout, txManager, companiesRepo, companyMembersRepo, companyCarriersRepo, usersRepo, loadsRepo, rbacService)
 	loadsUsecase := loads.NewUsecase(s.config.Context.Timeout, loadsRepo, usersRepo, loadLocationsPointsRepo, rbacService, s.taskQueue)
 	locationUsecase := location.NewUsecase(s.config.Context.Timeout, s.bkr, eventFactory, loadLocationsPointsRepo)
+	invitesUsecase := invites.NewUsecase(s.config.Context.Timeout, loadsRepo, usersRepo, companiesRepo, loadInvitesRepo, rbacService, s.taskQueue, s.config.PublicAppBaseURL)
+	trackingUsecase := tracking.NewUsecase(s.config.Context.Timeout, loadsRepo, loadTrackingLinksRepo, loadLocationsPointsRepo, rbacService, s.config.PublicAppBaseURL)
 
 	// init handlers options
 	opts := &delivery.HandlerOptions{
@@ -230,6 +236,8 @@ func (s *ServerApp) Run() error {
 		CompaniesUsecase:    companiesUsecase,
 		LoadsUsecase:        loadsUsecase,
 		LocationUsecase:     locationUsecase,
+		InvitesUsecase:      invitesUsecase,
+		TrackingUsecase:     trackingUsecase,
 		RbacService:         rbacService,
 	}
 
