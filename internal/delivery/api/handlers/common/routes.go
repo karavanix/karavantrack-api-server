@@ -13,6 +13,8 @@ func RegisterRoutes(r chi.Router, opts *delivery.HandlerOptions) {
 	loadsH := NewLoadsHandler(opts)
 	attachmentsH := NewAttachmentsHandler(opts)
 	wsH := NewWSHandler(opts)
+	publicInvitesH := NewPublicInvitesHandler(opts)
+	publicTrackingH := NewPublicTrackingHandler(opts)
 
 	// Auth routes (public)
 	r.Post("/auth/login", authH.Login())
@@ -25,6 +27,13 @@ func RegisterRoutes(r chi.Router, opts *delivery.HandlerOptions) {
 	r.Get("/auth/telegram/callback", authH.TelegramOAuthRedirect())
 	r.Post("/auth/telegram/callback", authH.TelegramOAuth())
 	r.Post("/auth/pkce", authH.GeneratePKCE())
+
+	// Public invite preview (no auth) — driver-invite landing page
+	r.Get("/invites/{token}", publicInvitesH.GetInvite())
+
+	// Public cargo tracking (no auth) — shareable broker-to-client link
+	r.Get("/public/tracking/{token}", publicTrackingH.GetTracking())
+	r.Get("/public/tracking/{token}/track", publicTrackingH.GetTrack())
 
 	// Common protected routes (any authenticated user)
 	r.Group(func(r chi.Router) {

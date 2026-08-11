@@ -17,6 +17,8 @@ func RegisterRoutes(r chi.Router, opts *delivery.HandlerOptions) {
 	companiesH := NewCompaniesHandler(opts)
 	loadsH := NewLoadsHandler(opts)
 	usersH := NewUsersHandler(opts)
+	invitesH := NewInvitesHandler(opts)
+	trackingH := NewTrackingHandler(opts)
 
 	// Shipper-specific routes (RoleShipper only)
 	r.Group(func(r chi.Router) {
@@ -46,6 +48,8 @@ func RegisterRoutes(r chi.Router, opts *delivery.HandlerOptions) {
 		r.Post("/loads/{id}/cancel", loadsH.Cancel())
 		r.Get("/loads/{id}/track", loadsH.GetTrack())
 		r.Get("/loads/{id}/position", loadsH.GetPosition())
+		r.Post("/loads/{id}/invite-link", invitesH.CreateInviteLink())
+		r.Post("/loads/{id}/tracking-link", trackingH.CreateTrackingLink())
 
 		// User
 		r.Post("/users/invite", usersH.Invite())
