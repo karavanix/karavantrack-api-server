@@ -2,6 +2,7 @@ package command
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -59,7 +60,7 @@ func (r *RefreshTokenUsecase) RefreshToken(ctx context.Context, req *RefreshToke
 		return nil, err
 	}
 	if revoked {
-		return nil, inerr.NewErrInvalidToken(nil)
+		return nil, inerr.NewErrInvalidToken(errors.New("refresh token revoked"))
 	}
 
 	user, err := r.usersRepo.FindByID(ctx, userID)
