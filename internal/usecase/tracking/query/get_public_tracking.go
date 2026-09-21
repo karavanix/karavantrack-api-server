@@ -108,7 +108,9 @@ func (u *GetPublicTrackingUsecase) GetPublicTracking(ctx context.Context, token 
 		},
 	}
 
-	position, err := u.getPositionUsecase.GetPosition(ctx, load.ID.String())
+	// The tracking token already proves authorization for this specific load,
+	// so the requester-based access check in GetPosition is skipped ("").
+	position, err := u.getPositionUsecase.GetPosition(ctx, load.ID.String(), "")
 	if err != nil {
 		if errors.Is(err, inerr.ErrNotFound{}) {
 			return resp, nil

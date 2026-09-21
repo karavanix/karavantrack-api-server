@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
 	"github.com/karavanix/karavantrack-api-server/internal/inerr"
+	"github.com/karavanix/karavantrack-api-server/internal/service/rbac"
 	"github.com/karavanix/karavantrack-api-server/pkg/otlp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -14,11 +15,13 @@ import (
 
 type GetPositionUsecase struct {
 	contextDuration       time.Duration
+	loadsRepo             domain.LoadRepository
 	loadLocationPointRepo domain.LoadLocationPointRepository
+	rbacService           rbac.Service
 }
 
-func NewGetPositionUsecase(contextDuration time.Duration, loadLocationPointRepo domain.LoadLocationPointRepository) *GetPositionUsecase {
-	return &GetPositionUsecase{contextDuration: contextDuration, loadLocationPointRepo: loadLocationPointRepo}
+func NewGetPositionUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository, loadLocationPointRepo domain.LoadLocationPointRepository, rbacService rbac.Service) *GetPositionUsecase {
+	return &GetPositionUsecase{contextDuration: contextDuration, loadsRepo: loadsRepo, loadLocationPointRepo: loadLocationPointRepo, rbacService: rbacService}
 }
 
 type PositionResponse struct {
@@ -32,12 +35,16 @@ type PositionResponse struct {
 	RecordedAt time.Time `json:"recorded_at"`
 }
 
-func (u *GetPositionUsecase) GetPosition(ctx context.Context, loadID string) (_ *PositionResponse, err error) {
+// GetPosition returns the latest GPS position for a load. requesterID must be a company
+// member with read access or the assigned carrier; pass "" only when the caller has
+// already authorized access some other way (e.g. a public tracking-link token).
+func (u *GetPositionUsecase) GetPosition(ctx context.Context, loadID string, requesterID string) (_ *PositionResponse, err error) {
 	ctx, cancel := context.WithTimeout(ctx, u.contextDuration)
 	defer cancel()
 
 	ctx, end := otlp.Start(ctx, otel.Tracer("loads"), "GetPosition",
 		attribute.String("load_id", loadID),
+		attribute.String("requester_id", requesterID),
 	)
 	defer func() { end(err) }()
 
@@ -48,6 +55,21 @@ func (u *GetPositionUsecase) GetPosition(ctx context.Context, loadID string) (_ 
 		input.loadID, err = uuid.Parse(loadID)
 		if err != nil {
 			return nil, inerr.NewErrValidation("load_id", "invalid load ID")
+		}
+	}
+
+	load, err := u.loadsRepo.FindByID(ctx, input.loadID)
+	if err != nil {
+		return nil, err
+	}
+
+	if requesterID != "" {
+		allow, err := u.rbacService.CanAccessLoad(ctx, requesterID, load, domain.CompanyPermissionLoadRead)
+		if err != nil {
+			return nil, err
+		}
+		if !allow {
+			return nil, inerr.ErrorPermissionDenied
 		}
 	}
 

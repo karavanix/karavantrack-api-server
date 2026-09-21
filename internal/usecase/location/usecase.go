@@ -25,11 +25,12 @@ func NewUsecase(
 	contextDuration time.Duration,
 	bkr broker.Broker,
 	eventFactory *events.Factory,
+	loadsRepo domain.LoadRepository,
 	loadLocationPointRepo domain.LoadLocationPointRepository,
 ) *Usecase {
 	return &Usecase{
 		Command: Command{
-			RegisterLoadLocationUsecase: command.NewRegisterLoadLocationUsecase(contextDuration, bkr, eventFactory, loadLocationPointRepo),
+			RegisterLoadLocationUsecase: command.NewRegisterLoadLocationUsecase(contextDuration, bkr, eventFactory, loadsRepo, loadLocationPointRepo),
 		},
 		Query: Query{},
 	}

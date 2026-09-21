@@ -59,12 +59,12 @@ func NewUsecase(
 			CancelUsecase:         command.NewCancelUsecase(contextDuration, loadsRepo, rbacService, taskQueue),
 		},
 		Query: Query{
-			GetUsecase:         query.NewGetUsecase(contextDuration, loadsRepo),
+			GetUsecase:         query.NewGetUsecase(contextDuration, loadsRepo, rbacService),
 			GetActiveUsecase:   query.NewGetActiveUsecase(contextDuration, loadsRepo),
-			ListUsecase:        query.NewListUsecase(contextDuration, loadsRepo),
-			GetTrackUsecase:    query.NewGetTrackUsecase(contextDuration, loadsRepo, loadLocationPointRepo),
-			GetPositionUsecase: query.NewGetPositionUsecase(contextDuration, loadLocationPointRepo),
-			GetStatsUsecase:    query.NewGetStatsUsecase(contextDuration, loadsRepo),
+			ListUsecase:        query.NewListUsecase(contextDuration, loadsRepo, rbacService),
+			GetTrackUsecase:    query.NewGetTrackUsecase(contextDuration, loadsRepo, loadLocationPointRepo, rbacService),
+			GetPositionUsecase: query.NewGetPositionUsecase(contextDuration, loadsRepo, loadLocationPointRepo, rbacService),
+			GetStatsUsecase:    query.NewGetStatsUsecase(contextDuration, loadsRepo, rbacService),
 		},
 	}
 }

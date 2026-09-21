@@ -197,11 +197,17 @@ func (h *loadsHandler) Cancel() http.HandlerFunc {
 // @Router       /loads/{id}/track [get]
 func (h *loadsHandler) GetTrack() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := app.UserID[string](r.Context())
+		if !ok {
+			outerr.Forbidden(w, r, "missing user context")
+			return
+		}
+
 		loadID := chi.URLParam(r, "id")
 		limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 		offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
 
-		resp, err := h.loadsUsecase.Query.GetTrack(r.Context(), loadID, limit, offset)
+		resp, err := h.loadsUsecase.Query.GetTrack(r.Context(), loadID, userID, limit, offset)
 		if err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
@@ -225,9 +231,15 @@ func (h *loadsHandler) GetTrack() http.HandlerFunc {
 // @Router       /loads/{id}/position [get]
 func (h *loadsHandler) GetPosition() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := app.UserID[string](r.Context())
+		if !ok {
+			outerr.Forbidden(w, r, "missing user context")
+			return
+		}
+
 		loadID := chi.URLParam(r, "id")
 
-		resp, err := h.loadsUsecase.Query.GetPosition(r.Context(), loadID)
+		resp, err := h.loadsUsecase.Query.GetPosition(r.Context(), loadID, userID)
 		if err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return

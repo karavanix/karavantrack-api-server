@@ -6,6 +6,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
 	"github.com/karavanix/karavantrack-api-server/internal/service/email"
 	"github.com/karavanix/karavantrack-api-server/internal/service/otp"
+	"github.com/karavanix/karavantrack-api-server/internal/service/revocation"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/auth/command"
 	"github.com/karavanix/karavantrack-api-server/pkg/apple"
 	"github.com/karavanix/karavantrack-api-server/pkg/database/postgres"
@@ -16,6 +17,7 @@ type Command struct {
 	*command.RegisterUsecase
 	*command.LoginUsecase
 	*command.RefreshTokenUsecase
+	*command.LogoutUsecase
 	*command.AppleSignInUsecase
 	*command.TelegramSignInUsecase
 	*command.TelegramOAuthUsecase
@@ -45,13 +47,15 @@ func NewUsecase(
 	appleClient *apple.Client,
 	telegramClient domain.TelegramProvider,
 	pkceRepo domain.PKCERepository,
+	revocationService revocation.Service,
 	cfg Config,
 ) *Usecase {
 	return &Usecase{
 		Command: Command{
 			RegisterUsecase:       command.NewRegisterUsecase(contextDuration, usersRepo, cfg.OTPService, cfg.EmailService),
 			LoginUsecase:          command.NewLoginUsecase(contextDuration, jwtProvider, usersRepo),
-			RefreshTokenUsecase:   command.NewRefreshTokenUsecase(contextDuration, jwtProvider, usersRepo),
+			RefreshTokenUsecase:   command.NewRefreshTokenUsecase(contextDuration, jwtProvider, usersRepo, revocationService),
+			LogoutUsecase:         command.NewLogoutUsecase(contextDuration, revocationService),
 			AppleSignInUsecase:    command.NewAppleSignInUsecase(contextDuration, jwtProvider, appleClient, txManager, usersRepo, oauthAccountsRepo),
 			TelegramSignInUsecase: command.NewTelegramSignInUsecase(contextDuration, jwtProvider, telegramClient, txManager, usersRepo, oauthAccountsRepo),
 			TelegramOAuthUsecase:  command.NewTelegramOAuthUsecase(contextDuration, jwtProvider, telegramClient, txManager, usersRepo, oauthAccountsRepo, pkceRepo),

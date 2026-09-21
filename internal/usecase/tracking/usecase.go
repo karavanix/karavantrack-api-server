@@ -36,8 +36,8 @@ func NewUsecase(
 	// "current position" and "location history" logic instead of
 	// duplicating the repo calls — the public handlers just skip the JWT
 	// check and resolve token -> load_id first.
-	getPositionUsecase := loadsquery.NewGetPositionUsecase(contextDuration, loadLocationPointRepo)
-	getTrackUsecase := loadsquery.NewGetTrackUsecase(contextDuration, loadsRepo, loadLocationPointRepo)
+	getPositionUsecase := loadsquery.NewGetPositionUsecase(contextDuration, loadsRepo, loadLocationPointRepo, rbacService)
+	getTrackUsecase := loadsquery.NewGetTrackUsecase(contextDuration, loadsRepo, loadLocationPointRepo, rbacService)
 
 	return &Usecase{
 		Command: Command{

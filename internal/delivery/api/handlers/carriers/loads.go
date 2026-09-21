@@ -68,7 +68,7 @@ func (h *loadsHandler) ListPending() http.HandlerFunc {
 		urlForm.Status = []string{domain.LoadStatusAssigned.String()}
 
 		var resp *query.ListResponse
-		resp, err := h.loadsUsecase.Query.List(r.Context(), &urlForm)
+		resp, err := h.loadsUsecase.Query.List(r.Context(), &urlForm, userID)
 		if err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
@@ -156,12 +156,18 @@ func (h *loadsHandler) Accept() http.HandlerFunc {
 // @Router       /loads/{id}/start [post]
 func (h *loadsHandler) Start() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := app.UserID[string](r.Context())
+		if !ok {
+			outerr.Forbidden(w, r, "missing user context")
+			return
+		}
+
 		loadID := chi.URLParam(r, "id")
 
 		var req command.StartRequest
 		_ = json.NewDecoder(r.Body).Decode(&req) // optional body
 
-		if err := h.loadsUsecase.Command.Start(r.Context(), loadID, &req); err != nil {
+		if err := h.loadsUsecase.Command.Start(r.Context(), loadID, userID, &req); err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
 		}
@@ -182,12 +188,18 @@ func (h *loadsHandler) Start() http.HandlerFunc {
 // @Router       /loads/{id}/pickup/begin [post]
 func (h *loadsHandler) BeginPickup() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := app.UserID[string](r.Context())
+		if !ok {
+			outerr.Forbidden(w, r, "missing user context")
+			return
+		}
+
 		loadID := chi.URLParam(r, "id")
 
 		var req command.BeginPickupRequest
 		_ = json.NewDecoder(r.Body).Decode(&req) // optional body
 
-		if err := h.loadsUsecase.Command.BeginPickup(r.Context(), loadID, &req); err != nil {
+		if err := h.loadsUsecase.Command.BeginPickup(r.Context(), loadID, userID, &req); err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
 		}
@@ -208,12 +220,18 @@ func (h *loadsHandler) BeginPickup() http.HandlerFunc {
 // @Router       /loads/{id}/pickup/confirm [post]
 func (h *loadsHandler) ConfirmPickup() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := app.UserID[string](r.Context())
+		if !ok {
+			outerr.Forbidden(w, r, "missing user context")
+			return
+		}
+
 		loadID := chi.URLParam(r, "id")
 
 		var req command.ConfirmPickupRequest
 		_ = json.NewDecoder(r.Body).Decode(&req) // optional body
 
-		if err := h.loadsUsecase.Command.ConfirmPickup(r.Context(), loadID, &req); err != nil {
+		if err := h.loadsUsecase.Command.ConfirmPickup(r.Context(), loadID, userID, &req); err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
 		}
@@ -234,12 +252,18 @@ func (h *loadsHandler) ConfirmPickup() http.HandlerFunc {
 // @Router       /loads/{id}/dropoff/begin [post]
 func (h *loadsHandler) BeginDropoff() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := app.UserID[string](r.Context())
+		if !ok {
+			outerr.Forbidden(w, r, "missing user context")
+			return
+		}
+
 		loadID := chi.URLParam(r, "id")
 
 		var req command.BeginDropoffRequest
 		_ = json.NewDecoder(r.Body).Decode(&req) // optional body
 
-		if err := h.loadsUsecase.Command.BeginDropoff(r.Context(), loadID, &req); err != nil {
+		if err := h.loadsUsecase.Command.BeginDropoff(r.Context(), loadID, userID, &req); err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
 		}
@@ -260,12 +284,18 @@ func (h *loadsHandler) BeginDropoff() http.HandlerFunc {
 // @Router       /loads/{id}/dropoff/confirm [post]
 func (h *loadsHandler) ConfirmDropoff() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := app.UserID[string](r.Context())
+		if !ok {
+			outerr.Forbidden(w, r, "missing user context")
+			return
+		}
+
 		loadID := chi.URLParam(r, "id")
 
 		var req command.ConfirmDropoffRequest
 		_ = json.NewDecoder(r.Body).Decode(&req) // optional body
 
-		if err := h.loadsUsecase.Command.ConfirmDropoff(r.Context(), loadID, &req); err != nil {
+		if err := h.loadsUsecase.Command.ConfirmDropoff(r.Context(), loadID, userID, &req); err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return
 		}
@@ -309,7 +339,7 @@ func (h *loadsHandler) ListHistory() http.HandlerFunc {
 			domain.LoadStatusCancelled.String(),
 		}
 
-		resp, err := h.loadsUsecase.Query.List(r.Context(), &urlForm)
+		resp, err := h.loadsUsecase.Query.List(r.Context(), &urlForm, userID)
 		if err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return

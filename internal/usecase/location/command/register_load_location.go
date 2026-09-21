@@ -19,6 +19,7 @@ type RegisterLoadLocationUsecase struct {
 	contextTimeout        time.Duration
 	bkr                   broker.Broker
 	eventsFactory         *events.Factory
+	loadsRepo             domain.LoadRepository
 	loadLocationPointRepo domain.LoadLocationPointRepository
 }
 
@@ -26,12 +27,14 @@ func NewRegisterLoadLocationUsecase(
 	contextTimeout time.Duration,
 	bkr broker.Broker,
 	eventsFactory *events.Factory,
+	loadsRepo domain.LoadRepository,
 	loadLocationPointRepo domain.LoadLocationPointRepository,
 ) *RegisterLoadLocationUsecase {
 	return &RegisterLoadLocationUsecase{
 		contextTimeout:        contextTimeout,
 		bkr:                   bkr,
 		eventsFactory:         eventsFactory,
+		loadsRepo:             loadsRepo,
 		loadLocationPointRepo: loadLocationPointRepo,
 	}
 }
@@ -70,6 +73,15 @@ func (u *RegisterLoadLocationUsecase) RegisterLoadLocation(ctx context.Context, 
 		if err != nil {
 			return inerr.NewErrValidation("carrier_id", "invalid carrier ID")
 		}
+	}
+
+	load, err := u.loadsRepo.FindByID(ctx, input.loadID)
+	if err != nil {
+		return err
+	}
+
+	if load.CarrierID != input.carrierID {
+		return inerr.ErrorPermissionDenied
 	}
 
 	point, err := domain.NewLoadLocationPoint(

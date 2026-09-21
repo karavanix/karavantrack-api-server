@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
 	"github.com/karavanix/karavantrack-api-server/internal/inerr"
+	"github.com/karavanix/karavantrack-api-server/internal/service/rbac"
 	"github.com/karavanix/karavantrack-api-server/pkg/otlp"
 	"go.opentelemetry.io/otel"
 )
@@ -14,10 +15,11 @@ import (
 type ListUsecase struct {
 	contextDuration time.Duration
 	loadsRepo       domain.LoadRepository
+	rbacService     rbac.Service
 }
 
-func NewListUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository) *ListUsecase {
-	return &ListUsecase{contextDuration: contextDuration, loadsRepo: loadsRepo}
+func NewListUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository, rbacService rbac.Service) *ListUsecase {
+	return &ListUsecase{contextDuration: contextDuration, loadsRepo: loadsRepo, rbacService: rbacService}
 }
 
 type ListRequest struct {
@@ -144,7 +146,7 @@ func loadToDetailResponse(l *domain.Load) *LoadDetailResponse {
 	}
 }
 
-func (u *ListUsecase) List(ctx context.Context, req *ListRequest) (_ *ListResponse, err error) {
+func (u *ListUsecase) List(ctx context.Context, req *ListRequest, requesterID string) (_ *ListResponse, err error) {
 	ctx, cancel := context.WithTimeout(ctx, u.contextDuration)
 	defer cancel()
 
@@ -156,20 +158,31 @@ func (u *ListUsecase) List(ctx context.Context, req *ListRequest) (_ *ListRespon
 		Offset: req.Offset,
 	}
 
-	if req.CompanyID != "" {
+	switch {
+	case req.CompanyID != "":
 		id, err := uuid.Parse(req.CompanyID)
 		if err != nil {
 			return nil, inerr.NewErrValidation("company_id", "invalid company ID")
 		}
+		allow, err := u.rbacService.HasPermission(ctx, req.CompanyID, requesterID, domain.CompanyPermissionLoadRead)
+		if err != nil {
+			return nil, err
+		}
+		if !allow {
+			return nil, inerr.ErrorPermissionDenied
+		}
 		filter.CompanyID = &id
-	}
-
-	if req.CarrierID != "" {
+	case req.CarrierID != "":
+		if req.CarrierID != requesterID {
+			return nil, inerr.ErrorPermissionDenied
+		}
 		id, err := uuid.Parse(req.CarrierID)
 		if err != nil {
 			return nil, inerr.NewErrValidation("carrier_id", "invalid carrier ID")
 		}
 		filter.CarrierID = &id
+	default:
+		return nil, inerr.ErrorPermissionDenied
 	}
 
 	if len(req.Status) > 0 {

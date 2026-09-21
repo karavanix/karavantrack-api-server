@@ -51,7 +51,7 @@ func NewRouter(options *delivery.HandlerOptions) http.Handler {
 	router.Use(chimiddleware.RequestID)
 	router.Use(apimiddleware.StructuredLogger)
 	router.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"*"},
+		AllowedOrigins:   options.Config.CORS.AllowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Accept-Language", "Content-Type", "X-CSRF-Token", "X-Request-Id", "X-Client-Id"},
 		ExposedHeaders:   []string{"Link"},

@@ -60,3 +60,22 @@ func (s *service) HasPermission(ctx context.Context, companyID, userID string, p
 
 	return true, nil
 }
+
+func (s *service) CanAccessLoad(ctx context.Context, requesterID string, load *domain.Load, permission domain.CompanyPermission) (_ bool, err error) {
+	ctx, cancel := context.WithTimeout(ctx, s.contextTimeout)
+	defer cancel()
+
+	ctx, end := otlp.Start(ctx, otel.Tracer("service.rbac"), "CanAccessLoad")
+	defer func() { end(err) }()
+
+	requester, err := uuid.Parse(requesterID)
+	if err != nil {
+		return false, inerr.NewErrValidation("requester_id", err.Error())
+	}
+
+	if load.CarrierID != uuid.Nil && load.CarrierID == requester {
+		return true, nil
+	}
+
+	return s.HasPermission(ctx, load.CompanyID.String(), requesterID, permission)
+}

@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
 	"github.com/karavanix/karavantrack-api-server/internal/inerr"
+	"github.com/karavanix/karavantrack-api-server/internal/service/rbac"
 	"github.com/karavanix/karavantrack-api-server/pkg/otlp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -16,13 +17,15 @@ type ListMembersUsecase struct {
 	contextDuration time.Duration
 	membersRepo     domain.CompanyMemberRepository
 	usersRepo       domain.UserRepository
+	rbacService     rbac.Service
 }
 
-func NewListMembersUsecase(contextDuration time.Duration, membersRepo domain.CompanyMemberRepository, usersRepo domain.UserRepository) *ListMembersUsecase {
+func NewListMembersUsecase(contextDuration time.Duration, membersRepo domain.CompanyMemberRepository, usersRepo domain.UserRepository, rbacService rbac.Service) *ListMembersUsecase {
 	return &ListMembersUsecase{
 		contextDuration: contextDuration,
 		membersRepo:     membersRepo,
 		usersRepo:       usersRepo,
+		rbacService:     rbacService,
 	}
 }
 
@@ -66,6 +69,14 @@ func (u *ListMembersUsecase) ListMembers(ctx context.Context, requesterID, compa
 		if err != nil {
 			return nil, inerr.NewErrValidation("requester_id", "invalid requester ID")
 		}
+	}
+
+	allow, err := u.rbacService.HasPermission(ctx, companyID, requesterID, domain.CompanyPermissionMemberRead)
+	if err != nil {
+		return nil, err
+	}
+	if !allow {
+		return nil, inerr.ErrorPermissionDenied
 	}
 
 	members, err := u.membersRepo.FindByCompanyIDWithFilter(ctx, input.companyID, &domain.CompanyMemberFilter{

@@ -81,6 +81,10 @@ func (u *AcceptUsecase) Accept(ctx context.Context, loadID string, userID string
 		return err
 	}
 
+	if load.CarrierID != input.carrierID {
+		return inerr.ErrorPermissionDenied
+	}
+
 	if err := load.Accept(req.Note, input.attachmentIDs...); err != nil {
 		return inerr.NewErrValidation("status", err.Error())
 	}

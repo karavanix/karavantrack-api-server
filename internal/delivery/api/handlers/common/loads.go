@@ -11,6 +11,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/loads"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/loads/query"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/location"
+	"github.com/karavanix/karavantrack-api-server/pkg/app"
 	"github.com/karavanix/karavantrack-api-server/pkg/config"
 )
 
@@ -43,10 +44,16 @@ func NewLoadsHandler(opts *delivery.HandlerOptions) *loadsHandler {
 // @Router       /loads/{id} [get]
 func (h *loadsHandler) Get() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := app.UserID[string](r.Context())
+		if !ok {
+			outerr.Forbidden(w, r, "missing user context")
+			return
+		}
+
 		loadID := chi.URLParam(r, "id")
 
 		var resp *query.LoadDetailResponse
-		resp, err := h.loadsUsecase.Query.Get(r.Context(), loadID)
+		resp, err := h.loadsUsecase.Query.Get(r.Context(), loadID, userID)
 		if err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return

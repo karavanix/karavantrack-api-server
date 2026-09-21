@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
 	"github.com/karavanix/karavantrack-api-server/internal/inerr"
+	"github.com/karavanix/karavantrack-api-server/internal/service/rbac"
 	"github.com/karavanix/karavantrack-api-server/pkg/otlp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -16,13 +17,15 @@ type GetTrackUsecase struct {
 	contextDuration       time.Duration
 	loadsRepo             domain.LoadRepository
 	loadLocationPointRepo domain.LoadLocationPointRepository
+	rbacService           rbac.Service
 }
 
-func NewGetTrackUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository, loadLocationPointRepo domain.LoadLocationPointRepository) *GetTrackUsecase {
+func NewGetTrackUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository, loadLocationPointRepo domain.LoadLocationPointRepository, rbacService rbac.Service) *GetTrackUsecase {
 	return &GetTrackUsecase{
 		contextDuration:       contextDuration,
 		loadsRepo:             loadsRepo,
 		loadLocationPointRepo: loadLocationPointRepo,
+		rbacService:           rbacService,
 	}
 }
 
@@ -49,12 +52,16 @@ type GetTrackResponse struct {
 	Total  int                   `json:"total"`
 }
 
-func (u *GetTrackUsecase) GetTrack(ctx context.Context, loadID string, limit, offset int) (_ *GetTrackResponse, err error) {
+// GetTrack returns the location history for a load. requesterID must be a company
+// member with read access or the assigned carrier; pass "" only when the caller has
+// already authorized access some other way (e.g. a public tracking-link token).
+func (u *GetTrackUsecase) GetTrack(ctx context.Context, loadID string, requesterID string, limit, offset int) (_ *GetTrackResponse, err error) {
 	ctx, cancel := context.WithTimeout(ctx, u.contextDuration)
 	defer cancel()
 
 	ctx, end := otlp.Start(ctx, otel.Tracer("loads"), "GetTrack",
 		attribute.String("load_id", loadID),
+		attribute.String("requester_id", requesterID),
 	)
 	defer func() { end(err) }()
 
@@ -68,6 +75,21 @@ func (u *GetTrackUsecase) GetTrack(ctx context.Context, loadID string, limit, of
 		}
 	}
 
+	load, err := u.loadsRepo.FindByID(ctx, input.loadID)
+	if err != nil {
+		return nil, err
+	}
+
+	if requesterID != "" {
+		allow, err := u.rbacService.CanAccessLoad(ctx, requesterID, load, domain.CompanyPermissionLoadRead)
+		if err != nil {
+			return nil, err
+		}
+		if !allow {
+			return nil, inerr.ErrorPermissionDenied
+		}
+	}
+
 	if limit <= 0 || limit > 1000 {
 		limit = 100
 	}
@@ -77,23 +99,10 @@ func (u *GetTrackUsecase) GetTrack(ctx context.Context, loadID string, limit, of
 		return nil, err
 	}
 
-	// Collect history IDs from points that are linked to a status change.
-	var historyIDs []int64
-	for _, p := range points {
-		if p.StatusHistoryID != nil {
-			historyIDs = append(historyIDs, *p.StatusHistoryID)
-		}
-	}
-
-	// Bulk-fetch the linked history rows and build a lookup map.
+	// Bulk lookup map for history rows linked to points, built from the load already fetched above.
 	historyMap := make(map[int64]*domain.LoadStatusHistory)
-	if len(historyIDs) > 0 {
-		load, err := u.loadsRepo.FindByID(ctx, input.loadID)
-		if err == nil {
-			for _, h := range load.History {
-				historyMap[h.ID] = h
-			}
-		}
+	for _, h := range load.History {
+		historyMap[h.ID] = h
 	}
 
 	result := &GetTrackResponse{

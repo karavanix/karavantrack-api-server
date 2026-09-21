@@ -22,6 +22,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/service/otp"
 	"github.com/karavanix/karavantrack-api-server/internal/service/presence"
 	"github.com/karavanix/karavantrack-api-server/internal/service/rbac"
+	"github.com/karavanix/karavantrack-api-server/internal/service/revocation"
 	"github.com/karavanix/karavantrack-api-server/internal/service/watcher"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/attachments"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/auth"
@@ -205,6 +206,7 @@ func (s *ServerApp) Run() error {
 	notificationService := notification.NewService(fcmClient, fcmDevicesRepo)
 	rbacService := rbac.NewService(s.config.Context.Timeout, companyMembersRepo)
 	watcherService := watcher.NewService(s.redis)
+	revocationService := revocation.NewService(s.redis, s.config.JWT.RefreshTTL)
 	otpService := otp.NewService(otpStore, otp.Config{
 		Secret:      []byte(s.config.OTP.Secret),
 		TTL:         s.config.OTP.TTL,
@@ -223,15 +225,16 @@ func (s *ServerApp) Run() error {
 		appleSignInClient,
 		telegramClient,
 		pkceStore,
+		revocationService,
 		auth.Config{
 			OTPService:   otpService,
 			EmailService: emailService,
 		},
 	)
-	usersUsecase := users.NewUsecase(s.config.Context.Timeout, usersRepo, loadsRepo, fcmDevicesRepo)
+	usersUsecase := users.NewUsecase(s.config.Context.Timeout, usersRepo, loadsRepo, fcmDevicesRepo, revocationService)
 	companiesUsecase := companies.NewUsecase(s.config.Context.Timeout, txManager, companiesRepo, companyMembersRepo, companyCarriersRepo, usersRepo, loadsRepo, rbacService)
 	loadsUsecase := loads.NewUsecase(s.config.Context.Timeout, loadsRepo, usersRepo, loadLocationsPointsRepo, rbacService, s.taskQueue)
-	locationUsecase := location.NewUsecase(s.config.Context.Timeout, s.bkr, eventFactory, loadLocationsPointsRepo)
+	locationUsecase := location.NewUsecase(s.config.Context.Timeout, s.bkr, eventFactory, loadsRepo, loadLocationsPointsRepo)
 	invitesUsecase := invites.NewUsecase(s.config.Context.Timeout, loadsRepo, usersRepo, companiesRepo, loadInvitesRepo, rbacService, s.taskQueue, s.config.PublicAppBaseURL)
 	attachmentsUsecase := attachments.NewUsecase(s.config.Context.Timeout, s.config, txManager, attachmentsRepo, s3Client)
 	trackingUsecase := tracking.NewUsecase(s.config.Context.Timeout, loadsRepo, loadTrackingLinksRepo, loadLocationsPointsRepo, rbacService, s.config.PublicAppBaseURL)
@@ -242,6 +245,7 @@ func (s *ServerApp) Run() error {
 		Validator:           validation.NewValidator(),
 		JWTProvider:         jwtProvider,
 		Broker:              s.bkr,
+		Redis:               s.redis,
 		EventFactory:        eventFactory,
 		PresenceService:     presenceService,
 		NotificationService: notificationService,

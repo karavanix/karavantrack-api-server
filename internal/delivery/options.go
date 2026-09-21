@@ -17,6 +17,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/tracking"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/users"
 	"github.com/karavanix/karavantrack-api-server/pkg/config"
+	"github.com/karavanix/karavantrack-api-server/pkg/redis"
 	"github.com/karavanix/karavantrack-api-server/pkg/security"
 )
 
@@ -25,6 +26,7 @@ type HandlerOptions struct {
 	Validator   *validation.Validator
 	JWTProvider *security.JWTProvider
 	Broker      broker.Broker
+	Redis       *redis.RedisClient
 
 	// Services
 	PresenceService     presence.Service

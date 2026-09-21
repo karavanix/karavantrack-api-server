@@ -32,23 +32,30 @@ type StartRequest struct {
 	Location      *LocationInput `json:"location,omitempty"`
 }
 
-func (u *StartUsecase) Start(ctx context.Context, loadID string, req *StartRequest) (err error) {
+func (u *StartUsecase) Start(ctx context.Context, loadID string, userID string, req *StartRequest) (err error) {
 	ctx, cancel := context.WithTimeout(ctx, u.contextDuration)
 	defer cancel()
 
 	ctx, end := otlp.Start(ctx, otel.Tracer("loads"), "StartTrip",
 		attribute.String("load_id", loadID),
+		attribute.String("user_id", userID),
 	)
 	defer func() { end(err) }()
 
 	var input struct {
 		loadID        uuid.UUID
+		carrierID     uuid.UUID
 		attachmentIDs []uuid.UUID
 	}
 	{
 		input.loadID, err = uuid.Parse(loadID)
 		if err != nil {
 			return inerr.NewErrValidation("load_id", "invalid load ID")
+		}
+
+		input.carrierID, err = uuid.Parse(userID)
+		if err != nil {
+			return inerr.NewErrValidation("user_id", "invalid user ID")
 		}
 
 		for _, idStr := range req.AttachmentIDs {
@@ -63,6 +70,10 @@ func (u *StartUsecase) Start(ctx context.Context, loadID string, req *StartReque
 	load, err := u.loadsRepo.FindByID(ctx, input.loadID)
 	if err != nil {
 		return err
+	}
+
+	if load.CarrierID != input.carrierID {
+		return inerr.ErrorPermissionDenied
 	}
 
 	history, err := load.StartTrip(req.Note, input.attachmentIDs...)

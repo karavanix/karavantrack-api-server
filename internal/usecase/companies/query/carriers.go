@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
 	"github.com/karavanix/karavantrack-api-server/internal/inerr"
+	"github.com/karavanix/karavantrack-api-server/internal/service/rbac"
 	"github.com/karavanix/karavantrack-api-server/pkg/logger"
 	"github.com/karavanix/karavantrack-api-server/pkg/otlp"
 	"go.opentelemetry.io/otel"
@@ -19,6 +20,7 @@ type ListCarriersUsecase struct {
 	companyCarriersRepo domain.CompanyCarrierRepository
 	usersRepo           domain.UserRepository
 	loadsRepo           domain.LoadRepository
+	rbacService         rbac.Service
 }
 
 func NewListByCompanyUsecase(
@@ -27,6 +29,7 @@ func NewListByCompanyUsecase(
 	companyCarriersRepo domain.CompanyCarrierRepository,
 	usersRepo domain.UserRepository,
 	loadsRepo domain.LoadRepository,
+	rbacService rbac.Service,
 ) *ListCarriersUsecase {
 	return &ListCarriersUsecase{
 		contextDuration:     contextDuration,
@@ -34,6 +37,7 @@ func NewListByCompanyUsecase(
 		companyCarriersRepo: companyCarriersRepo,
 		usersRepo:           usersRepo,
 		loadsRepo:           loadsRepo,
+		rbacService:         rbacService,
 	}
 }
 
@@ -77,6 +81,14 @@ func (u *ListCarriersUsecase) ListCarriers(ctx context.Context, requesterID, com
 		if err != nil {
 			return nil, inerr.NewErrValidation("requester_id", "invalid requester ID")
 		}
+	}
+
+	allow, err := u.rbacService.HasPermission(ctx, companyID, requesterID, domain.CompanyPermissionCarrierRead)
+	if err != nil {
+		return nil, err
+	}
+	if !allow {
+		return nil, inerr.ErrorPermissionDenied
 	}
 
 	companyCarriers, err := u.companyCarriersRepo.FindByCompanyIDWithFilter(ctx, input.companyID, &domain.CompanyCarrierFilter{

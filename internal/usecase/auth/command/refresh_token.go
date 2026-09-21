@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
 	"github.com/karavanix/karavantrack-api-server/internal/inerr"
+	"github.com/karavanix/karavantrack-api-server/internal/service/revocation"
 	"github.com/karavanix/karavantrack-api-server/pkg/logger"
 	"github.com/karavanix/karavantrack-api-server/pkg/otlp"
 	"github.com/karavanix/karavantrack-api-server/pkg/security"
@@ -14,16 +15,18 @@ import (
 )
 
 type RefreshTokenUsecase struct {
-	contextTDuration time.Duration
-	jwtProvider      *security.JWTProvider
-	usersRepo        domain.UserRepository
+	contextTDuration  time.Duration
+	jwtProvider       *security.JWTProvider
+	usersRepo         domain.UserRepository
+	revocationService revocation.Service
 }
 
-func NewRefreshTokenUsecase(contextTDuration time.Duration, jwtProvider *security.JWTProvider, usersRepo domain.UserRepository) *RefreshTokenUsecase {
+func NewRefreshTokenUsecase(contextTDuration time.Duration, jwtProvider *security.JWTProvider, usersRepo domain.UserRepository, revocationService revocation.Service) *RefreshTokenUsecase {
 	return &RefreshTokenUsecase{
-		contextTDuration: contextTDuration,
-		jwtProvider:      jwtProvider,
-		usersRepo:        usersRepo,
+		contextTDuration:  contextTDuration,
+		jwtProvider:       jwtProvider,
+		usersRepo:         usersRepo,
+		revocationService: revocationService,
 	}
 }
 
@@ -48,6 +51,15 @@ func (r *RefreshTokenUsecase) RefreshToken(ctx context.Context, req *RefreshToke
 	userID, err := uuid.Parse(claims.Subject)
 	if err != nil {
 		return nil, inerr.NewErrValidation("user_id", "invalid user ID in token")
+	}
+
+	revoked, err := r.revocationService.IsRevoked(ctx, claims.Subject, claims.IssuedAt.Time)
+	if err != nil {
+		logger.ErrorContext(ctx, "error checking token revocation", err)
+		return nil, err
+	}
+	if revoked {
+		return nil, inerr.NewErrInvalidToken(nil)
 	}
 
 	user, err := r.usersRepo.FindByID(ctx, userID)
