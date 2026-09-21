@@ -11,6 +11,7 @@ import (
 
 type Command struct {
 	*command.RegisterLoadLocationUsecase
+	*command.RegisterLoadLocationBatchUsecase
 }
 
 type Query struct {
@@ -30,7 +31,8 @@ func NewUsecase(
 ) *Usecase {
 	return &Usecase{
 		Command: Command{
-			RegisterLoadLocationUsecase: command.NewRegisterLoadLocationUsecase(contextDuration, bkr, eventFactory, loadsRepo, loadLocationPointRepo),
+			RegisterLoadLocationUsecase:      command.NewRegisterLoadLocationUsecase(contextDuration, bkr, eventFactory, loadsRepo, loadLocationPointRepo),
+			RegisterLoadLocationBatchUsecase: command.NewRegisterLoadLocationBatchUsecase(contextDuration, bkr, eventFactory, loadsRepo, loadLocationPointRepo),
 		},
 		Query: Query{},
 	}

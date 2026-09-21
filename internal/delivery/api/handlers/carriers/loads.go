@@ -390,3 +390,44 @@ func (h *loadsHandler) RegisterLocation() http.HandlerFunc {
 		render.Status(r, http.StatusOK)
 	}
 }
+
+// RegisterLocationBatch godoc
+// @Security     BearerAuth
+// @Summary      Register a batch of location points
+// @Description  Flush GPS points buffered on the phone while offline; each keeps its original recorded_at so the track backfills instead of losing the gap
+// @Tags         Loads
+// @Accept       json
+// @Produce      json
+// @Param        id   path      string  true  "Load ID"
+// @Param        body body locationcmd.RegisterLoadLocationBatchRequest true "Buffered location points"
+// @Success      200
+// @Failure      400  {object} outerr.Response
+// @Failure      401  {object} outerr.Response
+// @Router       /loads/{id}/location/batch [post]
+func (h *loadsHandler) RegisterLocationBatch() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := app.UserID[string](r.Context())
+		if !ok {
+			outerr.Forbidden(w, r, "missing user context")
+			return
+		}
+
+		loadID := chi.URLParam(r, "id")
+
+		var req locationcmd.RegisterLoadLocationBatchRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			outerr.BadRequest(w, r, "invalid request body")
+			return
+		}
+
+		req.LoadID = loadID
+		req.CarrierID = userID
+
+		if err := h.locationUsecase.Command.RegisterLoadLocationBatch(r.Context(), &req); err != nil {
+			outerr.HandleHTTP(w, r, err)
+			return
+		}
+
+		render.Status(r, http.StatusOK)
+	}
+}
