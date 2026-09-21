@@ -75,6 +75,12 @@ func (u *AcceptInviteUsecase) AcceptInvite(ctx context.Context, token string, ca
 
 	switch invite.EffectiveStatus() {
 	case domain.LoadInviteStatusAccepted:
+		// Idempotent re-accept: the carrier who already accepted this invite
+		// opens the link again (e.g. after a restart or a stale bookmark).
+		// Send them back to the load instead of a dead-end error.
+		if invite.AcceptedBy == input.carrierID {
+			return &AcceptInviteResponse{LoadID: invite.LoadID.String()}, nil
+		}
 		return nil, inerr.ErrInviteAlreadyAccepted
 	case domain.LoadInviteStatusRevoked:
 		return nil, inerr.ErrInviteRevoked

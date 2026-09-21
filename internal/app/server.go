@@ -23,6 +23,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/service/presence"
 	"github.com/karavanix/karavantrack-api-server/internal/service/rbac"
 	"github.com/karavanix/karavantrack-api-server/internal/service/watcher"
+	"github.com/karavanix/karavantrack-api-server/internal/usecase/attachments"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/auth"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/companies"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/invites"
@@ -39,6 +40,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/pkg/nats"
 	"github.com/karavanix/karavantrack-api-server/pkg/otlp"
 	"github.com/karavanix/karavantrack-api-server/pkg/redis"
+	"github.com/karavanix/karavantrack-api-server/pkg/s3"
 	"github.com/karavanix/karavantrack-api-server/pkg/security"
 	"github.com/karavanix/karavantrack-api-server/pkg/smtp"
 	"github.com/uptrace/bun"
@@ -153,6 +155,18 @@ func (s *ServerApp) Run() error {
 	emailsRepo := repository.NewEmailsRepo(s.db)
 	loadInvitesRepo := repository.NewLoadInvitesRepo(s.db)
 	loadTrackingLinksRepo := repository.NewLoadTrackingLinksRepo(s.db)
+	attachmentsRepo := repository.NewAttachmentsRepo(s.db)
+
+	// s3
+	s3Client, err := s3.New(
+		s3.WithEndpoint(s.config.S3.Endpoint),
+		s3.WithRegion(s.config.S3.Region),
+		s3.WithAccessKey(s.config.S3.AccessKey),
+		s3.WithSecretKey(s.config.S3.SecretKey),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create S3 client: %w", err)
+	}
 
 	// apple
 	appleSignInClient, err := apple.NewClient(context.Background(), s.config.Apple.BundleID)
@@ -219,6 +233,7 @@ func (s *ServerApp) Run() error {
 	loadsUsecase := loads.NewUsecase(s.config.Context.Timeout, loadsRepo, usersRepo, loadLocationsPointsRepo, rbacService, s.taskQueue)
 	locationUsecase := location.NewUsecase(s.config.Context.Timeout, s.bkr, eventFactory, loadLocationsPointsRepo)
 	invitesUsecase := invites.NewUsecase(s.config.Context.Timeout, loadsRepo, usersRepo, companiesRepo, loadInvitesRepo, rbacService, s.taskQueue, s.config.PublicAppBaseURL)
+	attachmentsUsecase := attachments.NewUsecase(s.config.Context.Timeout, s.config, txManager, attachmentsRepo, s3Client)
 	trackingUsecase := tracking.NewUsecase(s.config.Context.Timeout, loadsRepo, loadTrackingLinksRepo, loadLocationsPointsRepo, rbacService, s.config.PublicAppBaseURL)
 
 	// init handlers options
@@ -236,6 +251,7 @@ func (s *ServerApp) Run() error {
 		CompaniesUsecase:    companiesUsecase,
 		LoadsUsecase:        loadsUsecase,
 		LocationUsecase:     locationUsecase,
+		AttachmentsUsecase:  attachmentsUsecase,
 		InvitesUsecase:      invitesUsecase,
 		TrackingUsecase:     trackingUsecase,
 		RbacService:         rbacService,

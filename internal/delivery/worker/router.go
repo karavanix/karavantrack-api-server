@@ -14,5 +14,8 @@ func NewRouter(opts *delivery.HandlerOptions) *asynq.ServeMux {
 	// Push notifications
 	mux.HandleFunc(tasks.TaskSendPushNotification, handler.SendPushNotificationTask)
 
+	// Add a newly-assigned carrier to the load's company
+	mux.HandleFunc(tasks.TaskSendAddCarrierToCompany, handler.AddCarrierToCompany)
+
 	return mux
 }
