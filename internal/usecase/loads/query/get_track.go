@@ -90,8 +90,15 @@ func (u *GetTrackUsecase) GetTrack(ctx context.Context, loadID string, requester
 		}
 	}
 
-	if limit <= 0 || limit > 1000 {
-		limit = 100
+	// A caller that omits limit gets a generous default rather than the old
+	// 100-point cap that silently truncated a whole day's track; a caller
+	// that asks for more than the ceiling gets clamped to it instead of
+	// being silently reset back down to the small default.
+	switch {
+	case limit <= 0:
+		limit = 500
+	case limit > 1000:
+		limit = 1000
 	}
 
 	points, total, err := u.loadLocationPointRepo.FindByLoadID(ctx, input.loadID, limit, offset)

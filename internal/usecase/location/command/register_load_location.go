@@ -2,6 +2,7 @@ package command
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -96,6 +97,19 @@ func (u *RegisterLoadLocationUsecase) RegisterLoadLocation(ctx context.Context, 
 	)
 	if err != nil {
 		return err
+	}
+
+	latest, err := u.loadLocationPointRepo.FindLatestByLoadID(ctx, input.loadID)
+	if err != nil && !errors.Is(err, inerr.ErrNotFound{}) {
+		logger.ErrorContext(ctx, "failed to look up latest load location point", err)
+		return err
+	}
+	if latest != nil && !point.IsPlausibleSuccessorOf(latest) {
+		// A GPS teleport (bad fix, not a real maneuver) — drop it silently
+		// rather than error, so the phone doesn't keep retrying a point
+		// that will never become plausible.
+		logger.InfoContext(ctx, "dropping implausible load location point")
+		return nil
 	}
 
 	if err := u.loadLocationPointRepo.Save(ctx, point); err != nil {
