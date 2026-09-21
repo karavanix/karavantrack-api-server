@@ -136,6 +136,9 @@ func (h *Handler) leaveLoad(ctx context.Context, loadID, carrierID string) {
 
 	if count == 0 {
 		h.stopKeepalive(loadID)
+		if err := h.liveAckService.Clear(ctx, loadID); err != nil {
+			logger.WarnContext(ctx, "failed to clear live location ack", "load_id", loadID, "error", err)
+		}
 		ev, err := h.eventFactory.StopLiveLocationEvent(loadID, carrierID)
 		if err != nil {
 			return

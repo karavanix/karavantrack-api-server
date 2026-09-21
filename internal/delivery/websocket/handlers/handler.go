@@ -9,6 +9,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/validation"
 	"github.com/karavanix/karavantrack-api-server/internal/events"
 	"github.com/karavanix/karavantrack-api-server/internal/service/broker"
+	"github.com/karavanix/karavantrack-api-server/internal/service/liveack"
 	"github.com/karavanix/karavantrack-api-server/internal/service/presence"
 	"github.com/karavanix/karavantrack-api-server/internal/service/watcher"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/loads"
@@ -23,6 +24,7 @@ type Handler struct {
 	eventFactory    *events.Factory
 	presenceService presence.Service
 	watcherService  watcher.Service
+	liveAckService  liveack.Service
 	loadsUsecase    *loads.Usecase
 	locationUsecase *location.Usecase
 	keepalives      sync.Map
@@ -36,6 +38,7 @@ func NewHandler(opts *delivery.HandlerOptions) *Handler {
 		eventFactory:    opts.EventFactory,
 		presenceService: opts.PresenceService,
 		watcherService:  opts.WatcherService,
+		liveAckService:  opts.LiveAckService,
 		loadsUsecase:    opts.LoadsUsecase,
 		locationUsecase: opts.LocationUsecase,
 	}

@@ -81,6 +81,24 @@ func (a *GpsNotifyApp) Run(ctx context.Context) error {
 				"carrier_id", load.CarrierID.String(),
 			)
 		}
+
+		// The driver already knows their GPS is stuck (notified above) — the
+		// shipper paying for the trip has no other way to find out tracking
+		// went dark, so notify them too.
+		shipperNotifyErr := a.notificationService.SendToUser(ctx, load.MemberID.String(), &firebase.Notification{
+			Title: "Пропала связь с водителем",
+			Body:  "Трекинг груза «" + load.Title + "» не обновляется более 15 минут",
+			Metadata: map[string]string{
+				"load_id": load.ID.String(),
+				"action":  "gps_timeout",
+			},
+		})
+		if shipperNotifyErr != nil {
+			logger.Error("failed to send GPS timeout notification to shipper", shipperNotifyErr,
+				"load_id", load.ID.String(),
+				"member_id", load.MemberID.String(),
+			)
+		}
 	}
 
 	return nil

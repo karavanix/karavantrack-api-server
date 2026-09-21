@@ -5,7 +5,10 @@ import (
 
 	"github.com/hibiken/asynq"
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
+	"github.com/karavanix/karavantrack-api-server/internal/service/liveack"
+	"github.com/karavanix/karavantrack-api-server/internal/service/presence"
 	"github.com/karavanix/karavantrack-api-server/internal/service/rbac"
+	"github.com/karavanix/karavantrack-api-server/internal/service/watcher"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/loads/command"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/loads/query"
 )
@@ -29,6 +32,7 @@ type Query struct {
 	*query.ListUsecase
 	*query.GetTrackUsecase
 	*query.GetPositionUsecase
+	*query.GetConnectionStatusUsecase
 	*query.GetStatsUsecase
 }
 
@@ -44,6 +48,9 @@ func NewUsecase(
 	loadLocationPointRepo domain.LoadLocationPointRepository,
 	rbacService rbac.Service,
 	taskQueue *asynq.Client,
+	presenceService presence.Service,
+	watcherService watcher.Service,
+	liveAckService liveack.Service,
 ) *Usecase {
 	return &Usecase{
 		Command: Command{
@@ -59,12 +66,13 @@ func NewUsecase(
 			CancelUsecase:         command.NewCancelUsecase(contextDuration, loadsRepo, rbacService, taskQueue),
 		},
 		Query: Query{
-			GetUsecase:         query.NewGetUsecase(contextDuration, loadsRepo, rbacService),
-			GetActiveUsecase:   query.NewGetActiveUsecase(contextDuration, loadsRepo),
-			ListUsecase:        query.NewListUsecase(contextDuration, loadsRepo, rbacService),
-			GetTrackUsecase:    query.NewGetTrackUsecase(contextDuration, loadsRepo, loadLocationPointRepo, rbacService),
-			GetPositionUsecase: query.NewGetPositionUsecase(contextDuration, loadsRepo, loadLocationPointRepo, rbacService),
-			GetStatsUsecase:    query.NewGetStatsUsecase(contextDuration, loadsRepo, rbacService),
+			GetUsecase:                 query.NewGetUsecase(contextDuration, loadsRepo, rbacService),
+			GetActiveUsecase:           query.NewGetActiveUsecase(contextDuration, loadsRepo),
+			ListUsecase:                query.NewListUsecase(contextDuration, loadsRepo, rbacService),
+			GetTrackUsecase:            query.NewGetTrackUsecase(contextDuration, loadsRepo, loadLocationPointRepo, rbacService),
+			GetPositionUsecase:         query.NewGetPositionUsecase(contextDuration, loadsRepo, loadLocationPointRepo, rbacService),
+			GetConnectionStatusUsecase: query.NewGetConnectionStatusUsecase(contextDuration, loadsRepo, loadLocationPointRepo, rbacService, presenceService, watcherService, liveAckService),
+			GetStatsUsecase:            query.NewGetStatsUsecase(contextDuration, loadsRepo, rbacService),
 		},
 	}
 }

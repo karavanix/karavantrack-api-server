@@ -48,6 +48,7 @@ func RegisterRoutes(r chi.Router, opts *delivery.HandlerOptions) {
 		r.Post("/loads/{id}/cancel", loadsH.Cancel())
 		r.Get("/loads/{id}/track", loadsH.GetTrack())
 		r.Get("/loads/{id}/position", loadsH.GetPosition())
+		r.Get("/loads/{id}/connection-status", loadsH.GetConnectionStatus())
 		r.Post("/loads/{id}/invite-link", invitesH.CreateInviteLink())
 		r.Post("/loads/{id}/tracking-link", trackingH.CreateTrackingLink())
 

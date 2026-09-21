@@ -18,6 +18,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/infrastructure/telegram"
 	"github.com/karavanix/karavantrack-api-server/internal/service/broker"
 	"github.com/karavanix/karavantrack-api-server/internal/service/email"
+	"github.com/karavanix/karavantrack-api-server/internal/service/liveack"
 	"github.com/karavanix/karavantrack-api-server/internal/service/notification"
 	"github.com/karavanix/karavantrack-api-server/internal/service/otp"
 	"github.com/karavanix/karavantrack-api-server/internal/service/presence"
@@ -206,6 +207,7 @@ func (s *ServerApp) Run() error {
 	notificationService := notification.NewService(fcmClient, fcmDevicesRepo)
 	rbacService := rbac.NewService(s.config.Context.Timeout, companyMembersRepo)
 	watcherService := watcher.NewService(s.redis)
+	liveAckService := liveack.NewService(s.redis)
 	revocationService := revocation.NewService(s.redis, s.config.JWT.RefreshTTL)
 	otpService := otp.NewService(otpStore, otp.Config{
 		Secret:      []byte(s.config.OTP.Secret),
@@ -233,11 +235,11 @@ func (s *ServerApp) Run() error {
 	)
 	usersUsecase := users.NewUsecase(s.config.Context.Timeout, usersRepo, loadsRepo, fcmDevicesRepo, revocationService)
 	companiesUsecase := companies.NewUsecase(s.config.Context.Timeout, txManager, companiesRepo, companyMembersRepo, companyCarriersRepo, usersRepo, loadsRepo, rbacService)
-	loadsUsecase := loads.NewUsecase(s.config.Context.Timeout, loadsRepo, usersRepo, loadLocationsPointsRepo, rbacService, s.taskQueue)
+	loadsUsecase := loads.NewUsecase(s.config.Context.Timeout, loadsRepo, usersRepo, loadLocationsPointsRepo, rbacService, s.taskQueue, presenceService, watcherService, liveAckService)
 	locationUsecase := location.NewUsecase(s.config.Context.Timeout, s.bkr, eventFactory, loadsRepo, loadLocationsPointsRepo)
 	invitesUsecase := invites.NewUsecase(s.config.Context.Timeout, loadsRepo, usersRepo, companiesRepo, loadInvitesRepo, rbacService, s.taskQueue, s.config.PublicAppBaseURL)
 	attachmentsUsecase := attachments.NewUsecase(s.config.Context.Timeout, s.config, txManager, attachmentsRepo, s3Client)
-	trackingUsecase := tracking.NewUsecase(s.config.Context.Timeout, loadsRepo, loadTrackingLinksRepo, loadLocationsPointsRepo, rbacService, s.config.PublicAppBaseURL)
+	trackingUsecase := tracking.NewUsecase(s.config.Context.Timeout, loadsRepo, loadTrackingLinksRepo, loadLocationsPointsRepo, rbacService, s.config.PublicAppBaseURL, presenceService, watcherService, liveAckService)
 
 	// init handlers options
 	opts := &delivery.HandlerOptions{
@@ -250,6 +252,7 @@ func (s *ServerApp) Run() error {
 		PresenceService:     presenceService,
 		NotificationService: notificationService,
 		WatcherService:      watcherService,
+		LiveAckService:      liveAckService,
 		AuthUsecase:         authUsecase,
 		UsersUsecase:        usersUsecase,
 		CompaniesUsecase:    companiesUsecase,

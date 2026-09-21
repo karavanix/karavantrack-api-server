@@ -4,6 +4,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/validation"
 	"github.com/karavanix/karavantrack-api-server/internal/events"
 	"github.com/karavanix/karavantrack-api-server/internal/service/broker"
+	"github.com/karavanix/karavantrack-api-server/internal/service/liveack"
 	"github.com/karavanix/karavantrack-api-server/internal/service/notification"
 	"github.com/karavanix/karavantrack-api-server/internal/service/presence"
 	"github.com/karavanix/karavantrack-api-server/internal/service/rbac"
@@ -33,6 +34,7 @@ type HandlerOptions struct {
 	NotificationService notification.Service
 	RbacService         rbac.Service
 	WatcherService      watcher.Service
+	LiveAckService      liveack.Service
 
 	// Factories
 	EventFactory *events.Factory

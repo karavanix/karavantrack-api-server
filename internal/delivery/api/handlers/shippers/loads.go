@@ -248,3 +248,35 @@ func (h *loadsHandler) GetPosition() http.HandlerFunc {
 		render.JSON(w, r, resp)
 	}
 }
+
+// GetConnectionStatus godoc
+// @Security     BearerAuth
+// @Summary      Get connection status
+// @Description  Whether the driver's phone is actually reachable and streaming live GPS for this load, unlike /position this always returns 200 even before any GPS point has arrived
+// @Tags         Loads
+// @Produce      json
+// @Param        id   path      string  true  "Load ID"
+// @Success      200  {object} query.ConnectionStatusResponse
+// @Failure      400  {object} outerr.Response
+// @Failure      401  {object} outerr.Response
+// @Failure      404  {object} outerr.Response
+// @Router       /loads/{id}/connection-status [get]
+func (h *loadsHandler) GetConnectionStatus() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := app.UserID[string](r.Context())
+		if !ok {
+			outerr.Forbidden(w, r, "missing user context")
+			return
+		}
+
+		loadID := chi.URLParam(r, "id")
+
+		resp, err := h.loadsUsecase.Query.GetConnectionStatus(r.Context(), loadID, userID)
+		if err != nil {
+			outerr.HandleHTTP(w, r, err)
+			return
+		}
+
+		render.JSON(w, r, resp)
+	}
+}
