@@ -268,7 +268,13 @@ func New() (*Config, error) {
 	c.PublicAppBaseURL = getEnv("PUBLIC_APP_BASE_URL", "https://app.yool.live")
 
 	// CORS
-	c.CORS.AllowedOrigins = getEnvList("CORS_ALLOWED_ORIGINS", []string{"https://app.yool.live", "https://yool.live"})
+	defaultOrigins := []string{"https://app.yool.live", "https://yool.live"}
+	if c.Environment != app.Production {
+		// Non-production runs (local/development) also need the Vite dev
+		// server origins, which vary by machine/port.
+		defaultOrigins = append(defaultOrigins, "http://localhost:5173", "http://localhost:5174")
+	}
+	c.CORS.AllowedOrigins = getEnvList("CORS_ALLOWED_ORIGINS", defaultOrigins)
 
 	return c, nil
 }
