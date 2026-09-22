@@ -17,6 +17,7 @@ func RegisterRoutes(r chi.Router, opts *delivery.HandlerOptions) {
 	wsH := NewWSHandler(opts)
 	publicInvitesH := NewPublicInvitesHandler(opts)
 	publicTrackingH := NewPublicTrackingHandler(opts)
+	publicLeadsH := NewPublicLeadsHandler(opts)
 
 	// Auth routes (public), rate-limited per client IP against brute-force/OTP abuse
 	r.With(middleware.RateLimit(opts.Redis, "auth:login", 10, time.Minute)).
@@ -38,6 +39,10 @@ func RegisterRoutes(r chi.Router, opts *delivery.HandlerOptions) {
 	// Public cargo tracking (no auth) — shareable broker-to-client link
 	r.Get("/public/tracking/{token}", publicTrackingH.GetTracking())
 	r.Get("/public/tracking/{token}/track", publicTrackingH.GetTrack())
+
+	// Public marketing lead form (no auth), rate-limited per client IP against spam
+	r.With(middleware.RateLimit(opts.Redis, "leads:submit", 5, time.Minute)).
+		Post("/leads", publicLeadsH.SubmitLead())
 
 	// Common protected routes (any authenticated user)
 	r.Group(func(r chi.Router) {

@@ -29,6 +29,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/auth"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/companies"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/invites"
+	"github.com/karavanix/karavantrack-api-server/internal/usecase/leads"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/loads"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/location"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/tracking"
@@ -158,6 +159,7 @@ func (s *ServerApp) Run() error {
 	loadInvitesRepo := repository.NewLoadInvitesRepo(s.db)
 	loadTrackingLinksRepo := repository.NewLoadTrackingLinksRepo(s.db)
 	attachmentsRepo := repository.NewAttachmentsRepo(s.db)
+	leadsRepo := repository.NewLeadsRepo(s.db)
 
 	// s3
 	s3Client, err := s3.New(
@@ -240,6 +242,7 @@ func (s *ServerApp) Run() error {
 	invitesUsecase := invites.NewUsecase(s.config.Context.Timeout, loadsRepo, usersRepo, companiesRepo, loadInvitesRepo, rbacService, s.taskQueue, s.config.PublicAppBaseURL)
 	attachmentsUsecase := attachments.NewUsecase(s.config.Context.Timeout, s.config, txManager, attachmentsRepo, s3Client)
 	trackingUsecase := tracking.NewUsecase(s.config.Context.Timeout, loadsRepo, loadTrackingLinksRepo, loadLocationsPointsRepo, rbacService, s.config.PublicAppBaseURL, presenceService, watcherService, liveAckService)
+	leadsUsecase := leads.NewUsecase(s.config.Context.Timeout, leadsRepo)
 
 	// init handlers options
 	opts := &delivery.HandlerOptions{
@@ -261,6 +264,7 @@ func (s *ServerApp) Run() error {
 		AttachmentsUsecase:  attachmentsUsecase,
 		InvitesUsecase:      invitesUsecase,
 		TrackingUsecase:     trackingUsecase,
+		LeadsUsecase:        leadsUsecase,
 		RbacService:         rbacService,
 	}
 
