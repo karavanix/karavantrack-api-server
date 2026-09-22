@@ -36,4 +36,7 @@ const (
 
 	// Profile
 	CodeMissingUserProfile = "MISSING_USER_PROFILE"
+
+	// Loads
+	CodeCarrierHasActiveLoad = "CARRIER_HAS_ACTIVE_LOAD"
 )

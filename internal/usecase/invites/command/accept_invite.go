@@ -2,6 +2,7 @@ package command
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -44,9 +45,10 @@ type AcceptInviteResponse struct {
 }
 
 // AcceptInvite lets the authenticated carrier who opened an invite link
-// accept the load it points to: the carrier is assigned to the load (same
-// domain transition as the shipper-initiated /assign flow) and the invite is
-// marked accepted.
+// accept the load it points to in a single call: the carrier is assigned to
+// the load and immediately accepts it (same two domain transitions as the
+// shipper-initiated /assign flow followed by the carrier's own /accept), and
+// the invite is marked accepted.
 func (u *AcceptInviteUsecase) AcceptInvite(ctx context.Context, token string, carrierID string) (_ *AcceptInviteResponse, err error) {
 	ctx, cancel := context.WithTimeout(ctx, u.contextDuration)
 	defer cancel()
@@ -106,7 +108,19 @@ func (u *AcceptInviteUsecase) AcceptInvite(ctx context.Context, token string, ca
 		return nil, inerr.NewErrValidation("carrier_id", "user is not a carrier")
 	}
 
+	activeLoad, err := u.loadsRepo.FindActiveByCarrierID(ctx, input.carrierID)
+	if err != nil && !errors.Is(err, inerr.ErrNotFound{}) {
+		return nil, err
+	}
+	if activeLoad != nil {
+		return nil, inerr.ErrCarrierHasAlreadyActiveLoad
+	}
+
 	if err := load.Assign("Accepted via invite link", carrier.ID); err != nil {
+		return nil, inerr.NewErrValidation("status", err.Error())
+	}
+
+	if err := load.Accept("Accepted via invite link"); err != nil {
 		return nil, inerr.NewErrValidation("status", err.Error())
 	}
 
@@ -139,6 +153,25 @@ func (u *AcceptInviteUsecase) AcceptInvite(ctx context.Context, token string, ca
 		logger.ErrorContext(ctx, "failed to create add carrier task", err)
 	} else if _, err := u.taskQueue.EnqueueContext(ctx, addCarrierTask); err != nil {
 		logger.ErrorContext(ctx, "failed to enqueue add carrier task", err)
+	}
+
+	// The carrier just accepted the load (not merely got assigned to it) —
+	// let the shipper know, same as the explicit /accept flow.
+	acceptedTask, err := tasks.NewSendPushNotificationTask(
+		load.MemberID.String(),
+		tasks.PushNotification{
+			Title: "Груз принят",
+			Body:  "Водитель принял груз: " + load.Title,
+			Metadata: map[string]string{
+				"load_id": load.ID.String(),
+				"action":  "accepted",
+			},
+		},
+	)
+	if err != nil {
+		logger.ErrorContext(ctx, "failed to create push notification task", err)
+	} else if _, err := u.taskQueue.EnqueueContext(ctx, acceptedTask); err != nil {
+		logger.ErrorContext(ctx, "failed to enqueue push notification", err)
 	}
 
 	return &AcceptInviteResponse{LoadID: load.ID.String()}, nil
