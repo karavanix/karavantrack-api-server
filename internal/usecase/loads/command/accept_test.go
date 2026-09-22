@@ -63,7 +63,7 @@ func TestAccept_OwnershipCheck(t *testing.T) {
 	}
 
 	repo := &fakeLoadRepo{load: load}
-	usecase := command.NewAcceptUsecase(time.Second, repo, nil)
+	usecase := command.NewAcceptUsecase(time.Second, repo, nil, nil)
 
 	t.Run("a carrier the load was not assigned to cannot accept it", func(t *testing.T) {
 		err := usecase.Accept(context.Background(), loadID.String(), otherCarrier.String(), &command.AcceptRequest{})

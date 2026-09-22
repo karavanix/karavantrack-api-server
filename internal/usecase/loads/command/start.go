@@ -19,11 +19,12 @@ type StartUsecase struct {
 	contextDuration       time.Duration
 	loadsRepo             domain.LoadRepository
 	loadLocationPointRepo domain.LoadLocationPointRepository
+	companyMembersRepo    domain.CompanyMemberRepository
 	taskQueue             *asynq.Client
 }
 
-func NewStartUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository, loadLocationPointRepo domain.LoadLocationPointRepository, taskQueue *asynq.Client) *StartUsecase {
-	return &StartUsecase{contextDuration: contextDuration, loadsRepo: loadsRepo, loadLocationPointRepo: loadLocationPointRepo, taskQueue: taskQueue}
+func NewStartUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository, loadLocationPointRepo domain.LoadLocationPointRepository, companyMembersRepo domain.CompanyMemberRepository, taskQueue *asynq.Client) *StartUsecase {
+	return &StartUsecase{contextDuration: contextDuration, loadsRepo: loadsRepo, loadLocationPointRepo: loadLocationPointRepo, companyMembersRepo: companyMembersRepo, taskQueue: taskQueue}
 }
 
 type StartRequest struct {
@@ -100,26 +101,14 @@ func (u *StartUsecase) Start(ctx context.Context, loadID string, userID string, 
 		}
 	}
 
-	task, err := tasks.NewSendPushNotificationTask(
-		load.MemberID.String(),
-		tasks.PushNotification{
-			Title: "Поездка начата",
-			Body:  "Водитель начал поездку: " + load.Title,
-			Metadata: map[string]string{
-				"load_id": load.ID.String(),
-				"action":  "started",
-			},
+	enqueueOwnerSidePush(ctx, u.taskQueue, u.companyMembersRepo, load, tasks.PushNotification{
+		Title: "Поездка начата",
+		Body:  "Водитель начал поездку: " + load.Title,
+		Metadata: map[string]string{
+			"load_id": load.ID.String(),
+			"action":  "started",
 		},
-	)
-	if err != nil {
-		logger.ErrorContext(ctx, "failed to create push notification task", err)
-		return err
-	}
-
-	if _, err := u.taskQueue.Enqueue(task); err != nil {
-		logger.ErrorContext(ctx, "failed to enqueue push notification", err)
-		return err
-	}
+	})
 
 	return nil
 }

@@ -235,7 +235,7 @@ func (s *ServerApp) Run() error {
 	)
 	usersUsecase := users.NewUsecase(s.config.Context.Timeout, usersRepo, loadsRepo, fcmDevicesRepo, revocationService)
 	companiesUsecase := companies.NewUsecase(s.config.Context.Timeout, txManager, companiesRepo, companyMembersRepo, companyCarriersRepo, usersRepo, loadsRepo, rbacService)
-	loadsUsecase := loads.NewUsecase(s.config.Context.Timeout, loadsRepo, usersRepo, loadLocationsPointsRepo, rbacService, s.taskQueue, presenceService, watcherService, liveAckService)
+	loadsUsecase := loads.NewUsecase(s.config.Context.Timeout, loadsRepo, usersRepo, loadLocationsPointsRepo, companyMembersRepo, attachmentsRepo, s3Client, rbacService, s.taskQueue, presenceService, watcherService, liveAckService)
 	locationUsecase := location.NewUsecase(s.config.Context.Timeout, s.bkr, eventFactory, loadsRepo, loadLocationsPointsRepo)
 	invitesUsecase := invites.NewUsecase(s.config.Context.Timeout, loadsRepo, usersRepo, companiesRepo, loadInvitesRepo, rbacService, s.taskQueue, s.config.PublicAppBaseURL)
 	attachmentsUsecase := attachments.NewUsecase(s.config.Context.Timeout, s.config, txManager, attachmentsRepo, s3Client)

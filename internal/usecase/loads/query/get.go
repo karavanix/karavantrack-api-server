@@ -9,6 +9,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/inerr"
 	"github.com/karavanix/karavantrack-api-server/internal/service/rbac"
 	"github.com/karavanix/karavantrack-api-server/pkg/otlp"
+	"github.com/karavanix/karavantrack-api-server/pkg/s3"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 )
@@ -17,10 +18,16 @@ type GetUsecase struct {
 	contextDuration time.Duration
 	loadsRepo       domain.LoadRepository
 	rbacService     rbac.Service
+	urlResolver     *attachmentURLResolver
 }
 
-func NewGetUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository, rbacService rbac.Service) *GetUsecase {
-	return &GetUsecase{contextDuration: contextDuration, loadsRepo: loadsRepo, rbacService: rbacService}
+func NewGetUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository, rbacService rbac.Service, attachmentsRepo domain.AttachmentRepository, s3Client *s3.S3Client) *GetUsecase {
+	return &GetUsecase{
+		contextDuration: contextDuration,
+		loadsRepo:       loadsRepo,
+		rbacService:     rbacService,
+		urlResolver:     newAttachmentURLResolver(attachmentsRepo, s3Client),
+	}
 }
 
 func (u *GetUsecase) Get(ctx context.Context, loadID string, requesterID string) (_ *LoadDetailResponse, err error) {
@@ -56,5 +63,5 @@ func (u *GetUsecase) Get(ctx context.Context, loadID string, requesterID string)
 		return nil, inerr.ErrorPermissionDenied
 	}
 
-	return loadToDetailResponse(load), nil
+	return loadToDetailResponse(ctx, load, u.urlResolver), nil
 }

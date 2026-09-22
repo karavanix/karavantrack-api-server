@@ -63,7 +63,12 @@ type HistoryAttachmentResponse struct {
 	ID           int64  `json:"id"`
 	HistoryID    int64  `json:"history_id"`
 	AttachmentID string `json:"attachment_id"`
-	CreatedAt    string `json:"created_at"`
+	// URL is best-effort: a public attachment's stable URL, or a short-lived
+	// presigned URL for a private one. Omitted if it could not be resolved
+	// (see attachmentURLResolver) — the client still has AttachmentID and can
+	// fall back to GET /attachments/{id}.
+	URL       string `json:"url,omitempty"`
+	CreatedAt string `json:"created_at"`
 }
 
 type HistoryResponse struct {
@@ -113,17 +118,25 @@ func loadToResponse(l *domain.Load) *LoadResponse {
 	return r
 }
 
-func loadToDetailResponse(l *domain.Load) *LoadDetailResponse {
+func loadToDetailResponse(ctx context.Context, l *domain.Load, urlResolver *attachmentURLResolver) *LoadDetailResponse {
 	base := loadToResponse(l)
+
+	attachmentIDs := make([]uuid.UUID, 0)
+	for _, h := range l.History {
+		for _, att := range h.Attachments {
+			attachmentIDs = append(attachmentIDs, att.AttachmentID)
+		}
+	}
+	urls := urlResolver.resolve(ctx, attachmentIDs)
 
 	history := make([]*HistoryResponse, len(l.History))
 	for i, h := range l.History {
 		hr := &HistoryResponse{
-			ID:         h.ID,
-			FromStatus: h.FromStatus.String(),
-			ToStatus:   h.ToStatus.String(),
-			Note:       h.Note,
-			CreatedAt:  h.CreatedAt.Format(time.RFC3339),
+			ID:          h.ID,
+			FromStatus:  h.FromStatus.String(),
+			ToStatus:    h.ToStatus.String(),
+			Note:        h.Note,
+			CreatedAt:   h.CreatedAt.Format(time.RFC3339),
 			Attachments: make([]*HistoryAttachmentResponse, len(h.Attachments)),
 		}
 		if h.UserID != uuid.Nil {
@@ -134,6 +147,7 @@ func loadToDetailResponse(l *domain.Load) *LoadDetailResponse {
 				ID:           att.ID,
 				HistoryID:    att.HistoryID,
 				AttachmentID: att.AttachmentID.String(),
+				URL:          urls[att.AttachmentID],
 				CreatedAt:    att.CreatedAt.Format(time.RFC3339),
 			}
 		}

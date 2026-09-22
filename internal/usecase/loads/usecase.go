@@ -11,6 +11,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/service/watcher"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/loads/command"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/loads/query"
+	"github.com/karavanix/karavantrack-api-server/pkg/s3"
 )
 
 type Command struct {
@@ -46,6 +47,9 @@ func NewUsecase(
 	loadsRepo domain.LoadRepository,
 	usersRepo domain.UserRepository,
 	loadLocationPointRepo domain.LoadLocationPointRepository,
+	companyMembersRepo domain.CompanyMemberRepository,
+	attachmentsRepo domain.AttachmentRepository,
+	s3Client *s3.S3Client,
 	rbacService rbac.Service,
 	taskQueue *asynq.Client,
 	presenceService presence.Service,
@@ -56,18 +60,18 @@ func NewUsecase(
 		Command: Command{
 			CreateUsecase:         command.NewCreateUsecase(contextDuration, loadsRepo, rbacService),
 			AssignUsecase:         command.NewAssignUsecase(contextDuration, loadsRepo, usersRepo, rbacService, taskQueue),
-			AcceptUsecase:         command.NewAcceptUsecase(contextDuration, loadsRepo, taskQueue),
-			BeginPickupUsecase:    command.NewBeginPickupUsecase(contextDuration, loadsRepo, loadLocationPointRepo, taskQueue),
-			ConfirmPickupUsecase:  command.NewConfirmPickupUsecase(contextDuration, loadsRepo, loadLocationPointRepo, taskQueue),
-			StartUsecase:          command.NewStartUsecase(contextDuration, loadsRepo, loadLocationPointRepo, taskQueue),
-			BeginDropoffUsecase:   command.NewBeginDropoffUsecase(contextDuration, loadsRepo, loadLocationPointRepo, taskQueue),
-			ConfirmDropoffUsecase: command.NewConfirmDropoffUsecase(contextDuration, loadsRepo, loadLocationPointRepo, taskQueue),
+			AcceptUsecase:         command.NewAcceptUsecase(contextDuration, loadsRepo, companyMembersRepo, taskQueue),
+			BeginPickupUsecase:    command.NewBeginPickupUsecase(contextDuration, loadsRepo, loadLocationPointRepo, companyMembersRepo, taskQueue),
+			ConfirmPickupUsecase:  command.NewConfirmPickupUsecase(contextDuration, loadsRepo, loadLocationPointRepo, companyMembersRepo, taskQueue),
+			StartUsecase:          command.NewStartUsecase(contextDuration, loadsRepo, loadLocationPointRepo, companyMembersRepo, taskQueue),
+			BeginDropoffUsecase:   command.NewBeginDropoffUsecase(contextDuration, loadsRepo, loadLocationPointRepo, companyMembersRepo, taskQueue),
+			ConfirmDropoffUsecase: command.NewConfirmDropoffUsecase(contextDuration, loadsRepo, loadLocationPointRepo, companyMembersRepo, taskQueue),
 			ConfirmUsecase:        command.NewConfirmUsecase(contextDuration, loadsRepo, rbacService, taskQueue),
 			CancelUsecase:         command.NewCancelUsecase(contextDuration, loadsRepo, rbacService, taskQueue),
 		},
 		Query: Query{
-			GetUsecase:                 query.NewGetUsecase(contextDuration, loadsRepo, rbacService),
-			GetActiveUsecase:           query.NewGetActiveUsecase(contextDuration, loadsRepo),
+			GetUsecase:                 query.NewGetUsecase(contextDuration, loadsRepo, rbacService, attachmentsRepo, s3Client),
+			GetActiveUsecase:           query.NewGetActiveUsecase(contextDuration, loadsRepo, attachmentsRepo, s3Client),
 			ListUsecase:                query.NewListUsecase(contextDuration, loadsRepo, rbacService),
 			GetTrackUsecase:            query.NewGetTrackUsecase(contextDuration, loadsRepo, loadLocationPointRepo, rbacService),
 			GetPositionUsecase:         query.NewGetPositionUsecase(contextDuration, loadsRepo, loadLocationPointRepo, rbacService),

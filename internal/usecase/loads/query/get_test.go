@@ -121,7 +121,7 @@ func TestGet_AccessMatrix(t *testing.T) {
 
 	rbacService := rbac.NewService(time.Second, memberRepo)
 	loadRepo := &fakeLoadRepo{load: load}
-	usecase := query.NewGetUsecase(time.Second, loadRepo, rbacService)
+	usecase := query.NewGetUsecase(time.Second, loadRepo, rbacService, nil, nil)
 
 	tests := []struct {
 		name       string

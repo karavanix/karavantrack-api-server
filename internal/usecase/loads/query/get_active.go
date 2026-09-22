@@ -8,6 +8,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
 	"github.com/karavanix/karavantrack-api-server/internal/inerr"
 	"github.com/karavanix/karavantrack-api-server/pkg/otlp"
+	"github.com/karavanix/karavantrack-api-server/pkg/s3"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 )
@@ -15,10 +16,15 @@ import (
 type GetActiveUsecase struct {
 	contextDuration time.Duration
 	loadsRepo       domain.LoadRepository
+	urlResolver     *attachmentURLResolver
 }
 
-func NewGetActiveUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository) *GetActiveUsecase {
-	return &GetActiveUsecase{contextDuration: contextDuration, loadsRepo: loadsRepo}
+func NewGetActiveUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository, attachmentsRepo domain.AttachmentRepository, s3Client *s3.S3Client) *GetActiveUsecase {
+	return &GetActiveUsecase{
+		contextDuration: contextDuration,
+		loadsRepo:       loadsRepo,
+		urlResolver:     newAttachmentURLResolver(attachmentsRepo, s3Client),
+	}
 }
 
 func (u *GetActiveUsecase) GetActive(ctx context.Context, carrierID string) (_ *LoadDetailResponse, err error) {
@@ -45,5 +51,5 @@ func (u *GetActiveUsecase) GetActive(ctx context.Context, carrierID string) (_ *
 		return nil, err
 	}
 
-	return loadToDetailResponse(load), nil
+	return loadToDetailResponse(ctx, load, u.urlResolver), nil
 }

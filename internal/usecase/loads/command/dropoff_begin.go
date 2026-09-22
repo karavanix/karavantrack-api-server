@@ -19,11 +19,12 @@ type BeginDropoffUsecase struct {
 	contextDuration       time.Duration
 	loadsRepo             domain.LoadRepository
 	loadLocationPointRepo domain.LoadLocationPointRepository
+	companyMembersRepo    domain.CompanyMemberRepository
 	taskQueue             *asynq.Client
 }
 
-func NewBeginDropoffUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository, loadLocationPointRepo domain.LoadLocationPointRepository, taskQueue *asynq.Client) *BeginDropoffUsecase {
-	return &BeginDropoffUsecase{contextDuration: contextDuration, loadsRepo: loadsRepo, loadLocationPointRepo: loadLocationPointRepo, taskQueue: taskQueue}
+func NewBeginDropoffUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository, loadLocationPointRepo domain.LoadLocationPointRepository, companyMembersRepo domain.CompanyMemberRepository, taskQueue *asynq.Client) *BeginDropoffUsecase {
+	return &BeginDropoffUsecase{contextDuration: contextDuration, loadsRepo: loadsRepo, loadLocationPointRepo: loadLocationPointRepo, companyMembersRepo: companyMembersRepo, taskQueue: taskQueue}
 }
 
 type BeginDropoffRequest struct {
@@ -100,26 +101,14 @@ func (u *BeginDropoffUsecase) BeginDropoff(ctx context.Context, loadID string, u
 		}
 	}
 
-	task, err := tasks.NewSendPushNotificationTask(
-		load.MemberID.String(),
-		tasks.PushNotification{
-			Title: "Прибытие на выгрузку",
-			Body:  "Водитель прибыл на выгрузку: " + load.Title,
-			Metadata: map[string]string{
-				"load_id": load.ID.String(),
-				"action":  "dropping_off",
-			},
+	enqueueOwnerSidePush(ctx, u.taskQueue, u.companyMembersRepo, load, tasks.PushNotification{
+		Title: "Прибытие на выгрузку",
+		Body:  "Водитель прибыл на выгрузку: " + load.Title,
+		Metadata: map[string]string{
+			"load_id": load.ID.String(),
+			"action":  "dropping_off",
 		},
-	)
-	if err != nil {
-		logger.ErrorContext(ctx, "failed to create push notification task", err)
-		return err
-	}
-
-	if _, err := u.taskQueue.Enqueue(task); err != nil {
-		logger.ErrorContext(ctx, "failed to enqueue push notification", err)
-		return err
-	}
+	})
 
 	return nil
 }
