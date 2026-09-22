@@ -54,7 +54,7 @@ func NewUsecase(
 ) *Usecase {
 	return &Usecase{
 		Command: Command{
-			CreateUsecase:         command.NewCreateUsecase(contextDuration, loadsRepo, usersRepo, rbacService, taskQueue),
+			CreateUsecase:         command.NewCreateUsecase(contextDuration, loadsRepo, rbacService),
 			AssignUsecase:         command.NewAssignUsecase(contextDuration, loadsRepo, usersRepo, rbacService, taskQueue),
 			AcceptUsecase:         command.NewAcceptUsecase(contextDuration, loadsRepo, taskQueue),
 			BeginPickupUsecase:    command.NewBeginPickupUsecase(contextDuration, loadsRepo, loadLocationPointRepo, taskQueue),
