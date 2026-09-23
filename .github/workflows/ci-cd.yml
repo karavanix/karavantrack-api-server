@@ -26,6 +26,11 @@ jobs:
         with:
           go-version-file: go.mod
 
+      # bimg (image uploads) is a cgo binding to libvips; build, vet and
+      # lint all need its headers.
+      - name: Install libvips
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libvips-dev pkg-config
+
       - name: Build
         run: go build ./...
 
