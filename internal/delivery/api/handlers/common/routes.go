@@ -1,6 +1,8 @@
 package common
 
 import (
+	"time"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/karavanix/karavantrack-api-server/internal/delivery"
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/middleware"
@@ -15,12 +17,15 @@ func RegisterRoutes(r chi.Router, opts *delivery.HandlerOptions) {
 	wsH := NewWSHandler(opts)
 	publicInvitesH := NewPublicInvitesHandler(opts)
 	publicTrackingH := NewPublicTrackingHandler(opts)
+	publicLeadsH := NewPublicLeadsHandler(opts)
 
-	// Auth routes (public)
-	r.Post("/auth/login", authH.Login())
-	r.Post("/auth/register", authH.Register())
-	r.Post("/auth/verify-email", authH.VerifyEmail())
-	r.Post("/auth/logout", authH.Logout())
+	// Auth routes (public), rate-limited per client IP against brute-force/OTP abuse
+	r.With(middleware.RateLimit(opts.Redis, "auth:login", 10, time.Minute)).
+		Post("/auth/login", authH.Login())
+	r.With(middleware.RateLimit(opts.Redis, "auth:register", 5, time.Minute)).
+		Post("/auth/register", authH.Register())
+	r.With(middleware.RateLimit(opts.Redis, "auth:verify-email", 5, time.Minute)).
+		Post("/auth/verify-email", authH.VerifyEmail())
 	r.Post("/auth/refresh", authH.Refresh())
 	r.Post("/auth/apple", authH.AppleSignIn())
 	r.Post("/auth/telegram", authH.TelegramSignIn())
@@ -35,9 +40,16 @@ func RegisterRoutes(r chi.Router, opts *delivery.HandlerOptions) {
 	r.Get("/public/tracking/{token}", publicTrackingH.GetTracking())
 	r.Get("/public/tracking/{token}/track", publicTrackingH.GetTrack())
 
+	// Public marketing lead form (no auth), rate-limited per client IP against spam
+	r.With(middleware.RateLimit(opts.Redis, "leads:submit", 5, time.Minute)).
+		Post("/leads", publicLeadsH.SubmitLead())
+
 	// Common protected routes (any authenticated user)
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.AuthorizeAny(opts.JWTProvider))
+
+		// Auth
+		r.Post("/auth/logout", authH.Logout())
 
 		// Users
 		r.Get("/users/me", usersH.GetMe())

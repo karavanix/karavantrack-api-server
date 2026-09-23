@@ -11,7 +11,48 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  # Runs on every push and PR. Only gates merging (build/deploy below don't
+  # depend on it, but this is the required status check branch protection
+  # should point at) — no tests exist yet, so this is build + lint only.
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      # bimg (image uploads) is a cgo binding to libvips; build, vet and
+      # lint all need its headers.
+      - name: Install libvips
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libvips-dev pkg-config
+
+      - name: Build
+        run: go build ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      # New issues only: the codebase predates this gate and carries
+      # pre-existing golangci-lint findings (tracked in the backlog, not
+      # fixed here) — this holds new code to the standard without blocking
+      # on unrelated legacy debt.
+      - name: Lint
+        uses: golangci/golangci-lint-action@v7
+        with:
+          version: latest
+          args: --new-from-rev=${{ github.event.pull_request.base.sha || 'HEAD~1' }}
+
+  # Docker image build + push. Only on push to main — this used to also run
+  # (and its sibling `deploy` job below with it) on every pull_request,
+  # meaning opening a PR pushed an image and deployed it to production.
   build:
+    if: github.event_name == 'push'
+    needs: verify
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -42,6 +83,7 @@ jobs:
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.sha.outputs.short_sha }}
 
   deploy:
+    if: github.event_name == 'push'
     needs: build
     runs-on: ubuntu-latest
 

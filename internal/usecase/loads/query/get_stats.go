@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
 	"github.com/karavanix/karavantrack-api-server/internal/inerr"
+	"github.com/karavanix/karavantrack-api-server/internal/service/rbac"
 	"github.com/karavanix/karavantrack-api-server/pkg/logger"
 	"github.com/karavanix/karavantrack-api-server/pkg/otlp"
 	"go.opentelemetry.io/otel"
@@ -16,10 +17,11 @@ import (
 type GetStatsUsecase struct {
 	contextDuration time.Duration
 	loadsRepo       domain.LoadRepository
+	rbacService     rbac.Service
 }
 
-func NewGetStatsUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository) *GetStatsUsecase {
-	return &GetStatsUsecase{contextDuration: contextDuration, loadsRepo: loadsRepo}
+func NewGetStatsUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository, rbacService rbac.Service) *GetStatsUsecase {
+	return &GetStatsUsecase{contextDuration: contextDuration, loadsRepo: loadsRepo, rbacService: rbacService}
 }
 
 type GetStatsResponse struct {
@@ -60,6 +62,14 @@ func (u *GetStatsUsecase) GetStats(ctx context.Context, requesterID string, comp
 		if err != nil {
 			return nil, inerr.NewErrValidation("company_id", "invalid company ID")
 		}
+	}
+
+	allow, err := u.rbacService.HasPermission(ctx, companyID, requesterID, domain.CompanyPermissionLoadRead)
+	if err != nil {
+		return nil, err
+	}
+	if !allow {
+		return nil, inerr.ErrorPermissionDenied
 	}
 
 	filter := domain.LoadFilter{}

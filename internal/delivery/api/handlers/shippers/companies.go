@@ -363,6 +363,12 @@ func (h *companiesHandler) RemoveMember() http.HandlerFunc {
 // @Router       /companies/{id}/loads [get]
 func (h *companiesHandler) ListLoads() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := app.UserID[string](r.Context())
+		if !ok {
+			outerr.Forbidden(w, r, "missing user context")
+			return
+		}
+
 		companyID := chi.URLParam(r, "id")
 
 		var urlForm query_loads.ListRequest
@@ -372,7 +378,7 @@ func (h *companiesHandler) ListLoads() http.HandlerFunc {
 		}
 		urlForm.CompanyID = companyID
 
-		resp, err := h.loadsUsecase.Query.List(r.Context(), &urlForm)
+		resp, err := h.loadsUsecase.Query.List(r.Context(), &urlForm, userID)
 		if err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return

@@ -165,12 +165,23 @@ func NewRegistry() *Registry {
 		},
 	)
 
-	// Load-invite / tracking-link conflicts, plus the pre-existing "carrier
-	// already has an active load" case. Message is left empty so HandleHTTP
-	// falls back to err.Error(), which is already a clear sentence for all
-	// of these.
+	// "Carrier already has an active load" gets its own code — unlike the
+	// other conflicts below, the client needs to tell this one apart (it's
+	// about the requester, not about the invite/load state) rather than just
+	// showing the refreshed invite status.
+	r.RegisterMatch(func(err error) bool { return errors.Is(err, inerr.ErrCarrierHasAlreadyActiveLoad) },
+		func(err error) Mapping {
+			return Mapping{
+				HTTPStatus: http.StatusConflict,
+				Code:       CodeCarrierHasActiveLoad,
+			}
+		},
+	)
+
+	// Load-invite / tracking-link conflicts. Message is left empty so
+	// HandleHTTP falls back to err.Error(), which is already a clear
+	// sentence for all of these.
 	for _, sentinel := range []error{
-		inerr.ErrCarrierHasAlreadyActiveLoad,
 		inerr.ErrLoadAlreadyAssigned,
 		inerr.ErrInviteAlreadyAccepted,
 		inerr.ErrInviteRevoked,

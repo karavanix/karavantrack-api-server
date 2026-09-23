@@ -4,6 +4,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/validation"
 	"github.com/karavanix/karavantrack-api-server/internal/events"
 	"github.com/karavanix/karavantrack-api-server/internal/service/broker"
+	"github.com/karavanix/karavantrack-api-server/internal/service/liveack"
 	"github.com/karavanix/karavantrack-api-server/internal/service/notification"
 	"github.com/karavanix/karavantrack-api-server/internal/service/presence"
 	"github.com/karavanix/karavantrack-api-server/internal/service/rbac"
@@ -12,11 +13,13 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/auth"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/companies"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/invites"
+	"github.com/karavanix/karavantrack-api-server/internal/usecase/leads"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/loads"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/location"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/tracking"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/users"
 	"github.com/karavanix/karavantrack-api-server/pkg/config"
+	"github.com/karavanix/karavantrack-api-server/pkg/redis"
 	"github.com/karavanix/karavantrack-api-server/pkg/security"
 )
 
@@ -25,12 +28,14 @@ type HandlerOptions struct {
 	Validator   *validation.Validator
 	JWTProvider *security.JWTProvider
 	Broker      broker.Broker
+	Redis       *redis.RedisClient
 
 	// Services
 	PresenceService     presence.Service
 	NotificationService notification.Service
 	RbacService         rbac.Service
 	WatcherService      watcher.Service
+	LiveAckService      liveack.Service
 
 	// Factories
 	EventFactory *events.Factory
@@ -44,4 +49,5 @@ type HandlerOptions struct {
 	AttachmentsUsecase *attachments.Usecase
 	InvitesUsecase     *invites.Usecase
 	TrackingUsecase    *tracking.Usecase
+	LeadsUsecase       *leads.Usecase
 }

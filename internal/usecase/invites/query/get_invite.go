@@ -46,15 +46,22 @@ type InviteLoadPreview struct {
 }
 
 type GetInviteResponse struct {
-	Status string             `json:"status"`
-	Load   *InviteLoadPreview `json:"load"`
+	Status       string             `json:"status"`
+	LoadID       string             `json:"load_id"`
+	AcceptedByMe bool               `json:"accepted_by_me"`
+	Load         *InviteLoadPreview `json:"load"`
 }
 
 // GetInvite is a PUBLIC, unauthenticated lookup used to render the invite
 // landing page. It returns 200 even for expired/accepted/revoked invites so
 // the frontend can show an explanatory state instead of a bare 404 — "expired"
 // is computed dynamically rather than relying on a cron sweep.
-func (u *GetInviteUsecase) GetInvite(ctx context.Context, token string) (_ *GetInviteResponse, err error) {
+//
+// viewerID is the currently logged-in user, if any (empty when the request
+// carries no valid bearer token) — it is only used to compute AcceptedByMe so
+// a driver revisiting their own already-accepted link can be sent straight to
+// the load instead of hitting a dead end.
+func (u *GetInviteUsecase) GetInvite(ctx context.Context, token string, viewerID string) (_ *GetInviteResponse, err error) {
 	ctx, cancel := context.WithTimeout(ctx, u.contextDuration)
 	defer cancel()
 
@@ -85,8 +92,12 @@ func (u *GetInviteUsecase) GetInvite(ctx context.Context, token string) (_ *GetI
 		}
 	}
 
+	acceptedByMe := viewerID != "" && invite.AcceptedBy != uuid.Nil && invite.AcceptedBy.String() == viewerID
+
 	return &GetInviteResponse{
-		Status: invite.EffectiveStatus().String(),
+		Status:       invite.EffectiveStatus().String(),
+		LoadID:       load.ID.String(),
+		AcceptedByMe: acceptedByMe,
 		Load: &InviteLoadPreview{
 			ReferenceID:    load.ReferenceID,
 			Title:          load.Title,

@@ -18,13 +18,14 @@ import (
 )
 
 type AcceptUsecase struct {
-	contextDuration time.Duration
-	loadsRepo       domain.LoadRepository
-	taskQueue       *asynq.Client
+	contextDuration    time.Duration
+	loadsRepo          domain.LoadRepository
+	companyMembersRepo domain.CompanyMemberRepository
+	taskQueue          *asynq.Client
 }
 
-func NewAcceptUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository, taskQueue *asynq.Client) *AcceptUsecase {
-	return &AcceptUsecase{contextDuration: contextDuration, loadsRepo: loadsRepo, taskQueue: taskQueue}
+func NewAcceptUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository, companyMembersRepo domain.CompanyMemberRepository, taskQueue *asynq.Client) *AcceptUsecase {
+	return &AcceptUsecase{contextDuration: contextDuration, loadsRepo: loadsRepo, companyMembersRepo: companyMembersRepo, taskQueue: taskQueue}
 }
 
 type AcceptRequest struct {
@@ -81,6 +82,10 @@ func (u *AcceptUsecase) Accept(ctx context.Context, loadID string, userID string
 		return err
 	}
 
+	if load.CarrierID != input.carrierID {
+		return inerr.ErrorPermissionDenied
+	}
+
 	if err := load.Accept(req.Note, input.attachmentIDs...); err != nil {
 		return inerr.NewErrValidation("status", err.Error())
 	}
@@ -90,27 +95,14 @@ func (u *AcceptUsecase) Accept(ctx context.Context, loadID string, userID string
 		return err
 	}
 
-	// Enqueue push notification to cargo owner
-	task, err := tasks.NewSendPushNotificationTask(
-		load.MemberID.String(),
-		tasks.PushNotification{
-			Title: "Груз принят",
-			Body:  "Водитель принял груз: " + load.Title,
-			Metadata: map[string]string{
-				"load_id": load.ID.String(),
-				"action":  "accepted",
-			},
+	enqueueOwnerSidePush(ctx, u.taskQueue, u.companyMembersRepo, load, tasks.PushNotification{
+		Title: "Груз принят",
+		Body:  "Водитель принял груз: " + load.Title,
+		Metadata: map[string]string{
+			"load_id": load.ID.String(),
+			"action":  "accepted",
 		},
-	)
-	if err != nil {
-		logger.ErrorContext(ctx, "failed to create push notification task", err)
-		return err
-	}
-
-	if _, err := u.taskQueue.Enqueue(task); err != nil {
-		logger.ErrorContext(ctx, "failed to enqueue push notification", err)
-		return err
-	}
+	})
 
 	return nil
 }

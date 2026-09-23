@@ -53,5 +53,7 @@ func (u *GetPublicTrackUsecase) GetPublicTrack(ctx context.Context, token string
 		return nil, inerr.NewErrNotFound("tracking link")
 	}
 
-	return u.getTrackUsecase.GetTrack(ctx, link.LoadID.String(), limit, offset)
+	// The tracking token already proves authorization for this specific load,
+	// so the requester-based access check in GetTrack is skipped ("").
+	return u.getTrackUsecase.GetTrack(ctx, link.LoadID.String(), "", limit, offset)
 }

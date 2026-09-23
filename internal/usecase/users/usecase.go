@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
+	"github.com/karavanix/karavantrack-api-server/internal/service/revocation"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/users/command"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/users/query"
 )
@@ -31,12 +32,13 @@ func NewUsecase(
 	usersRepo domain.UserRepository,
 	loadsRepo domain.LoadRepository,
 	fcmDevicesRepo domain.FCMDeviceRepository,
+	revocationService revocation.Service,
 ) *Usecase {
 	return &Usecase{
 		Command: Command{
 			InviteUsecase:         command.NewInviteUsecase(contextDuration, usersRepo),
 			UpdateUsecase:         command.NewUpdateUsecase(contextDuration, usersRepo),
-			DeleteUsecase:         command.NewDeleteUsecase(contextDuration, usersRepo),
+			DeleteUsecase:         command.NewDeleteUsecase(contextDuration, usersRepo, revocationService),
 			RegisterDeviceUsecase: command.NewRegisterDeviceUsecase(contextDuration, fcmDevicesRepo),
 		},
 		Query: Query{

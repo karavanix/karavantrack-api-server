@@ -18,14 +18,18 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/infrastructure/telegram"
 	"github.com/karavanix/karavantrack-api-server/internal/service/broker"
 	"github.com/karavanix/karavantrack-api-server/internal/service/email"
+	"github.com/karavanix/karavantrack-api-server/internal/service/liveack"
 	"github.com/karavanix/karavantrack-api-server/internal/service/notification"
 	"github.com/karavanix/karavantrack-api-server/internal/service/otp"
 	"github.com/karavanix/karavantrack-api-server/internal/service/presence"
 	"github.com/karavanix/karavantrack-api-server/internal/service/rbac"
+	"github.com/karavanix/karavantrack-api-server/internal/service/revocation"
 	"github.com/karavanix/karavantrack-api-server/internal/service/watcher"
+	"github.com/karavanix/karavantrack-api-server/internal/usecase/attachments"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/auth"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/companies"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/invites"
+	"github.com/karavanix/karavantrack-api-server/internal/usecase/leads"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/loads"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/location"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/tracking"
@@ -39,6 +43,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/pkg/nats"
 	"github.com/karavanix/karavantrack-api-server/pkg/otlp"
 	"github.com/karavanix/karavantrack-api-server/pkg/redis"
+	"github.com/karavanix/karavantrack-api-server/pkg/s3"
 	"github.com/karavanix/karavantrack-api-server/pkg/security"
 	"github.com/karavanix/karavantrack-api-server/pkg/smtp"
 	"github.com/uptrace/bun"
@@ -153,6 +158,19 @@ func (s *ServerApp) Run() error {
 	emailsRepo := repository.NewEmailsRepo(s.db)
 	loadInvitesRepo := repository.NewLoadInvitesRepo(s.db)
 	loadTrackingLinksRepo := repository.NewLoadTrackingLinksRepo(s.db)
+	attachmentsRepo := repository.NewAttachmentsRepo(s.db)
+	leadsRepo := repository.NewLeadsRepo(s.db)
+
+	// s3
+	s3Client, err := s3.New(
+		s3.WithEndpoint(s.config.S3.Endpoint),
+		s3.WithRegion(s.config.S3.Region),
+		s3.WithAccessKey(s.config.S3.AccessKey),
+		s3.WithSecretKey(s.config.S3.SecretKey),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create S3 client: %w", err)
+	}
 
 	// apple
 	appleSignInClient, err := apple.NewClient(context.Background(), s.config.Apple.BundleID)
@@ -191,6 +209,8 @@ func (s *ServerApp) Run() error {
 	notificationService := notification.NewService(fcmClient, fcmDevicesRepo)
 	rbacService := rbac.NewService(s.config.Context.Timeout, companyMembersRepo)
 	watcherService := watcher.NewService(s.redis)
+	liveAckService := liveack.NewService(s.redis)
+	revocationService := revocation.NewService(s.redis, s.config.JWT.RefreshTTL)
 	otpService := otp.NewService(otpStore, otp.Config{
 		Secret:      []byte(s.config.OTP.Secret),
 		TTL:         s.config.OTP.TTL,
@@ -209,17 +229,20 @@ func (s *ServerApp) Run() error {
 		appleSignInClient,
 		telegramClient,
 		pkceStore,
+		revocationService,
 		auth.Config{
 			OTPService:   otpService,
 			EmailService: emailService,
 		},
 	)
-	usersUsecase := users.NewUsecase(s.config.Context.Timeout, usersRepo, loadsRepo, fcmDevicesRepo)
+	usersUsecase := users.NewUsecase(s.config.Context.Timeout, usersRepo, loadsRepo, fcmDevicesRepo, revocationService)
 	companiesUsecase := companies.NewUsecase(s.config.Context.Timeout, txManager, companiesRepo, companyMembersRepo, companyCarriersRepo, usersRepo, loadsRepo, rbacService)
-	loadsUsecase := loads.NewUsecase(s.config.Context.Timeout, loadsRepo, usersRepo, loadLocationsPointsRepo, rbacService, s.taskQueue)
-	locationUsecase := location.NewUsecase(s.config.Context.Timeout, s.bkr, eventFactory, loadLocationsPointsRepo)
+	loadsUsecase := loads.NewUsecase(s.config.Context.Timeout, loadsRepo, usersRepo, loadLocationsPointsRepo, companyMembersRepo, attachmentsRepo, s3Client, rbacService, s.taskQueue, presenceService, watcherService, liveAckService)
+	locationUsecase := location.NewUsecase(s.config.Context.Timeout, s.bkr, eventFactory, loadsRepo, loadLocationsPointsRepo)
 	invitesUsecase := invites.NewUsecase(s.config.Context.Timeout, loadsRepo, usersRepo, companiesRepo, loadInvitesRepo, rbacService, s.taskQueue, s.config.PublicAppBaseURL)
-	trackingUsecase := tracking.NewUsecase(s.config.Context.Timeout, loadsRepo, loadTrackingLinksRepo, loadLocationsPointsRepo, rbacService, s.config.PublicAppBaseURL)
+	attachmentsUsecase := attachments.NewUsecase(s.config.Context.Timeout, s.config, txManager, attachmentsRepo, s3Client)
+	trackingUsecase := tracking.NewUsecase(s.config.Context.Timeout, loadsRepo, loadTrackingLinksRepo, loadLocationsPointsRepo, rbacService, s.config.PublicAppBaseURL, presenceService, watcherService, liveAckService)
+	leadsUsecase := leads.NewUsecase(s.config.Context.Timeout, leadsRepo)
 
 	// init handlers options
 	opts := &delivery.HandlerOptions{
@@ -227,17 +250,21 @@ func (s *ServerApp) Run() error {
 		Validator:           validation.NewValidator(),
 		JWTProvider:         jwtProvider,
 		Broker:              s.bkr,
+		Redis:               s.redis,
 		EventFactory:        eventFactory,
 		PresenceService:     presenceService,
 		NotificationService: notificationService,
 		WatcherService:      watcherService,
+		LiveAckService:      liveAckService,
 		AuthUsecase:         authUsecase,
 		UsersUsecase:        usersUsecase,
 		CompaniesUsecase:    companiesUsecase,
 		LoadsUsecase:        loadsUsecase,
 		LocationUsecase:     locationUsecase,
+		AttachmentsUsecase:  attachmentsUsecase,
 		InvitesUsecase:      invitesUsecase,
 		TrackingUsecase:     trackingUsecase,
+		LeadsUsecase:        leadsUsecase,
 		RbacService:         rbacService,
 	}
 

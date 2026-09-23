@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
 	"github.com/karavanix/karavantrack-api-server/internal/inerr"
+	"github.com/karavanix/karavantrack-api-server/internal/service/rbac"
 	"github.com/karavanix/karavantrack-api-server/pkg/otlp"
 	"go.opentelemetry.io/otel"
 )
@@ -14,10 +15,11 @@ import (
 type ListUsecase struct {
 	contextDuration time.Duration
 	loadsRepo       domain.LoadRepository
+	rbacService     rbac.Service
 }
 
-func NewListUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository) *ListUsecase {
-	return &ListUsecase{contextDuration: contextDuration, loadsRepo: loadsRepo}
+func NewListUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository, rbacService rbac.Service) *ListUsecase {
+	return &ListUsecase{contextDuration: contextDuration, loadsRepo: loadsRepo, rbacService: rbacService}
 }
 
 type ListRequest struct {
@@ -61,7 +63,12 @@ type HistoryAttachmentResponse struct {
 	ID           int64  `json:"id"`
 	HistoryID    int64  `json:"history_id"`
 	AttachmentID string `json:"attachment_id"`
-	CreatedAt    string `json:"created_at"`
+	// URL is best-effort: a public attachment's stable URL, or a short-lived
+	// presigned URL for a private one. Omitted if it could not be resolved
+	// (see attachmentURLResolver) — the client still has AttachmentID and can
+	// fall back to GET /attachments/{id}.
+	URL       string `json:"url,omitempty"`
+	CreatedAt string `json:"created_at"`
 }
 
 type HistoryResponse struct {
@@ -111,17 +118,25 @@ func loadToResponse(l *domain.Load) *LoadResponse {
 	return r
 }
 
-func loadToDetailResponse(l *domain.Load) *LoadDetailResponse {
+func loadToDetailResponse(ctx context.Context, l *domain.Load, urlResolver *attachmentURLResolver) *LoadDetailResponse {
 	base := loadToResponse(l)
+
+	attachmentIDs := make([]uuid.UUID, 0)
+	for _, h := range l.History {
+		for _, att := range h.Attachments {
+			attachmentIDs = append(attachmentIDs, att.AttachmentID)
+		}
+	}
+	urls := urlResolver.resolve(ctx, attachmentIDs)
 
 	history := make([]*HistoryResponse, len(l.History))
 	for i, h := range l.History {
 		hr := &HistoryResponse{
-			ID:         h.ID,
-			FromStatus: h.FromStatus.String(),
-			ToStatus:   h.ToStatus.String(),
-			Note:       h.Note,
-			CreatedAt:  h.CreatedAt.Format(time.RFC3339),
+			ID:          h.ID,
+			FromStatus:  h.FromStatus.String(),
+			ToStatus:    h.ToStatus.String(),
+			Note:        h.Note,
+			CreatedAt:   h.CreatedAt.Format(time.RFC3339),
 			Attachments: make([]*HistoryAttachmentResponse, len(h.Attachments)),
 		}
 		if h.UserID != uuid.Nil {
@@ -132,6 +147,7 @@ func loadToDetailResponse(l *domain.Load) *LoadDetailResponse {
 				ID:           att.ID,
 				HistoryID:    att.HistoryID,
 				AttachmentID: att.AttachmentID.String(),
+				URL:          urls[att.AttachmentID],
 				CreatedAt:    att.CreatedAt.Format(time.RFC3339),
 			}
 		}
@@ -144,7 +160,7 @@ func loadToDetailResponse(l *domain.Load) *LoadDetailResponse {
 	}
 }
 
-func (u *ListUsecase) List(ctx context.Context, req *ListRequest) (_ *ListResponse, err error) {
+func (u *ListUsecase) List(ctx context.Context, req *ListRequest, requesterID string) (_ *ListResponse, err error) {
 	ctx, cancel := context.WithTimeout(ctx, u.contextDuration)
 	defer cancel()
 
@@ -156,20 +172,31 @@ func (u *ListUsecase) List(ctx context.Context, req *ListRequest) (_ *ListRespon
 		Offset: req.Offset,
 	}
 
-	if req.CompanyID != "" {
+	switch {
+	case req.CompanyID != "":
 		id, err := uuid.Parse(req.CompanyID)
 		if err != nil {
 			return nil, inerr.NewErrValidation("company_id", "invalid company ID")
 		}
+		allow, err := u.rbacService.HasPermission(ctx, req.CompanyID, requesterID, domain.CompanyPermissionLoadRead)
+		if err != nil {
+			return nil, err
+		}
+		if !allow {
+			return nil, inerr.ErrorPermissionDenied
+		}
 		filter.CompanyID = &id
-	}
-
-	if req.CarrierID != "" {
+	case req.CarrierID != "":
+		if req.CarrierID != requesterID {
+			return nil, inerr.ErrorPermissionDenied
+		}
 		id, err := uuid.Parse(req.CarrierID)
 		if err != nil {
 			return nil, inerr.NewErrValidation("carrier_id", "invalid carrier ID")
 		}
 		filter.CarrierID = &id
+	default:
+		return nil, inerr.ErrorPermissionDenied
 	}
 
 	if len(req.Status) > 0 {

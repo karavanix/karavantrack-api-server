@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
 	"github.com/karavanix/karavantrack-api-server/internal/inerr"
+	"github.com/karavanix/karavantrack-api-server/internal/service/revocation"
 	"github.com/karavanix/karavantrack-api-server/pkg/logger"
 	"github.com/karavanix/karavantrack-api-server/pkg/otlp"
 	"go.opentelemetry.io/otel"
@@ -14,14 +15,16 @@ import (
 )
 
 type DeleteUsecase struct {
-	contextDuration time.Duration
-	usersRepo       domain.UserRepository
+	contextDuration   time.Duration
+	usersRepo         domain.UserRepository
+	revocationService revocation.Service
 }
 
-func NewDeleteUsecase(contextDuration time.Duration, usersRepo domain.UserRepository) *DeleteUsecase {
+func NewDeleteUsecase(contextDuration time.Duration, usersRepo domain.UserRepository, revocationService revocation.Service) *DeleteUsecase {
 	return &DeleteUsecase{
-		contextDuration: contextDuration,
-		usersRepo:       usersRepo,
+		contextDuration:   contextDuration,
+		usersRepo:         usersRepo,
+		revocationService: revocationService,
 	}
 }
 
@@ -41,6 +44,11 @@ func (u *DeleteUsecase) Delete(ctx context.Context, userIDStr string) (err error
 
 	if err := u.usersRepo.Delete(ctx, userID); err != nil {
 		logger.ErrorContext(ctx, "failed to delete user", err)
+		return err
+	}
+
+	if err := u.revocationService.RevokeAllBefore(ctx, userIDStr, time.Now()); err != nil {
+		logger.ErrorContext(ctx, "failed to revoke refresh tokens", err)
 		return err
 	}
 

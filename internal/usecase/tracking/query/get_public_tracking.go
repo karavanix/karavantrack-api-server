@@ -13,10 +13,11 @@ import (
 )
 
 type GetPublicTrackingUsecase struct {
-	contextDuration    time.Duration
-	trackingLinksRepo  domain.LoadTrackingLinkRepository
-	loadsRepo          domain.LoadRepository
-	getPositionUsecase *loadsquery.GetPositionUsecase
+	contextDuration            time.Duration
+	trackingLinksRepo          domain.LoadTrackingLinkRepository
+	loadsRepo                  domain.LoadRepository
+	getPositionUsecase         *loadsquery.GetPositionUsecase
+	getConnectionStatusUsecase *loadsquery.GetConnectionStatusUsecase
 }
 
 func NewGetPublicTrackingUsecase(
@@ -24,12 +25,14 @@ func NewGetPublicTrackingUsecase(
 	trackingLinksRepo domain.LoadTrackingLinkRepository,
 	loadsRepo domain.LoadRepository,
 	getPositionUsecase *loadsquery.GetPositionUsecase,
+	getConnectionStatusUsecase *loadsquery.GetConnectionStatusUsecase,
 ) *GetPublicTrackingUsecase {
 	return &GetPublicTrackingUsecase{
-		contextDuration:    contextDuration,
-		trackingLinksRepo:  trackingLinksRepo,
-		loadsRepo:          loadsRepo,
-		getPositionUsecase: getPositionUsecase,
+		contextDuration:            contextDuration,
+		trackingLinksRepo:          trackingLinksRepo,
+		loadsRepo:                  loadsRepo,
+		getPositionUsecase:         getPositionUsecase,
+		getConnectionStatusUsecase: getConnectionStatusUsecase,
 	}
 }
 
@@ -57,8 +60,9 @@ type PublicPosition struct {
 }
 
 type GetPublicTrackingResponse struct {
-	Load     *PublicTrackingLoad `json:"load"`
-	Position *PublicPosition     `json:"position"`
+	Load       *PublicTrackingLoad                  `json:"load"`
+	Position   *PublicPosition                      `json:"position"`
+	Connection *loadsquery.ConnectionStatusResponse `json:"connection,omitempty"`
 }
 
 // GetPublicTracking is a PUBLIC, unauthenticated lookup by tracking-link
@@ -108,7 +112,11 @@ func (u *GetPublicTrackingUsecase) GetPublicTracking(ctx context.Context, token 
 		},
 	}
 
-	position, err := u.getPositionUsecase.GetPosition(ctx, load.ID.String())
+	resp.Connection = u.connectionStatus(ctx, load.ID.String())
+
+	// The tracking token already proves authorization for this specific load,
+	// so the requester-based access check in GetPosition is skipped ("").
+	position, err := u.getPositionUsecase.GetPosition(ctx, load.ID.String(), "")
 	if err != nil {
 		if errors.Is(err, inerr.ErrNotFound{}) {
 			return resp, nil
@@ -125,4 +133,16 @@ func (u *GetPublicTrackingUsecase) GetPublicTracking(ctx context.Context, token 
 	}
 
 	return resp, nil
+}
+
+// connectionStatus is filled in regardless of whether a position exists yet —
+// "no position" is exactly one of the things the connection status explains
+// (not_started / disconnected), so it can't be nested inside the same
+// early-return as Position above.
+func (u *GetPublicTrackingUsecase) connectionStatus(ctx context.Context, loadID string) *loadsquery.ConnectionStatusResponse {
+	status, err := u.getConnectionStatusUsecase.GetConnectionStatus(ctx, loadID, "")
+	if err != nil {
+		return nil
+	}
+	return status
 }

@@ -5,11 +5,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/hibiken/asynq"
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
 	"github.com/karavanix/karavantrack-api-server/internal/inerr"
 	"github.com/karavanix/karavantrack-api-server/internal/service/rbac"
-	"github.com/karavanix/karavantrack-api-server/internal/tasks"
 	"github.com/karavanix/karavantrack-api-server/pkg/logger"
 	"github.com/karavanix/karavantrack-api-server/pkg/otlp"
 	"go.opentelemetry.io/otel"
@@ -19,18 +17,14 @@ import (
 type CreateUsecase struct {
 	contextDuration time.Duration
 	loadsRepo       domain.LoadRepository
-	userRepo        domain.UserRepository
 	rbacService     rbac.Service
-	taskQueue       *asynq.Client
 }
 
-func NewCreateUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository, userRepo domain.UserRepository, rbacService rbac.Service, taskQueue *asynq.Client) *CreateUsecase {
+func NewCreateUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository, rbacService rbac.Service) *CreateUsecase {
 	return &CreateUsecase{
 		contextDuration: contextDuration,
 		loadsRepo:       loadsRepo,
-		userRepo:        userRepo,
 		rbacService:     rbacService,
-		taskQueue:       taskQueue,
 	}
 }
 
@@ -47,7 +41,6 @@ type CreateRequest struct {
 	DropoffLng     float64   `json:"dropoff_lng" validate:"required"`
 	PickupAt       time.Time `json:"pickup_at"`
 	DropoffAt      time.Time `json:"dropoff_at"`
-	CarrierID      string    `json:"carrier_id"`
 }
 
 type CreateResponse struct {
@@ -67,7 +60,6 @@ func (u *CreateUsecase) Create(ctx context.Context, requesterID string, req *Cre
 	var input struct {
 		companyID uuid.UUID
 		actorID   uuid.UUID
-		carrierID uuid.UUID
 		pickupAt  time.Time
 		dropoffAt time.Time
 	}
@@ -79,13 +71,6 @@ func (u *CreateUsecase) Create(ctx context.Context, requesterID string, req *Cre
 		input.actorID, err = uuid.Parse(requesterID)
 		if err != nil {
 			return nil, inerr.NewErrValidation("user_id", err.Error())
-		}
-
-		if req.CarrierID != "" {
-			input.carrierID, err = uuid.Parse(req.CarrierID)
-			if err != nil {
-				return nil, inerr.NewErrValidation("carrier_id", err.Error())
-			}
 		}
 
 		input.dropoffAt = req.DropoffAt
@@ -109,14 +94,6 @@ func (u *CreateUsecase) Create(ctx context.Context, requesterID string, req *Cre
 		return nil, inerr.ErrorPermissionDenied
 	}
 
-	var carrier *domain.User
-	if input.carrierID != uuid.Nil {
-		carrier, err = u.userRepo.FindByID(ctx, input.carrierID)
-		if err != nil {
-			return nil, inerr.NewErrValidation("carrier_id", err.Error())
-		}
-	}
-
 	load, err := domain.NewLoad(
 		input.companyID, input.actorID,
 		req.Title, req.Description,
@@ -132,52 +109,9 @@ func (u *CreateUsecase) Create(ctx context.Context, requesterID string, req *Cre
 		load.SetReferenceID(req.ReferenceID)
 	}
 
-	if carrier != nil {
-		load.Assign("", carrier.ID)
-	}
-
 	if err := u.loadsRepo.Save(ctx, load); err != nil {
 		logger.ErrorContext(ctx, "failed to save load", err)
 		return nil, err
-	}
-
-	if carrier != nil {
-		var t []*asynq.Task
-
-		pushTask, err := tasks.NewSendPushNotificationTask(carrier.ID.String(), tasks.PushNotification{
-			Title: "Новый груз назначен",
-			Body:  "Подтвердите, чтобы начать погрузку.",
-			Metadata: map[string]string{
-				"load_id": load.ID.String(),
-				"action":  "assigned",
-			},
-		})
-		if err != nil {
-			logger.ErrorContext(ctx, "failed to create push notification task", err)
-		} else {
-			t = append(t, pushTask)
-		}
-
-		addCarrierTask, err := tasks.NewSendAddCarrierToCompanyTask(
-			&tasks.AddCarrierToCompanyPayload{
-				ActorID:   input.actorID.String(),
-				CompanyID: input.companyID.String(),
-				CarrierID: carrier.ID.String(),
-				Alias:     carrier.FullName(),
-			},
-		)
-		if err != nil {
-			logger.ErrorContext(ctx, "failed to create add carrier task", err)
-		} else {
-			t = append(t, addCarrierTask)
-		}
-
-		for _, task := range t {
-			if _, err := u.taskQueue.EnqueueContext(ctx, task); err != nil {
-				logger.ErrorContext(ctx, "failed to enqueue push notification", err)
-			}
-		}
-
 	}
 
 	return &CreateResponse{

@@ -65,6 +65,7 @@ func (h *Handler) Disconnect() wsrouter.HandlerFunc {
 
 		loadID, ok := wsrouter.Attachment[string](conn, "loadID")
 		if ok {
+			carrierID, _ := wsrouter.Attachment[string](conn, "carrierID")
 			err = h.bkr.Unsubscribe(
 				ctx,
 				consumers.NewWebsocketLoadLocationLiveConsumer(h.cfg, conn, loadID),
@@ -72,7 +73,7 @@ func (h *Handler) Disconnect() wsrouter.HandlerFunc {
 			if err != nil {
 				logger.WarnContext(ctx, "failed to unsubscribe load location live consumer", "error", err)
 			}
-			go h.leaveLoad(context.Background(), loadID)
+			go h.leaveLoad(context.Background(), loadID, carrierID)
 		}
 
 		err = h.presenceService.Offline(ctx, userID)

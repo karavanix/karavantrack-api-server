@@ -10,6 +10,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/outerr"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/auth"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/auth/command"
+	"github.com/karavanix/karavantrack-api-server/pkg/app"
 	"github.com/karavanix/karavantrack-api-server/pkg/security"
 )
 
@@ -156,15 +157,28 @@ func (h *authHander) VerifyEmail() http.HandlerFunc {
 }
 
 // Logout godoc
+// @Security     BearerAuth
 // @Summary      Logout
-// @Description  Logout user (invalidate session)
+// @Description  Logout user (revokes all outstanding refresh tokens)
 // @Tags         Auth
 // @Accept       json
 // @Produce      json
 // @Success      200
+// @Failure      401  {object} outerr.Response
 // @Router       /auth/logout [post]
 func (h *authHander) Logout() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := app.UserID[string](r.Context())
+		if !ok {
+			outerr.Forbidden(w, r, "missing user context")
+			return
+		}
+
+		if err := h.authUsecase.Command.Logout(r.Context(), userID); err != nil {
+			outerr.HandleHTTP(w, r, err)
+			return
+		}
+
 		render.Status(r, http.StatusOK)
 	}
 }

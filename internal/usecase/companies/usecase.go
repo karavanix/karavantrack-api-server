@@ -60,13 +60,14 @@ func NewUsecase(
 			GetShipperCompanyUsecase:    query.NewGetShipperCompanyUsecase(contextDuration, companiesRepo, companyMembersRepo),
 			GetCarrierCompanyUsecase:    query.NewGetCarrierCompanyUsecase(contextDuration, companiesRepo, rbacService),
 			ListShipperCompaniesUsecase: query.NewListShipperCompaniesUsecase(contextDuration, companiesRepo, companyMembersRepo),
-			ListMembersUsecase:          query.NewListMembersUsecase(contextDuration, companyMembersRepo, usersRepo),
+			ListMembersUsecase:          query.NewListMembersUsecase(contextDuration, companyMembersRepo, usersRepo, rbacService),
 			ListCarriersUsecase: query.NewListByCompanyUsecase(
 				contextDuration,
 				companyMembersRepo,
 				companyCarriersRepo,
 				usersRepo,
 				loadsRepo,
+				rbacService,
 			),
 		},
 	}

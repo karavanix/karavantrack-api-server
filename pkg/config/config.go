@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/karavanix/karavantrack-api-server/pkg/app"
@@ -136,6 +137,12 @@ type Config struct {
 	// shareable links like {PublicAppBaseURL}/invite/{token} and
 	// {PublicAppBaseURL}/track/{token}.
 	PublicAppBaseURL string
+
+	CORS struct {
+		// AllowedOrigins is the browser origins allowed to call the API with
+		// credentials (env: CORS_ALLOWED_ORIGINS, comma-separated).
+		AllowedOrigins []string
+	}
 }
 
 func New() (*Config, error) {
@@ -260,6 +267,15 @@ func New() (*Config, error) {
 	// Public URLs
 	c.PublicAppBaseURL = getEnv("PUBLIC_APP_BASE_URL", "https://app.yool.live")
 
+	// CORS
+	defaultOrigins := []string{"https://app.yool.live", "https://yool.live"}
+	if c.Environment != app.Production {
+		// Non-production runs (local/development) also need the Vite dev
+		// server origins, which vary by machine/port.
+		defaultOrigins = append(defaultOrigins, "http://localhost:5173", "http://localhost:5174")
+	}
+	c.CORS.AllowedOrigins = getEnvList("CORS_ALLOWED_ORIGINS", defaultOrigins)
+
 	return c, nil
 }
 
@@ -285,4 +301,19 @@ func getEnvDuration(key string, defaultValue string) (time.Duration, error) {
 		return time.Duration(0), err
 	}
 	return value, nil
+}
+
+func getEnvList(key string, defaultValue []string) []string {
+	value, exists := os.LookupEnv(key)
+	if !exists || value == "" {
+		return defaultValue
+	}
+	parts := strings.Split(value, ",")
+	result := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if p = strings.TrimSpace(p); p != "" {
+			result = append(result, p)
+		}
+	}
+	return result
 }

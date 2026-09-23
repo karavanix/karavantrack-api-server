@@ -20,6 +20,7 @@ func NewRouter(opts *delivery.HandlerOptions) http.Handler {
 	r.On("join", handler.Join())
 	r.On("leave", handler.Leave())
 	r.On("location", handler.Location())
+	r.On("live_location_ack", handler.LiveLocationAck())
 
 	return r
 }

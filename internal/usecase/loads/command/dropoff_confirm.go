@@ -19,11 +19,12 @@ type ConfirmDropoffUsecase struct {
 	contextDuration       time.Duration
 	loadsRepo             domain.LoadRepository
 	loadLocationPointRepo domain.LoadLocationPointRepository
+	companyMembersRepo    domain.CompanyMemberRepository
 	taskQueue             *asynq.Client
 }
 
-func NewConfirmDropoffUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository, loadLocationPointRepo domain.LoadLocationPointRepository, taskQueue *asynq.Client) *ConfirmDropoffUsecase {
-	return &ConfirmDropoffUsecase{contextDuration: contextDuration, loadsRepo: loadsRepo, loadLocationPointRepo: loadLocationPointRepo, taskQueue: taskQueue}
+func NewConfirmDropoffUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository, loadLocationPointRepo domain.LoadLocationPointRepository, companyMembersRepo domain.CompanyMemberRepository, taskQueue *asynq.Client) *ConfirmDropoffUsecase {
+	return &ConfirmDropoffUsecase{contextDuration: contextDuration, loadsRepo: loadsRepo, loadLocationPointRepo: loadLocationPointRepo, companyMembersRepo: companyMembersRepo, taskQueue: taskQueue}
 }
 
 type ConfirmDropoffRequest struct {
@@ -32,23 +33,30 @@ type ConfirmDropoffRequest struct {
 	Location      *LocationInput `json:"location,omitempty"`
 }
 
-func (u *ConfirmDropoffUsecase) ConfirmDropoff(ctx context.Context, loadID string, req *ConfirmDropoffRequest) (err error) {
+func (u *ConfirmDropoffUsecase) ConfirmDropoff(ctx context.Context, loadID string, userID string, req *ConfirmDropoffRequest) (err error) {
 	ctx, cancel := context.WithTimeout(ctx, u.contextDuration)
 	defer cancel()
 
 	ctx, end := otlp.Start(ctx, otel.Tracer("loads"), "ConfirmDropoff",
 		attribute.String("load_id", loadID),
+		attribute.String("user_id", userID),
 	)
 	defer func() { end(err) }()
 
 	var input struct {
 		loadID        uuid.UUID
+		carrierID     uuid.UUID
 		attachmentIDs []uuid.UUID
 	}
 	{
 		input.loadID, err = uuid.Parse(loadID)
 		if err != nil {
 			return inerr.NewErrValidation("load_id", "invalid load ID")
+		}
+
+		input.carrierID, err = uuid.Parse(userID)
+		if err != nil {
+			return inerr.NewErrValidation("user_id", "invalid user ID")
 		}
 
 		for _, idStr := range req.AttachmentIDs {
@@ -63,6 +71,10 @@ func (u *ConfirmDropoffUsecase) ConfirmDropoff(ctx context.Context, loadID strin
 	load, err := u.loadsRepo.FindByID(ctx, input.loadID)
 	if err != nil {
 		return err
+	}
+
+	if load.CarrierID != input.carrierID {
+		return inerr.ErrorPermissionDenied
 	}
 
 	history, err := load.ConfirmDropoff(req.Note, input.attachmentIDs...)
@@ -89,26 +101,14 @@ func (u *ConfirmDropoffUsecase) ConfirmDropoff(ctx context.Context, loadID strin
 		}
 	}
 
-	task, err := tasks.NewSendPushNotificationTask(
-		load.MemberID.String(),
-		tasks.PushNotification{
-			Title: "Груз доставлен",
-			Body:  "Водитель завершил доставку: " + load.Title,
-			Metadata: map[string]string{
-				"load_id": load.ID.String(),
-				"action":  "dropped_off",
-			},
+	enqueueOwnerSidePush(ctx, u.taskQueue, u.companyMembersRepo, load, tasks.PushNotification{
+		Title: "Груз доставлен",
+		Body:  "Водитель завершил доставку: " + load.Title,
+		Metadata: map[string]string{
+			"load_id": load.ID.String(),
+			"action":  "dropped_off",
 		},
-	)
-	if err != nil {
-		logger.ErrorContext(ctx, "failed to create push notification task", err)
-		return err
-	}
-
-	if _, err := u.taskQueue.Enqueue(task); err != nil {
-		logger.ErrorContext(ctx, "failed to enqueue push notification", err)
-		return err
-	}
+	})
 
 	return nil
 }
