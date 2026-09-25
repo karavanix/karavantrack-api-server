@@ -36,6 +36,7 @@ func TestNewLoadLocationPoint_ValidatesCoordinates(t *testing.T) {
 		{"lat too low", -90.1, 0, true},
 		{"lng too high", 0, 180.1, true},
 		{"lng too low", 0, -180.1, true},
+		{"null island", 0, 0, true},
 	}
 
 	for _, tt := range tests {
