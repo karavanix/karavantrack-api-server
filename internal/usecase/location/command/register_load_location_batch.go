@@ -108,8 +108,14 @@ func (u *RegisterLoadLocationBatchUsecase) RegisterLoadLocationBatch(ctx context
 		return inerr.ErrorPermissionDenied
 	}
 
-	candidates := make([]*domain.LoadLocationPoint, len(req.Points))
-	for i, p := range req.Points {
+	// A malformed point (out-of-range or (0, 0) coordinates — see
+	// NewLoadLocationPoint) is skipped rather than failing the whole request:
+	// the phone retries a failed batch verbatim on its next tick (see
+	// _flushQueue in background_service.dart), so one bad point stuck at the
+	// front of the offline queue would otherwise block every real point
+	// behind it forever instead of just being dropped once.
+	candidates := make([]*domain.LoadLocationPoint, 0, len(req.Points))
+	for _, p := range req.Points {
 		point, err := domain.NewLoadLocationPoint(
 			input.loadID,
 			input.carrierID,
@@ -121,9 +127,13 @@ func (u *RegisterLoadLocationBatchUsecase) RegisterLoadLocationBatch(ctx context
 			p.RecordedAt,
 		)
 		if err != nil {
-			return err
+			logger.InfoContext(ctx, "dropping invalid load location point from batch", "error", err.Error())
+			continue
 		}
-		candidates[i] = point
+		candidates = append(candidates, point)
+	}
+	if len(candidates) == 0 {
+		return nil
 	}
 	sort.Slice(candidates, func(i, j int) bool {
 		return candidates[i].RecordedAt.Before(candidates[j].RecordedAt)

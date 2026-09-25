@@ -45,6 +45,15 @@ func NewLoadLocationPoint(
 	if lng < -180 || lng > 180 {
 		return nil, errors.New("lng out of range")
 	}
+	// (0, 0) — "null island", a point in the ocean off the coast of Africa —
+	// is the classic sentinel for "no real fix yet" across GPS stacks and
+	// mock providers (an Android emulator with no location configured reports
+	// this by default). It passes the range checks above trivially but can
+	// never be a real position for this fleet, so it's rejected outright
+	// rather than silently corrupting a track.
+	if lat == 0 && lng == 0 {
+		return nil, errors.New("lat/lng is (0, 0), which is never a real fix")
+	}
 	if recordedAt.IsZero() {
 		recordedAt = time.Now()
 	}
