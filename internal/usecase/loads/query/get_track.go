@@ -47,7 +47,8 @@ type TrackPointResponse struct {
 }
 
 type GetTrackResponse struct {
-	LoadID string                `json:"load_id"`
+	LoadID string `json:"load_id"`
+	// Points are oldest first.
 	Points []*TrackPointResponse `json:"points"`
 	Total  int                   `json:"total"`
 }
