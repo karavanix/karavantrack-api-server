@@ -243,8 +243,8 @@ func NewRegistry() *Registry {
 			return errors.Is(err, inerr.ErrHttp{})
 		},
 		func(err error) Mapping {
-			httpErr, ok := err.(*inerr.ErrHttp)
-			if !ok {
+			var httpErr *inerr.ErrHttp
+			if !errors.As(err, &httpErr) {
 				return Mapping{
 					HTTPStatus: http.StatusInternalServerError,
 					Code:       CodeInternalError,
