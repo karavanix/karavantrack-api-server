@@ -6,6 +6,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
 	"github.com/karavanix/karavantrack-api-server/internal/service/email"
 	"github.com/karavanix/karavantrack-api-server/internal/service/otp"
+	"github.com/karavanix/karavantrack-api-server/internal/service/ports"
 	"github.com/karavanix/karavantrack-api-server/internal/service/revocation"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/auth/command"
 	"github.com/karavanix/karavantrack-api-server/pkg/apple"
@@ -45,7 +46,7 @@ func NewUsecase(
 	usersRepo domain.UserRepository,
 	oauthAccountsRepo domain.OAuthAccountRepository,
 	appleClient *apple.Client,
-	telegramClient domain.TelegramProvider,
+	telegramClient ports.TelegramProvider,
 	pkceRepo domain.PKCERepository,
 	revocationService revocation.Service,
 	cfg Config,

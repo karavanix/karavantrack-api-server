@@ -10,6 +10,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
 	"github.com/karavanix/karavantrack-api-server/internal/domain/shared"
 	"github.com/karavanix/karavantrack-api-server/internal/inerr"
+	"github.com/karavanix/karavantrack-api-server/internal/service/ports"
 	"github.com/karavanix/karavantrack-api-server/pkg/database/postgres"
 	"github.com/karavanix/karavantrack-api-server/pkg/logger"
 	"github.com/karavanix/karavantrack-api-server/pkg/otlp"
@@ -20,7 +21,7 @@ import (
 type TelegramOAuthUsecase struct {
 	contextDuration   time.Duration
 	jwtProvider       *security.JWTProvider
-	telegramClient    domain.TelegramProvider
+	telegramClient    ports.TelegramProvider
 	txManager         postgres.TxManager
 	usersRepo         domain.UserRepository
 	oauthAccountsRepo domain.OAuthAccountRepository
@@ -30,7 +31,7 @@ type TelegramOAuthUsecase struct {
 func NewTelegramOAuthUsecase(
 	contextDuration time.Duration,
 	jwtProvider *security.JWTProvider,
-	telegramClient domain.TelegramProvider,
+	telegramClient ports.TelegramProvider,
 	txManager postgres.TxManager,
 	usersRepo domain.UserRepository,
 	oauthAccountsRepo domain.OAuthAccountRepository,
