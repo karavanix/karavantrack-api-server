@@ -138,6 +138,48 @@ type Config struct {
 	// {PublicAppBaseURL}/track/{token}.
 	PublicAppBaseURL string
 
+	Valhalla struct {
+		// URL of the Valhalla routing engine (env: VALHALLA_URL). It has no
+		// auth, so it's only reachable on the private network.
+		URL     string
+		Timeout time.Duration
+	}
+
+	// Matching configures map matching of load tracks. Defaults come from
+	// the gps-lab experiments on our own tracks.
+	Matching struct {
+		// Enabled turns scheduling of track matching on (env:
+		// MATCHING_ENABLED). Off: no matching tasks, clients draw raw points.
+		Enabled bool
+		// Debounce: at most one match per load within this window after new
+		// points arrive.
+		Debounce time.Duration
+		// Timeout for matching one load.
+		Timeout time.Duration
+		// GapThreshold: silence longer than this is a gap, not a stop (the
+		// phone records a point at least every 5 min while standing).
+		GapThreshold time.Duration
+		// A stop is a run of points within StopRadiusM of its first point
+		// lasting at least StopMinDuration.
+		StopRadiusM     float64
+		StopMinDuration time.Duration
+		// MaxAccuracyM: points coarser than this aren't matched.
+		MaxAccuracyM float64
+		// Road search radius per point: accuracy × RadiusMultiplier, clamped
+		// to MinRadiusM..MaxRadiusM.
+		RadiusMultiplier float64
+		MinRadiusM       float64
+		MaxRadiusM       float64
+		// BreakageDistance = BreakageSpeedMps × GapThreshold ×
+		// BreakageFactor: the longest road path the matcher may build
+		// between two consecutive points.
+		BreakageSpeedMps float64
+		BreakageFactor   float64
+		// MaxRequestDistanceM caps the path length of one matching request
+		// (Valhalla's limit is 200 km); longer moving stretches are split.
+		MaxRequestDistanceM float64
+	}
+
 	CORS struct {
 		// AllowedOrigins is the browser origins allowed to call the API with
 		// credentials (env: CORS_ALLOWED_ORIGINS, comma-separated).
@@ -264,6 +306,35 @@ func New() (*Config, error) {
 	c.Nats.DynamicSubjects.WebsocketConnection = "websocket.connection.%s"
 	c.Nats.DynamicSubjects.LoadLocationPointCreated = "load.location.point.%s"
 
+	// Valhalla
+	c.Valhalla.URL = getEnv("VALHALLA_URL", "http://localhost:8002")
+	if c.Valhalla.Timeout, err = getEnvDuration("VALHALLA_TIMEOUT", "30s"); err != nil {
+		return nil, fmt.Errorf("VALHALLA_TIMEOUT: %w", err)
+	}
+
+	// Matching
+	c.Matching.Enabled = getEnvBool("MATCHING_ENABLED", false)
+	if c.Matching.Debounce, err = getEnvDuration("MATCHING_DEBOUNCE", "60s"); err != nil {
+		return nil, fmt.Errorf("MATCHING_DEBOUNCE: %w", err)
+	}
+	if c.Matching.Timeout, err = getEnvDuration("MATCHING_TIMEOUT", "5m"); err != nil {
+		return nil, fmt.Errorf("MATCHING_TIMEOUT: %w", err)
+	}
+	if c.Matching.GapThreshold, err = getEnvDuration("MATCHING_GAP_THRESHOLD", "10m"); err != nil {
+		return nil, fmt.Errorf("MATCHING_GAP_THRESHOLD: %w", err)
+	}
+	if c.Matching.StopMinDuration, err = getEnvDuration("MATCHING_STOP_MIN_DURATION", "10m"); err != nil {
+		return nil, fmt.Errorf("MATCHING_STOP_MIN_DURATION: %w", err)
+	}
+	c.Matching.StopRadiusM = getEnvFloat("MATCHING_STOP_RADIUS_M", 50)
+	c.Matching.MaxAccuracyM = getEnvFloat("MATCHING_MAX_ACCURACY_M", 50)
+	c.Matching.RadiusMultiplier = getEnvFloat("MATCHING_RADIUS_MULTIPLIER", 3)
+	c.Matching.MinRadiusM = getEnvFloat("MATCHING_MIN_RADIUS_M", 25)
+	c.Matching.MaxRadiusM = getEnvFloat("MATCHING_MAX_RADIUS_M", 60)
+	c.Matching.BreakageSpeedMps = getEnvFloat("MATCHING_BREAKAGE_SPEED_MPS", 25)
+	c.Matching.BreakageFactor = getEnvFloat("MATCHING_BREAKAGE_FACTOR", 1.5)
+	c.Matching.MaxRequestDistanceM = getEnvFloat("MATCHING_MAX_REQUEST_DISTANCE_M", 150000)
+
 	// Public URLs
 	c.PublicAppBaseURL = getEnv("PUBLIC_APP_BASE_URL", "https://app.yool.live")
 
@@ -289,6 +360,22 @@ func getEnv(key string, defaultValue string) string {
 
 func getEnvInt(key string, defaultValue int) int {
 	value, err := strconv.Atoi(os.Getenv(key))
+	if err != nil {
+		return defaultValue
+	}
+	return value
+}
+
+func getEnvBool(key string, defaultValue bool) bool {
+	value, err := strconv.ParseBool(os.Getenv(key))
+	if err != nil {
+		return defaultValue
+	}
+	return value
+}
+
+func getEnvFloat(key string, defaultValue float64) float64 {
+	value, err := strconv.ParseFloat(os.Getenv(key), 64)
 	if err != nil {
 		return defaultValue
 	}
