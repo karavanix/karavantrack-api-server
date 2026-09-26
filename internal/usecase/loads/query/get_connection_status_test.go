@@ -42,6 +42,10 @@ func (r *fakeLoadLocationPointRepo) FindAllByLoadID(ctx context.Context, loadID 
 	panic("not implemented")
 }
 
+func (r *fakeLoadLocationPointRepo) LastIDByLoadID(ctx context.Context, loadID uuid.UUID) (int64, error) {
+	panic("not implemented")
+}
+
 // fakePresenceService lets each test control exactly who's "online" without
 // standing up Redis.
 type fakePresenceService struct {

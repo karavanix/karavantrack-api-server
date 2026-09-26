@@ -20,6 +20,7 @@ type Command struct {
 type Query struct {
 	*query.GetPublicTrackingUsecase
 	*query.GetPublicTrackUsecase
+	*query.GetPublicRouteUsecase
 }
 
 type Usecase struct {
@@ -32,6 +33,7 @@ func NewUsecase(
 	loadsRepo domain.LoadRepository,
 	trackingLinksRepo domain.LoadTrackingLinkRepository,
 	loadLocationPointRepo domain.LoadLocationPointRepository,
+	loadTracksRepo domain.LoadTrackRepository,
 	rbacService rbac.Service,
 	publicAppBaseURL string,
 	presenceService presence.Service,
@@ -44,6 +46,7 @@ func NewUsecase(
 	// check and resolve token -> load_id first.
 	getPositionUsecase := loadsquery.NewGetPositionUsecase(contextDuration, loadsRepo, loadLocationPointRepo, rbacService)
 	getTrackUsecase := loadsquery.NewGetTrackUsecase(contextDuration, loadsRepo, loadLocationPointRepo, rbacService)
+	getRouteUsecase := loadsquery.NewGetRouteUsecase(contextDuration, loadsRepo, loadTracksRepo, rbacService)
 	getConnectionStatusUsecase := loadsquery.NewGetConnectionStatusUsecase(contextDuration, loadsRepo, loadLocationPointRepo, rbacService, presenceService, watcherService, liveAckService)
 
 	return &Usecase{
@@ -53,6 +56,7 @@ func NewUsecase(
 		Query: Query{
 			GetPublicTrackingUsecase: query.NewGetPublicTrackingUsecase(contextDuration, trackingLinksRepo, loadsRepo, getPositionUsecase, getConnectionStatusUsecase),
 			GetPublicTrackUsecase:    query.NewGetPublicTrackUsecase(contextDuration, trackingLinksRepo, getTrackUsecase),
+			GetPublicRouteUsecase:    query.NewGetPublicRouteUsecase(contextDuration, trackingLinksRepo, getRouteUsecase),
 		},
 	}
 }

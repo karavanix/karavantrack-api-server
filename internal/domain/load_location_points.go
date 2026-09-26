@@ -80,6 +80,9 @@ type LoadLocationPointRepository interface {
 	FindByStatusHistoryIDs(ctx context.Context, historyIDs []int64) ([]*LoadLocationPoint, error)
 	// FindAllByLoadID returns every stored point of the load, oldest first.
 	FindAllByLoadID(ctx context.Context, loadID uuid.UUID) (LoadLocationTrack, error)
+	// LastIDByLoadID returns the highest point ID stored for the load, 0
+	// when there are none.
+	LastIDByLoadID(ctx context.Context, loadID uuid.UUID) (int64, error)
 }
 
 // MaxPlausibleSpeedMps is a generous ceiling (~130 km/h) for how fast a

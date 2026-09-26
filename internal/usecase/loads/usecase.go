@@ -9,6 +9,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/service/presence"
 	"github.com/karavanix/karavantrack-api-server/internal/service/rbac"
 	"github.com/karavanix/karavantrack-api-server/internal/service/watcher"
+	"github.com/karavanix/karavantrack-api-server/internal/tasks"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/loads/command"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/loads/query"
 	"github.com/karavanix/karavantrack-api-server/pkg/s3"
@@ -32,6 +33,7 @@ type Query struct {
 	*query.GetActiveUsecase
 	*query.ListUsecase
 	*query.GetTrackUsecase
+	*query.GetRouteUsecase
 	*query.GetPositionUsecase
 	*query.GetConnectionStatusUsecase
 	*query.GetStatsUsecase
@@ -47,6 +49,7 @@ func NewUsecase(
 	loadsRepo domain.LoadRepository,
 	usersRepo domain.UserRepository,
 	loadLocationPointRepo domain.LoadLocationPointRepository,
+	loadTracksRepo domain.LoadTrackRepository,
 	companyMembersRepo domain.CompanyMemberRepository,
 	attachmentsRepo domain.AttachmentRepository,
 	s3Client *s3.S3Client,
@@ -55,6 +58,7 @@ func NewUsecase(
 	presenceService presence.Service,
 	watcherService watcher.Service,
 	liveAckService liveack.Service,
+	matchScheduler *tasks.MatchLoadTrackScheduler,
 ) *Usecase {
 	return &Usecase{
 		Command: Command{
@@ -65,7 +69,7 @@ func NewUsecase(
 			ConfirmPickupUsecase:  command.NewConfirmPickupUsecase(contextDuration, loadsRepo, loadLocationPointRepo, companyMembersRepo, taskQueue),
 			StartUsecase:          command.NewStartUsecase(contextDuration, loadsRepo, loadLocationPointRepo, companyMembersRepo, taskQueue),
 			BeginDropoffUsecase:   command.NewBeginDropoffUsecase(contextDuration, loadsRepo, loadLocationPointRepo, companyMembersRepo, taskQueue),
-			ConfirmDropoffUsecase: command.NewConfirmDropoffUsecase(contextDuration, loadsRepo, loadLocationPointRepo, companyMembersRepo, taskQueue),
+			ConfirmDropoffUsecase: command.NewConfirmDropoffUsecase(contextDuration, loadsRepo, loadLocationPointRepo, companyMembersRepo, taskQueue, matchScheduler),
 			ConfirmUsecase:        command.NewConfirmUsecase(contextDuration, loadsRepo, rbacService, taskQueue),
 			CancelUsecase:         command.NewCancelUsecase(contextDuration, loadsRepo, rbacService, taskQueue),
 		},
@@ -74,6 +78,7 @@ func NewUsecase(
 			GetActiveUsecase:           query.NewGetActiveUsecase(contextDuration, loadsRepo, attachmentsRepo, s3Client),
 			ListUsecase:                query.NewListUsecase(contextDuration, loadsRepo, rbacService),
 			GetTrackUsecase:            query.NewGetTrackUsecase(contextDuration, loadsRepo, loadLocationPointRepo, rbacService),
+			GetRouteUsecase:            query.NewGetRouteUsecase(contextDuration, loadsRepo, loadTracksRepo, rbacService),
 			GetPositionUsecase:         query.NewGetPositionUsecase(contextDuration, loadsRepo, loadLocationPointRepo, rbacService),
 			GetConnectionStatusUsecase: query.NewGetConnectionStatusUsecase(contextDuration, loadsRepo, loadLocationPointRepo, rbacService, presenceService, watcherService, liveAckService),
 			GetStatsUsecase:            query.NewGetStatsUsecase(contextDuration, loadsRepo, rbacService),

@@ -42,6 +42,27 @@ func (h *publicTrackingHandler) GetTracking() http.HandlerFunc {
 	}
 }
 
+// GetRoute godoc
+// @Summary      Get public cargo route
+// @Description  PUBLIC, unauthenticated route matched to roads, by tracking-link token (same shape as the authenticated GET /loads/{id}/route)
+// @Tags         Tracking
+// @Produce      json
+// @Param        token path string true "Tracking link token"
+// @Success      200  {object} query.GetRouteResponse
+// @Failure      404  {object} outerr.Response
+// @Router       /public/tracking/{token}/route [get]
+func (h *publicTrackingHandler) GetRoute() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		resp, err := h.trackingUsecase.Query.GetPublicRoute(r.Context(), chi.URLParam(r, "token"))
+		if err != nil {
+			outerr.HandleHTTP(w, r, err)
+			return
+		}
+
+		render.JSON(w, r, resp)
+	}
+}
+
 // GetTrack godoc
 // @Summary      Get public cargo tracking history
 // @Description  PUBLIC, unauthenticated location history for a load, by tracking-link token (same shape as the authenticated GET /loads/{id}/track)

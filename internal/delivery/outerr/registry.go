@@ -198,6 +198,38 @@ func NewRegistry() *Registry {
 		)
 	}
 
+	// Routing engine (Valhalla). No road route is a property of the input;
+	// a malformed request is our bug talking to an external service.
+	r.RegisterMatch(func(err error) bool {
+		return errors.Is(err, inerr.ErrRoutingNoMatch) || errors.Is(err, inerr.ErrRoutingLimitExceeded)
+	},
+		func(err error) Mapping {
+			return Mapping{
+				HTTPStatus: http.StatusUnprocessableEntity,
+				Code:       CodeRouteNotFound,
+				Message:    "no road route between these points",
+			}
+		},
+	)
+	r.RegisterMatch(func(err error) bool { return errors.Is(err, inerr.ErrRoutingUnavailable) },
+		func(err error) Mapping {
+			return Mapping{
+				HTTPStatus: http.StatusServiceUnavailable,
+				Code:       CodeExternalService,
+				Message:    "routing is temporarily unavailable",
+			}
+		},
+	)
+	r.RegisterMatch(func(err error) bool { return errors.Is(err, inerr.ErrRoutingBadRequest) },
+		func(err error) Mapping {
+			return Mapping{
+				HTTPStatus: http.StatusBadGateway,
+				Code:       CodeExternalService,
+				Message:    "routing request failed",
+			}
+		},
+	)
+
 	r.RegisterMatch(func(err error) bool { return errors.Is(err, inerr.ErrOTPNotFound) },
 		func(err error) Mapping {
 			return Mapping{

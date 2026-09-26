@@ -16,6 +16,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/leads"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/loads"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/location"
+	"github.com/karavanix/karavantrack-api-server/internal/usecase/routing"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/tracking"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/users"
 	"github.com/karavanix/karavantrack-api-server/pkg/config"
@@ -50,4 +51,5 @@ type HandlerOptions struct {
 	InvitesUsecase     *invites.Usecase
 	TrackingUsecase    *tracking.Usecase
 	LeadsUsecase       *leads.Usecase
+	RoutingUsecase     *routing.Usecase
 }

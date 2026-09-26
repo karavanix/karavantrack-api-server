@@ -16,6 +16,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/infrastructure/persistence/cache"
 	"github.com/karavanix/karavantrack-api-server/internal/infrastructure/persistence/repository"
 	"github.com/karavanix/karavantrack-api-server/internal/infrastructure/telegram"
+	"github.com/karavanix/karavantrack-api-server/internal/infrastructure/valhalla"
 	"github.com/karavanix/karavantrack-api-server/internal/service/broker"
 	"github.com/karavanix/karavantrack-api-server/internal/service/email"
 	"github.com/karavanix/karavantrack-api-server/internal/service/liveack"
@@ -24,7 +25,9 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/service/presence"
 	"github.com/karavanix/karavantrack-api-server/internal/service/rbac"
 	"github.com/karavanix/karavantrack-api-server/internal/service/revocation"
+	routingsvc "github.com/karavanix/karavantrack-api-server/internal/service/routing"
 	"github.com/karavanix/karavantrack-api-server/internal/service/watcher"
+	"github.com/karavanix/karavantrack-api-server/internal/tasks"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/attachments"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/auth"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/companies"
@@ -32,6 +35,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/leads"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/loads"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/location"
+	"github.com/karavanix/karavantrack-api-server/internal/usecase/routing"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/tracking"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/users"
 	"github.com/karavanix/karavantrack-api-server/pkg/app"
@@ -153,6 +157,7 @@ func (s *ServerApp) Run() error {
 	companyCarriersRepo := repository.NewCompanyCarriersRepo(s.db)
 	loadsRepo := repository.NewLoadsRepo(s.db)
 	loadLocationsPointsRepo := repository.NewLoadLocationPointsRepo(s.db)
+	loadTracksRepo := repository.NewLoadTracksRepo(s.db)
 	fcmDevicesRepo := repository.NewFCMDevicesRepo(s.db)
 	oauthAccountsRepo := repository.NewOAuthAccountsRepo(s.db)
 	emailsRepo := repository.NewEmailsRepo(s.db)
@@ -184,6 +189,10 @@ func (s *ServerApp) Run() error {
 	if err != nil {
 		return fmt.Errorf("failed to create Telegram OIDC client: %w", err)
 	}
+
+	// valhalla — routing engine for map matching and A->B routes; no network
+	// call at startup, so the API starts even if it's down.
+	valhallaClient := valhalla.New(s.config)
 
 	// smtp
 	smtpMailer, err := smtp.New(smtp.Config{
@@ -217,6 +226,8 @@ func (s *ServerApp) Run() error {
 		MaxAttempts: s.config.OTP.MaxAttempts,
 		Length:      s.config.OTP.Length,
 	})
+	routingService := routingsvc.NewService(valhallaClient, routingsvc.ConfigFrom(s.config))
+	matchScheduler := tasks.NewMatchLoadTrackScheduler(s.taskQueue, s.config.Matching.Enabled, s.config.Matching.Debounce)
 	emailService := email.NewService(smtpMailer, emailsRepo, emailTmpl, s.config.SMTP.From, s.config.OTP.TTL)
 
 	// usecase
@@ -237,12 +248,13 @@ func (s *ServerApp) Run() error {
 	)
 	usersUsecase := users.NewUsecase(s.config.Context.Timeout, usersRepo, loadsRepo, fcmDevicesRepo, revocationService)
 	companiesUsecase := companies.NewUsecase(s.config.Context.Timeout, txManager, companiesRepo, companyMembersRepo, companyCarriersRepo, usersRepo, loadsRepo, rbacService)
-	loadsUsecase := loads.NewUsecase(s.config.Context.Timeout, loadsRepo, usersRepo, loadLocationsPointsRepo, companyMembersRepo, attachmentsRepo, s3Client, rbacService, s.taskQueue, presenceService, watcherService, liveAckService)
-	locationUsecase := location.NewUsecase(s.config.Context.Timeout, s.bkr, eventFactory, loadsRepo, loadLocationsPointsRepo)
+	loadsUsecase := loads.NewUsecase(s.config.Context.Timeout, loadsRepo, usersRepo, loadLocationsPointsRepo, loadTracksRepo, companyMembersRepo, attachmentsRepo, s3Client, rbacService, s.taskQueue, presenceService, watcherService, liveAckService, matchScheduler)
+	locationUsecase := location.NewUsecase(s.config.Context.Timeout, s.bkr, eventFactory, loadsRepo, loadLocationsPointsRepo, matchScheduler)
 	invitesUsecase := invites.NewUsecase(s.config.Context.Timeout, loadsRepo, usersRepo, companiesRepo, loadInvitesRepo, rbacService, s.taskQueue, s.config.PublicAppBaseURL)
 	attachmentsUsecase := attachments.NewUsecase(s.config.Context.Timeout, s.config, txManager, attachmentsRepo, s3Client)
-	trackingUsecase := tracking.NewUsecase(s.config.Context.Timeout, loadsRepo, loadTrackingLinksRepo, loadLocationsPointsRepo, rbacService, s.config.PublicAppBaseURL, presenceService, watcherService, liveAckService)
+	trackingUsecase := tracking.NewUsecase(s.config.Context.Timeout, loadsRepo, loadTrackingLinksRepo, loadLocationsPointsRepo, loadTracksRepo, rbacService, s.config.PublicAppBaseURL, presenceService, watcherService, liveAckService)
 	leadsUsecase := leads.NewUsecase(s.config.Context.Timeout, leadsRepo)
+	routingUsecase := routing.NewUsecase(s.config.Context.Timeout, s.config.Matching.Timeout, txManager, loadsRepo, loadLocationsPointsRepo, loadTracksRepo, routingService, matchScheduler)
 
 	// init handlers options
 	opts := &delivery.HandlerOptions{
@@ -265,6 +277,7 @@ func (s *ServerApp) Run() error {
 		InvitesUsecase:      invitesUsecase,
 		TrackingUsecase:     trackingUsecase,
 		LeadsUsecase:        leadsUsecase,
+		RoutingUsecase:      routingUsecase,
 		RbacService:         rbacService,
 	}
 

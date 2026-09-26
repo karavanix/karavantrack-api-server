@@ -12,6 +12,7 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/karavanix/karavantrack-api-server/cmd/notification"
+	"github.com/karavanix/karavantrack-api-server/cmd/routing"
 	"github.com/karavanix/karavantrack-api-server/internal/app"
 	"github.com/karavanix/karavantrack-api-server/pkg/config"
 	"github.com/spf13/cobra"
@@ -62,4 +63,5 @@ var ServerCMD = &cobra.Command{
 
 func init() {
 	ServerCMD.AddCommand(notification.NotificationCMD)
+	ServerCMD.AddCommand(routing.RoutingCMD)
 }

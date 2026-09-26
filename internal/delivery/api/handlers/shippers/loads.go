@@ -217,6 +217,36 @@ func (h *loadsHandler) GetTrack() http.HandlerFunc {
 	}
 }
 
+// GetRoute godoc
+// @Security     BearerAuth
+// @Summary      Get load route
+// @Description  The load's route as driven, matched to roads: segments matched (solid), raw (thin), gap (dashed) and stop (marker), geometry as polyline6. 404 until the first match or when matching is off; draw the raw points from /track then.
+// @Tags         Loads
+// @Produce      json
+// @Param        id   path      string  true  "Load ID"
+// @Success      200  {object} query.GetRouteResponse
+// @Failure      400  {object} outerr.Response
+// @Failure      401  {object} outerr.Response
+// @Failure      404  {object} outerr.Response
+// @Router       /loads/{id}/route [get]
+func (h *loadsHandler) GetRoute() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		userID, ok := app.UserID[string](r.Context())
+		if !ok {
+			outerr.Forbidden(w, r, "missing user context")
+			return
+		}
+
+		resp, err := h.loadsUsecase.Query.GetRoute(r.Context(), chi.URLParam(r, "id"), userID)
+		if err != nil {
+			outerr.HandleHTTP(w, r, err)
+			return
+		}
+
+		render.JSON(w, r, resp)
+	}
+}
+
 // GetPosition godoc
 // @Security     BearerAuth
 // @Summary      Get current position
