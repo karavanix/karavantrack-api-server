@@ -75,12 +75,15 @@ func (r *loadLocationPointsRepo) BatchSave(ctx context.Context, points []*domain
 	return nil
 }
 
+// FindByLoadID returns a page of the load's points, oldest first: points
+// recorded while a client pages through the track land at the end instead of
+// shifting the pages it has already read.
 func (r *loadLocationPointsRepo) FindByLoadID(ctx context.Context, loadID uuid.UUID, limit, offset int) ([]*domain.LoadLocationPoint, int, error) {
 	db := postgres.FromContext(ctx, r.db)
 	var models []LoadLocationPoints
 	q := db.NewSelect().Model(&models).
 		Where("load_id = ?", loadID.String()).
-		Order("recorded_at DESC")
+		Order("recorded_at ASC", "id ASC")
 
 	if limit > 0 {
 		q = q.Limit(limit)

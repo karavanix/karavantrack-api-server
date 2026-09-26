@@ -1554,7 +1554,7 @@ const docTemplatecarrier = `{
         },
         "/public/tracking/{token}/track": {
             "get": {
-                "description": "PUBLIC, unauthenticated location history for a load, by tracking-link token (same shape as the authenticated GET /loads/{id}/track)",
+                "description": "PUBLIC, unauthenticated location history for a load, by tracking-link token, oldest first (same shape and paging as the authenticated GET /loads/{id}/track)",
                 "produces": [
                     "application/json"
                 ],
@@ -1572,7 +1572,7 @@ const docTemplatecarrier = `{
                     },
                     {
                         "type": "integer",
-                        "description": "Max number of points (default 100, max 1000)",
+                        "description": "Max number of points (default 500, max 1000)",
                         "name": "limit",
                         "in": "query"
                     },
@@ -2319,6 +2319,7 @@ const docTemplatecarrier = `{
                     "type": "string"
                 },
                 "points": {
+                    "description": "Points are oldest first.",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/query.TrackPointResponse"

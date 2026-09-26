@@ -184,11 +184,11 @@ func (h *loadsHandler) Cancel() http.HandlerFunc {
 // GetTrack godoc
 // @Security     BearerAuth
 // @Summary      Get load track
-// @Description  Get location history tracking for a load
+// @Description  Location history of a load, oldest first. Page with limit/offset; points recorded meanwhile are appended at the end, so a client polling for new points can continue from the number of points it already has.
 // @Tags         Loads
 // @Produce      json
 // @Param        id     path  string true  "Load ID"
-// @Param        limit  query int    false "Max number of points (default 100, max 1000)"
+// @Param        limit  query int    false "Max number of points (default 500, max 1000)"
 // @Param        offset query int    false "Pagination offset"
 // @Success      200  {object} query.GetTrackResponse
 // @Failure      400  {object} outerr.Response

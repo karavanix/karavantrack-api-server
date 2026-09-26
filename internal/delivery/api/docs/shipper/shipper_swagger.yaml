@@ -511,6 +511,7 @@ definitions:
       load_id:
         type: string
       points:
+        description: Points are oldest first.
         items:
           $ref: '#/definitions/query.TrackPointResponse'
         type: array
@@ -2081,14 +2082,16 @@ paths:
       - Loads
   /loads/{id}/track:
     get:
-      description: Get location history tracking for a load
+      description: Location history of a load, oldest first. Page with limit/offset;
+        points recorded meanwhile are appended at the end, so a client polling for
+        new points can continue from the number of points it already has.
       parameters:
       - description: Load ID
         in: path
         name: id
         required: true
         type: string
-      - description: Max number of points (default 100, max 1000)
+      - description: Max number of points (default 500, max 1000)
         in: query
         name: limit
         type: integer
@@ -2210,14 +2213,14 @@ paths:
   /public/tracking/{token}/track:
     get:
       description: PUBLIC, unauthenticated location history for a load, by tracking-link
-        token (same shape as the authenticated GET /loads/{id}/track)
+        token, oldest first (same shape and paging as the authenticated GET /loads/{id}/track)
       parameters:
       - description: Tracking link token
         in: path
         name: token
         required: true
         type: string
-      - description: Max number of points (default 100, max 1000)
+      - description: Max number of points (default 500, max 1000)
         in: query
         name: limit
         type: integer

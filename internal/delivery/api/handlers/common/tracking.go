@@ -65,11 +65,11 @@ func (h *publicTrackingHandler) GetRoute() http.HandlerFunc {
 
 // GetTrack godoc
 // @Summary      Get public cargo tracking history
-// @Description  PUBLIC, unauthenticated location history for a load, by tracking-link token (same shape as the authenticated GET /loads/{id}/track)
+// @Description  PUBLIC, unauthenticated location history for a load, by tracking-link token, oldest first (same shape and paging as the authenticated GET /loads/{id}/track)
 // @Tags         Tracking
 // @Produce      json
 // @Param        token  path  string true  "Tracking link token"
-// @Param        limit  query int    false "Max number of points (default 100, max 1000)"
+// @Param        limit  query int    false "Max number of points (default 500, max 1000)"
 // @Param        offset query int    false "Pagination offset"
 // @Success      200  {object} query.GetTrackResponse
 // @Failure      404  {object} outerr.Response

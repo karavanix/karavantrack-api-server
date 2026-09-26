@@ -1947,7 +1947,7 @@ const docTemplateshipper = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get location history tracking for a load",
+                "description": "Location history of a load, oldest first. Page with limit/offset; points recorded meanwhile are appended at the end, so a client polling for new points can continue from the number of points it already has.",
                 "produces": [
                     "application/json"
                 ],
@@ -1965,7 +1965,7 @@ const docTemplateshipper = `{
                     },
                     {
                         "type": "integer",
-                        "description": "Max number of points (default 100, max 1000)",
+                        "description": "Max number of points (default 500, max 1000)",
                         "name": "limit",
                         "in": "query"
                     },
@@ -2134,7 +2134,7 @@ const docTemplateshipper = `{
         },
         "/public/tracking/{token}/track": {
             "get": {
-                "description": "PUBLIC, unauthenticated location history for a load, by tracking-link token (same shape as the authenticated GET /loads/{id}/track)",
+                "description": "PUBLIC, unauthenticated location history for a load, by tracking-link token, oldest first (same shape and paging as the authenticated GET /loads/{id}/track)",
                 "produces": [
                     "application/json"
                 ],
@@ -2152,7 +2152,7 @@ const docTemplateshipper = `{
                     },
                     {
                         "type": "integer",
-                        "description": "Max number of points (default 100, max 1000)",
+                        "description": "Max number of points (default 500, max 1000)",
                         "name": "limit",
                         "in": "query"
                     },
@@ -3372,6 +3372,7 @@ const docTemplateshipper = `{
                     "type": "string"
                 },
                 "points": {
+                    "description": "Points are oldest first.",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/query.TrackPointResponse"
