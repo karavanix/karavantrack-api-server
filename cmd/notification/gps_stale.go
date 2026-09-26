@@ -1,4 +1,4 @@
-package gps_notify
+package notification
 
 import (
 	"fmt"
@@ -9,8 +9,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var GpsNotifyCMD = &cobra.Command{
-	Use:   "gps-notify",
+var gpsStaleCMD = &cobra.Command{
+	Use:   "gps-stale",
 	Short: "Check GPS freshness and notify carriers with stale location",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		_ = godotenv.Load()

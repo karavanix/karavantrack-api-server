@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
-	"github.com/karavanix/karavantrack-api-server/cmd/gps_notify"
+	"github.com/karavanix/karavantrack-api-server/cmd/notification"
 	"github.com/karavanix/karavantrack-api-server/internal/app"
 	"github.com/karavanix/karavantrack-api-server/pkg/config"
 	"github.com/spf13/cobra"
@@ -61,5 +61,5 @@ var ServerCMD = &cobra.Command{
 }
 
 func init() {
-	ServerCMD.AddCommand(gps_notify.GpsNotifyCMD)
+	ServerCMD.AddCommand(notification.NotificationCMD)
 }

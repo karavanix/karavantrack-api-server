@@ -13,17 +13,17 @@ import (
 type LoadLocationPoints struct {
 	bun.BaseModel `bun:"table:load_location_points,alias:llp"`
 
-	ID                int64     `bun:"id,pk,autoincrement"`
-	LoadID            string    `bun:"load_id,type:uuid"`
-	CarrierID         string    `bun:"carrier_id,type:uuid"`
-	Lat               float64   `bun:"lat"`
-	Lng               float64   `bun:"lng"`
-	AccuracyM         *float32  `bun:"accuracy_m"`
-	SpeedMps          *float32  `bun:"speed_mps"`
-	HeadingDeg        *float32  `bun:"heading_deg"`
-	RecordedAt        time.Time `bun:"recorded_at"`
-	CreatedAt         time.Time `bun:"created_at"`
-	StatusHistoryID   *int64    `bun:"load_status_history_id,nullzero"`
+	ID              int64     `bun:"id,pk,autoincrement"`
+	LoadID          string    `bun:"load_id,type:uuid"`
+	CarrierID       string    `bun:"carrier_id,type:uuid"`
+	Lat             float64   `bun:"lat"`
+	Lng             float64   `bun:"lng"`
+	AccuracyM       *float32  `bun:"accuracy_m"`
+	SpeedMps        *float32  `bun:"speed_mps"`
+	HeadingDeg      *float32  `bun:"heading_deg"`
+	RecordedAt      time.Time `bun:"recorded_at"`
+	CreatedAt       time.Time `bun:"created_at"`
+	StatusHistoryID *int64    `bun:"load_status_history_id,nullzero"`
 }
 
 type loadLocationPointsRepo struct {
@@ -34,11 +34,20 @@ func NewLoadLocationPointsRepo(db bun.IDB) domain.LoadLocationPointRepository {
 	return &loadLocationPointsRepo{db: db}
 }
 
+// Save and BatchSave silently skip a point that's already stored for the
+// load (same recorded_at, see the unique index in migration 000016): the
+// phone re-sends a whole batch when it didn't get the response. The conflict
+// target is left out on purpose, so the insert still works before that
+// migration is applied. RETURNING is off because stored IDs aren't read
+// back, and with skipped rows fewer IDs than models would come back.
 func (r *loadLocationPointsRepo) Save(ctx context.Context, point *domain.LoadLocationPoint) error {
 	db := postgres.FromContext(ctx, r.db)
 	model := r.toModel(point)
 
-	_, err := db.NewInsert().Model(model).Exec(ctx)
+	_, err := db.NewInsert().Model(model).
+		On("CONFLICT DO NOTHING").
+		Returning("NULL").
+		Exec(ctx)
 	if err != nil {
 		return postgres.Error(err, model)
 	}
@@ -56,7 +65,10 @@ func (r *loadLocationPointsRepo) BatchSave(ctx context.Context, points []*domain
 		models[i] = r.toModel(p)
 	}
 
-	_, err := db.NewInsert().Model(&models).Exec(ctx)
+	_, err := db.NewInsert().Model(&models).
+		On("CONFLICT DO NOTHING").
+		Returning("NULL").
+		Exec(ctx)
 	if err != nil {
 		return postgres.Error(err, &LoadLocationPoints{})
 	}

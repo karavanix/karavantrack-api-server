@@ -6,6 +6,8 @@ Go 1.25 backend for YoolLive (cargo/load tracking). Layered architecture with CQ
 
 `internal/delivery` (HTTP/WS/worker/consumers) → `internal/usecase/<domain>/{command,query}` → `internal/domain` (entities + repository interfaces) → `internal/infrastructure/persistence/{repository,cache}`.
 
+Interfaces of external API integrations (Telegram, ...) live in `internal/service/ports`, implemented in `internal/infrastructure/<provider>`; the domain holds only our own entities and repository interfaces.
+
 Infrastructure wrappers with no domain knowledge live in `pkg/` (config, database/postgres, redis, nats, s3, smtp, firebase, security/JWT, wsrouter, otlp, logger).
 
 ## Conventions
@@ -16,7 +18,7 @@ Infrastructure wrappers with no domain knowledge live in `pkg/` (config, databas
 - **Handlers split by audience:** `handlers/common` (public + any authenticated user), `handlers/shippers`, `handlers/carriers`. Each has its own `routes.go` with `RegisterRoutes(r, opts)`, wired into `internal/delivery/api/router.go` under `/api/v1`. Swagger is generated as two independent instances (carrier/shipper) via `make swagger-gen`.
 - **Dependency wiring is manual** in `internal/app/server.go` (`ServerApp.Run`). Handlers receive everything through one struct, `delivery.HandlerOptions` (`internal/delivery/options.go`). Adding a usecase means: repo in `server.go`, usecase construction in `server.go`, field in `HandlerOptions`, assignment in the `opts := &delivery.HandlerOptions{...}` literal.
 - **Database:** bun + pgx, Postgres only (no other SQL driver). Migrations via `golang-migrate`, SQL files in `migrations/` (`make migrate`, `make migrate-create`). No ORM models in the domain layer — mapping between domain entities and bun models happens in the repository.
-- **Background jobs:** asynq (Redis) — task constructors in `internal/tasks`, handlers in `internal/delivery/worker/{router.go,handlers}`. The worker runs in the same process as the API (`go s.taskWorker.Run(mux)`). Separate one-shot binary `cmd/gps_notify` (cobra) finds loads without GPS for >15 min and pushes the driver.
+- **Background jobs:** asynq (Redis) — task constructors in `internal/tasks`, handlers in `internal/delivery/worker/{router.go,handlers}`. The worker runs in the same process as the API (`go s.taskWorker.Run(mux)`). One-shot jobs are cobra subcommands of the same binary, grouped by logical unit: `./yoollive-api-server <unit> <subcommand> [flags]` (`cmd/<unit>/`). Running the binary with no subcommand starts the HTTP server (Docker `ENTRYPOINT`). `notification gps-stale` finds loads without GPS for >15 min and pushes the driver; meant for cron.
 - **Event bus:** NATS (`internal/service/broker`, events in `internal/events`, subscribers in `internal/delivery/consumers`) — used only for live GPS tracking.
 
 ## Commands

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/karavanix/karavantrack-api-server/internal/domain"
+	"github.com/karavanix/karavantrack-api-server/internal/service/ports"
 	"github.com/karavanix/karavantrack-api-server/pkg/config"
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/lestrrat-go/jwx/v2/jwt"
@@ -27,7 +27,7 @@ type telegramClient struct {
 	httpClient       *resty.Client
 }
 
-func New(ctx context.Context, cfg *config.Config) (domain.TelegramProvider, error) {
+func New(ctx context.Context, cfg *config.Config) (ports.TelegramProvider, error) {
 	cache := jwk.NewCache(ctx)
 
 	if err := cache.Register(telegramJWKSURL, jwk.WithMinRefreshInterval(15*time.Minute)); err != nil {
@@ -89,7 +89,7 @@ func (c *telegramClient) ExchangeCode(ctx context.Context, code, redirectURI, co
 	return result.IDToken, nil
 }
 
-func (c *telegramClient) Verify(ctx context.Context, idToken string) (*domain.TelegramUserInfo, error) {
+func (c *telegramClient) Verify(ctx context.Context, idToken string) (*ports.TelegramUserInfo, error) {
 	keySet, err := c.jwksCache.Get(ctx, telegramJWKSURL)
 	if err != nil {
 		return nil, fmt.Errorf("telegram: failed to get JWKS: %w", err)
@@ -133,7 +133,7 @@ func (c *telegramClient) Verify(ctx context.Context, idToken string) (*domain.Te
 
 	firstName, lastName := splitName(claimStr(token, "name"))
 
-	return &domain.TelegramUserInfo{
+	return &ports.TelegramUserInfo{
 		ID:          id,
 		FirstName:   firstName,
 		LastName:    lastName,
