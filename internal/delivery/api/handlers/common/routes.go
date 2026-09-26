@@ -39,6 +39,7 @@ func RegisterRoutes(r chi.Router, opts *delivery.HandlerOptions) {
 	// Public cargo tracking (no auth) — shareable broker-to-client link
 	r.Get("/public/tracking/{token}", publicTrackingH.GetTracking())
 	r.Get("/public/tracking/{token}/track", publicTrackingH.GetTrack())
+	r.Get("/public/tracking/{token}/route", publicTrackingH.GetRoute())
 
 	// Public marketing lead form (no auth), rate-limited per client IP against spam
 	r.With(middleware.RateLimit(opts.Redis, "leads:submit", 5, time.Minute)).

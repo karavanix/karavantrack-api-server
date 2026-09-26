@@ -71,6 +71,14 @@ func (r *fakeLoadLocationPointRepo) FindByStatusHistoryIDs(ctx context.Context, 
 	panic("not implemented")
 }
 
+func (r *fakeLoadLocationPointRepo) FindAllByLoadID(ctx context.Context, loadID uuid.UUID) (domain.LoadLocationTrack, error) {
+	panic("not implemented")
+}
+
+func (r *fakeLoadLocationPointRepo) LastIDByLoadID(ctx context.Context, loadID uuid.UUID) (int64, error) {
+	panic("not implemented")
+}
+
 // fakeBroker implements broker.Broker. Publish always succeeds — the
 // usecase only logs a publish failure, it never propagates as an error, so
 // there's nothing interesting to test by failing it here.
@@ -102,6 +110,7 @@ func TestRegisterLoadLocationBatch_SkipsInvalidPointsWithoutFailingTheBatch(t *t
 		events.NewFactory(&config.Config{}),
 		loadRepo,
 		pointRepo,
+		nil, // matching disabled
 	)
 
 	base := time.Date(2026, 9, 21, 12, 0, 0, 0, time.UTC)
@@ -145,6 +154,7 @@ func TestRegisterLoadLocationBatch_AllInvalidPointsIsNotAnError(t *testing.T) {
 		events.NewFactory(&config.Config{}),
 		loadRepo,
 		pointRepo,
+		nil, // matching disabled
 	)
 
 	err := uc.RegisterLoadLocationBatch(context.Background(), &command.RegisterLoadLocationBatchRequest{

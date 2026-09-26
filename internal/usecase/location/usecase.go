@@ -6,6 +6,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
 	"github.com/karavanix/karavantrack-api-server/internal/events"
 	"github.com/karavanix/karavantrack-api-server/internal/service/broker"
+	"github.com/karavanix/karavantrack-api-server/internal/tasks"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/location/command"
 )
 
@@ -28,11 +29,12 @@ func NewUsecase(
 	eventFactory *events.Factory,
 	loadsRepo domain.LoadRepository,
 	loadLocationPointRepo domain.LoadLocationPointRepository,
+	matchScheduler *tasks.MatchLoadTrackScheduler,
 ) *Usecase {
 	return &Usecase{
 		Command: Command{
-			RegisterLoadLocationUsecase:      command.NewRegisterLoadLocationUsecase(contextDuration, bkr, eventFactory, loadsRepo, loadLocationPointRepo),
-			RegisterLoadLocationBatchUsecase: command.NewRegisterLoadLocationBatchUsecase(contextDuration, bkr, eventFactory, loadsRepo, loadLocationPointRepo),
+			RegisterLoadLocationUsecase:      command.NewRegisterLoadLocationUsecase(contextDuration, bkr, eventFactory, loadsRepo, loadLocationPointRepo, matchScheduler),
+			RegisterLoadLocationBatchUsecase: command.NewRegisterLoadLocationBatchUsecase(contextDuration, bkr, eventFactory, loadsRepo, loadLocationPointRepo, matchScheduler),
 		},
 		Query: Query{},
 	}

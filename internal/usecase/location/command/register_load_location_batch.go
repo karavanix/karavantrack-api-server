@@ -11,6 +11,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/events"
 	"github.com/karavanix/karavantrack-api-server/internal/inerr"
 	"github.com/karavanix/karavantrack-api-server/internal/service/broker"
+	"github.com/karavanix/karavantrack-api-server/internal/tasks"
 	"github.com/karavanix/karavantrack-api-server/pkg/logger"
 	"github.com/karavanix/karavantrack-api-server/pkg/otlp"
 	"go.opentelemetry.io/otel"
@@ -29,6 +30,7 @@ type RegisterLoadLocationBatchUsecase struct {
 	eventsFactory         *events.Factory
 	loadsRepo             domain.LoadRepository
 	loadLocationPointRepo domain.LoadLocationPointRepository
+	matchScheduler        *tasks.MatchLoadTrackScheduler
 }
 
 func NewRegisterLoadLocationBatchUsecase(
@@ -37,6 +39,7 @@ func NewRegisterLoadLocationBatchUsecase(
 	eventsFactory *events.Factory,
 	loadsRepo domain.LoadRepository,
 	loadLocationPointRepo domain.LoadLocationPointRepository,
+	matchScheduler *tasks.MatchLoadTrackScheduler,
 ) *RegisterLoadLocationBatchUsecase {
 	return &RegisterLoadLocationBatchUsecase{
 		contextTimeout:        contextTimeout,
@@ -44,6 +47,7 @@ func NewRegisterLoadLocationBatchUsecase(
 		eventsFactory:         eventsFactory,
 		loadsRepo:             loadsRepo,
 		loadLocationPointRepo: loadLocationPointRepo,
+		matchScheduler:        matchScheduler,
 	}
 }
 
@@ -165,6 +169,10 @@ func (u *RegisterLoadLocationBatchUsecase) RegisterLoadLocationBatch(ctx context
 	if err := u.loadLocationPointRepo.BatchSave(ctx, points); err != nil {
 		logger.ErrorContext(ctx, "failed to batch save load location points", err)
 		return err
+	}
+
+	if err := u.matchScheduler.Schedule(ctx, input.loadID.String()); err != nil {
+		logger.ErrorContext(ctx, "failed to schedule load track matching", err)
 	}
 
 	for _, point := range points {

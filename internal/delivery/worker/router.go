@@ -17,5 +17,8 @@ func NewRouter(opts *delivery.HandlerOptions) *asynq.ServeMux {
 	// Add a newly-assigned carrier to the load's company
 	mux.HandleFunc(tasks.TaskSendAddCarrierToCompany, handler.AddCarrierToCompany)
 
+	// Map-match a load's track after new points arrive
+	mux.HandleFunc(tasks.TaskMatchLoadTrack, handler.MatchLoadTrack)
+
 	return mux
 }

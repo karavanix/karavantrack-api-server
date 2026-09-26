@@ -21,10 +21,11 @@ type ConfirmDropoffUsecase struct {
 	loadLocationPointRepo domain.LoadLocationPointRepository
 	companyMembersRepo    domain.CompanyMemberRepository
 	taskQueue             *asynq.Client
+	matchScheduler        *tasks.MatchLoadTrackScheduler
 }
 
-func NewConfirmDropoffUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository, loadLocationPointRepo domain.LoadLocationPointRepository, companyMembersRepo domain.CompanyMemberRepository, taskQueue *asynq.Client) *ConfirmDropoffUsecase {
-	return &ConfirmDropoffUsecase{contextDuration: contextDuration, loadsRepo: loadsRepo, loadLocationPointRepo: loadLocationPointRepo, companyMembersRepo: companyMembersRepo, taskQueue: taskQueue}
+func NewConfirmDropoffUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository, loadLocationPointRepo domain.LoadLocationPointRepository, companyMembersRepo domain.CompanyMemberRepository, taskQueue *asynq.Client, matchScheduler *tasks.MatchLoadTrackScheduler) *ConfirmDropoffUsecase {
+	return &ConfirmDropoffUsecase{contextDuration: contextDuration, loadsRepo: loadsRepo, loadLocationPointRepo: loadLocationPointRepo, companyMembersRepo: companyMembersRepo, taskQueue: taskQueue, matchScheduler: matchScheduler}
 }
 
 type ConfirmDropoffRequest struct {
@@ -99,6 +100,12 @@ func (u *ConfirmDropoffUsecase) ConfirmDropoff(ctx context.Context, loadID strin
 				logger.ErrorContext(ctx, "failed to save status location point", err)
 			}
 		}
+	}
+
+	// GPS goes quiet after the drop-off, so no later batch would schedule
+	// the final match covering the last points.
+	if err := u.matchScheduler.Schedule(ctx, input.loadID.String()); err != nil {
+		logger.ErrorContext(ctx, "failed to schedule load track matching", err)
 	}
 
 	enqueueOwnerSidePush(ctx, u.taskQueue, u.companyMembersRepo, load, tasks.PushNotification{

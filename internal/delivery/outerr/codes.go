@@ -39,4 +39,7 @@ const (
 
 	// Loads
 	CodeCarrierHasActiveLoad = "CARRIER_HAS_ACTIVE_LOAD"
+
+	// Routing
+	CodeRouteNotFound = "ROUTE_NOT_FOUND"
 )
