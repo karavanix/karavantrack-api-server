@@ -1,7 +1,15 @@
 package main
 
-import "github.com/karavanix/karavantrack-api-server/cmd/root"
+import (
+	"os"
+
+	"github.com/karavanix/karavantrack-api-server/cmd/root"
+)
 
 func main() {
-	root.ServerCMD.Execute()
+	// cobra already prints the error; the exit code is what cron and
+	// Docker look at.
+	if err := root.ServerCMD.Execute(); err != nil {
+		os.Exit(1)
+	}
 }

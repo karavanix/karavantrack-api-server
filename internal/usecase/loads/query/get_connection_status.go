@@ -25,7 +25,7 @@ const (
 	ConnectionStateGpsDisabled  = "gps_disabled"
 )
 
-// activeTrackingStatuses mirrors the set of load statuses gps_notify already
+// activeTrackingStatuses mirrors the set of load statuses `notification gps-stale` already
 // treats as "should have a moving driver" (see FindWithStaleGps) — outside
 // this set there's nothing to report a connection status about.
 var activeTrackingStatuses = map[domain.LoadStatus]struct{}{
