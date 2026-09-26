@@ -71,6 +71,10 @@ func (r *fakeLoadLocationPointRepo) FindByStatusHistoryIDs(ctx context.Context, 
 	panic("not implemented")
 }
 
+func (r *fakeLoadLocationPointRepo) FindAllByLoadID(ctx context.Context, loadID uuid.UUID) (domain.LoadLocationTrack, error) {
+	panic("not implemented")
+}
+
 // fakeBroker implements broker.Broker. Publish always succeeds — the
 // usecase only logs a publish failure, it never propagates as an error, so
 // there's nothing interesting to test by failing it here.

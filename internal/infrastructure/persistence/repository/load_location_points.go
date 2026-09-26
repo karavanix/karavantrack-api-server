@@ -142,6 +142,23 @@ func (r *loadLocationPointsRepo) FindByStatusHistoryIDs(ctx context.Context, his
 	return result, nil
 }
 
+func (r *loadLocationPointsRepo) FindAllByLoadID(ctx context.Context, loadID uuid.UUID) (domain.LoadLocationTrack, error) {
+	db := postgres.FromContext(ctx, r.db)
+	var models []LoadLocationPoints
+	err := db.NewSelect().Model(&models).
+		Where("load_id = ?", loadID.String()).
+		Order("recorded_at ASC", "id ASC").
+		Scan(ctx)
+	if err != nil {
+		return nil, postgres.Error(err, &LoadLocationPoints{})
+	}
+	result := make(domain.LoadLocationTrack, len(models))
+	for i := range models {
+		result[i] = r.toDomain(&models[i])
+	}
+	return result, nil
+}
+
 func (r *loadLocationPointsRepo) toModel(e *domain.LoadLocationPoint) *LoadLocationPoints {
 	if e == nil {
 		return nil
