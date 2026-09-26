@@ -27,9 +27,12 @@ func (e ErrHttp) Is(target error) bool {
 	return ok
 }
 
-func NewErrHttp(statusCode int, method, endpoint, message string, body json.RawMessage) error {
+func NewErrHttp(statusCode int, method, endpoint string, duration time.Duration, message string, body json.RawMessage) error {
 	return &ErrHttp{
 		StatusCode: statusCode,
+		Method:     method,
+		Endpoint:   endpoint,
+		Duration:   duration,
 		Message:    message,
 		Body:       body,
 	}
