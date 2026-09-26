@@ -423,7 +423,12 @@ const docTemplatecarrier = `{
         },
         "/auth/logout": {
             "post": {
-                "description": "Logout user (invalidate session)",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Logout user (revokes all outstanding refresh tokens)",
                 "consumes": [
                     "application/json"
                 ],
@@ -437,6 +442,12 @@ const docTemplatecarrier = `{
                 "responses": {
                     "200": {
                         "description": "OK"
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
                     }
                 }
             }
@@ -776,6 +787,130 @@ const docTemplatecarrier = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/invites/{token}": {
+            "get": {
+                "description": "PUBLIC, unauthenticated preview of a load invite by token. Returns 200 even for expired/accepted/revoked invites so the app can render an explanatory state.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Invites"
+                ],
+                "summary": "Get invite preview",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Invite token",
+                        "name": "token",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/query.GetInviteResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/invites/{token}/accept": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Accept the load an invite link points to. The authenticated carrier is assigned to the load (same transition as the shipper-initiated assign flow).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Invites"
+                ],
+                "summary": "Accept a load invite",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Invite token",
+                        "name": "token",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/command.AcceptInviteResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/leads": {
+            "post": {
+                "description": "PUBLIC, unauthenticated contact form submission from the marketing landing page.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Leads"
+                ],
+                "summary": "Submit sales lead",
+                "parameters": [
+                    {
+                        "description": "Lead form data",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/common.submitLeadRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/outerr.Response"
                         }
@@ -1181,6 +1316,61 @@ const docTemplatecarrier = `{
                 }
             }
         },
+        "/loads/{id}/location/batch": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Flush GPS points buffered on the phone while offline; each keeps its original recorded_at so the track backfills instead of losing the gap",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Loads"
+                ],
+                "summary": "Register a batch of location points",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Load ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Buffered location points",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/command.RegisterLoadLocationBatchRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/loads/{id}/pickup/begin": {
             "post": {
                 "security": [
@@ -1292,6 +1482,123 @@ const docTemplatecarrier = `{
                 }
             }
         },
+        "/public/tracking/{token}": {
+            "get": {
+                "description": "PUBLIC, unauthenticated snapshot of a load's status and latest known position, by tracking-link token",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tracking"
+                ],
+                "summary": "Get public cargo tracking snapshot",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tracking link token",
+                        "name": "token",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/query.GetPublicTrackingResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/public/tracking/{token}/route": {
+            "get": {
+                "description": "PUBLIC, unauthenticated route matched to roads, by tracking-link token (same shape as the authenticated GET /loads/{id}/route)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tracking"
+                ],
+                "summary": "Get public cargo route",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tracking link token",
+                        "name": "token",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/query.GetRouteResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/public/tracking/{token}/track": {
+            "get": {
+                "description": "PUBLIC, unauthenticated location history for a load, by tracking-link token (same shape as the authenticated GET /loads/{id}/track)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tracking"
+                ],
+                "summary": "Get public cargo tracking history",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tracking link token",
+                        "name": "token",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Max number of points (default 100, max 1000)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Pagination offset",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/query.GetTrackResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/users/me": {
             "get": {
                 "security": [
@@ -1368,6 +1675,38 @@ const docTemplatecarrier = `{
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Permanently deletes the authenticated user's account and all associated data",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Delete current user",
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/outerr.Response"
                         }
@@ -1463,6 +1802,14 @@ const docTemplatecarrier = `{
         }
     },
     "definitions": {
+        "command.AcceptInviteResponse": {
+            "type": "object",
+            "properties": {
+                "load_id": {
+                    "type": "string"
+                }
+            }
+        },
         "command.AppleSignInRequest": {
             "type": "object",
             "required": [
@@ -1565,6 +1912,46 @@ const docTemplatecarrier = `{
                 },
                 "device_type": {
                     "type": "string"
+                }
+            }
+        },
+        "command.RegisterLoadLocationBatchPoint": {
+            "type": "object",
+            "properties": {
+                "accuracy_m": {
+                    "type": "number"
+                },
+                "heading_deg": {
+                    "type": "number"
+                },
+                "lat": {
+                    "type": "number"
+                },
+                "lng": {
+                    "type": "number"
+                },
+                "recorded_at": {
+                    "type": "string"
+                },
+                "speed_mps": {
+                    "type": "number"
+                }
+            }
+        },
+        "command.RegisterLoadLocationBatchRequest": {
+            "type": "object",
+            "properties": {
+                "carrier_id": {
+                    "type": "string"
+                },
+                "load_id": {
+                    "type": "string"
+                },
+                "points": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/command.RegisterLoadLocationBatchPoint"
+                    }
                 }
             }
         },
@@ -1757,6 +2144,26 @@ const docTemplatecarrier = `{
                 }
             }
         },
+        "common.submitLeadRequest": {
+            "type": "object",
+            "properties": {
+                "company": {
+                    "type": "string"
+                },
+                "fleet": {
+                    "type": "string"
+                },
+                "honeypot": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_karavanix_karavantrack-api-server_internal_usecase_users_command.UpdateRequest": {
             "type": "object",
             "properties": {
@@ -1835,6 +2242,93 @@ const docTemplatecarrier = `{
                 }
             }
         },
+        "query.ConnectionStatusResponse": {
+            "type": "object",
+            "properties": {
+                "last_point_at": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                }
+            }
+        },
+        "query.GetInviteResponse": {
+            "type": "object",
+            "properties": {
+                "accepted_by_me": {
+                    "type": "boolean"
+                },
+                "load": {
+                    "$ref": "#/definitions/query.InviteLoadPreview"
+                },
+                "load_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "query.GetPublicTrackingResponse": {
+            "type": "object",
+            "properties": {
+                "connection": {
+                    "$ref": "#/definitions/query.ConnectionStatusResponse"
+                },
+                "load": {
+                    "$ref": "#/definitions/query.PublicTrackingLoad"
+                },
+                "position": {
+                    "$ref": "#/definitions/query.PublicPosition"
+                }
+            }
+        },
+        "query.GetRouteResponse": {
+            "type": "object",
+            "properties": {
+                "distance_m": {
+                    "description": "DistanceM is the distance driven along roads; gaps aren't counted.",
+                    "type": "number"
+                },
+                "load_id": {
+                    "type": "string"
+                },
+                "matched_until": {
+                    "description": "MatchedUntil is when the last point covered by the route was\nrecorded; points after it are drawn raw up to the live marker.",
+                    "type": "string"
+                },
+                "segments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/query.RouteSegmentResponse"
+                    }
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "query.GetTrackResponse": {
+            "type": "object",
+            "properties": {
+                "load_id": {
+                    "type": "string"
+                },
+                "points": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/query.TrackPointResponse"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
         "query.HistoryAttachmentResponse": {
             "type": "object",
             "properties": {
@@ -1849,6 +2343,10 @@ const docTemplatecarrier = `{
                 },
                 "id": {
                     "type": "integer"
+                },
+                "url": {
+                    "description": "URL is best-effort: a public attachment's stable URL, or a short-lived\npresigned URL for a private one. Omitted if it could not be resolved\n(see attachmentURLResolver) — the client still has AttachmentID and can\nfall back to GET /attachments/{id}.",
+                    "type": "string"
                 }
             }
         },
@@ -1877,6 +2375,32 @@ const docTemplatecarrier = `{
                     "type": "string"
                 },
                 "user_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "query.InviteLoadPreview": {
+            "type": "object",
+            "properties": {
+                "company_name": {
+                    "type": "string"
+                },
+                "dropoff_address": {
+                    "type": "string"
+                },
+                "dropoff_at": {
+                    "type": "string"
+                },
+                "pickup_address": {
+                    "type": "string"
+                },
+                "pickup_at": {
+                    "type": "string"
+                },
+                "reference_id": {
+                    "type": "string"
+                },
+                "title": {
                     "type": "string"
                 }
             }
@@ -2050,6 +2574,134 @@ const docTemplatecarrier = `{
                     "type": "string"
                 },
                 "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "query.PublicPosition": {
+            "type": "object",
+            "properties": {
+                "heading_deg": {
+                    "type": "number"
+                },
+                "lat": {
+                    "type": "number"
+                },
+                "lng": {
+                    "type": "number"
+                },
+                "recorded_at": {
+                    "type": "string"
+                },
+                "speed_mps": {
+                    "type": "number"
+                }
+            }
+        },
+        "query.PublicTrackPoint": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "at": {
+                    "type": "string"
+                },
+                "lat": {
+                    "type": "number"
+                },
+                "lng": {
+                    "type": "number"
+                }
+            }
+        },
+        "query.PublicTrackingLoad": {
+            "type": "object",
+            "properties": {
+                "dropoff": {
+                    "$ref": "#/definitions/query.PublicTrackPoint"
+                },
+                "pickup": {
+                    "$ref": "#/definitions/query.PublicTrackPoint"
+                },
+                "reference_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "query.RouteSegmentResponse": {
+            "type": "object",
+            "properties": {
+                "distance_m": {
+                    "type": "number"
+                },
+                "ended_at": {
+                    "type": "string"
+                },
+                "geometry": {
+                    "description": "Geometry is a polyline6 string (@mapbox/polyline, precision 6).",
+                    "type": "string"
+                },
+                "kind": {
+                    "description": "Kind: matched (along roads, solid line), raw (the matcher couldn't\nplace it: raw GPS line, thin), gap (no data: straight dashed line),\nstop (a single point: stop marker).",
+                    "type": "string",
+                    "enum": [
+                        "matched",
+                        "raw",
+                        "gap",
+                        "stop"
+                    ]
+                },
+                "started_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "query.TrackPointResponse": {
+            "type": "object",
+            "properties": {
+                "accuracy_m": {
+                    "type": "number"
+                },
+                "heading_deg": {
+                    "type": "number"
+                },
+                "lat": {
+                    "type": "number"
+                },
+                "lng": {
+                    "type": "number"
+                },
+                "recorded_at": {
+                    "type": "string"
+                },
+                "speed_mps": {
+                    "type": "number"
+                },
+                "status_event": {
+                    "$ref": "#/definitions/query.TrackStatusEvent"
+                }
+            }
+        },
+        "query.TrackStatusEvent": {
+            "type": "object",
+            "properties": {
+                "from_status": {
+                    "type": "string"
+                },
+                "history_id": {
+                    "type": "integer"
+                },
+                "note": {
+                    "type": "string"
+                },
+                "to_status": {
                     "type": "string"
                 }
             }
