@@ -48,6 +48,16 @@ type LoadLocationPoint struct {
 	Provider json.RawMessage
 }
 
+// Events of the tracking library a point can carry (LoadLocationPoint.Event).
+const (
+	// LoadLocationEventMotionChange: the phone switched between moving and
+	// standing; IsMoving says which.
+	LoadLocationEventMotionChange = "motionchange"
+	// LoadLocationEventProviderChange: location services changed (turned
+	// off, permission revoked, ...); Provider holds their new state.
+	LoadLocationEventProviderChange = "providerchange"
+)
+
 func NewLoadLocationPoint(
 	loadID uuid.UUID,
 	carrierID uuid.UUID,
@@ -163,11 +173,12 @@ const (
 	// TrackPieceMoving is a stretch the truck drove; the only kind worth
 	// sending to the map matcher.
 	TrackPieceMoving TrackPieceKind = "moving"
-	// TrackPieceStop is a run of points within StopRadiusM of its first
-	// point lasting at least StopMinDuration.
+	// TrackPieceStop is a place the truck stood at: reported by the phone
+	// (motionchange events) or seen in the points (a run within StopRadiusM
+	// lasting at least StopMinDuration).
 	TrackPieceStop TrackPieceKind = "stop"
-	// TrackPieceGap is silence longer than GapThreshold between two points:
-	// we don't know where the truck went.
+	// TrackPieceGap is silence longer than GapThreshold during which the
+	// truck moved further than StopRadiusM: we don't know how it got there.
 	TrackPieceGap TrackPieceKind = "gap"
 )
 
@@ -178,37 +189,158 @@ const (
 type TrackPiece struct {
 	Kind   TrackPieceKind
 	Points LoadLocationTrack
+	// Departure ends a stop the phone reported: the point where it reported
+	// moving again, already outside the stop's radius. The stop lasts until
+	// it, and the moving piece after the stop starts from it. Nil for other
+	// pieces and for a stop that ended inside its radius or hasn't ended.
+	Departure *LoadLocationPoint
+}
+
+// First returns the piece's first point.
+func (p TrackPiece) First() *LoadLocationPoint { return p.Points[0] }
+
+// Last returns the piece's last point: the departure of a stop that has one.
+func (p TrackPiece) Last() *LoadLocationPoint {
+	if p.Departure != nil {
+		return p.Departure
+	}
+	return p.Points[len(p.Points)-1]
 }
 
 type TrackSplitParams struct {
-	GapThreshold    time.Duration
-	StopRadiusM     float64
+	// MaxAccuracyM: coarser points are left out (see Clean).
+	MaxAccuracyM float64
+	// GapThreshold: silence longer than this with a shift further than
+	// StopRadiusM is a gap. Silence without a shift is a traffic jam or a
+	// stop: the phone records nothing while standing.
+	GapThreshold time.Duration
+	// StopRadiusM is the radius of a stop, around the point where the phone
+	// reported it for a reported one and around its first point for one
+	// seen in the points.
+	StopRadiusM float64
+	// StopMinDuration: a run of points within StopRadiusM is a stop when it
+	// lasts this long. A stop the phone reported has no minimum: the phone
+	// waits minutes before reporting it.
 	StopMinDuration time.Duration
+	// DepartureRadiusM: the phone reports moving again only once the truck
+	// has left a geofence around the stop, so the point of that report lies
+	// outside StopRadiusM. Within DepartureRadiusM of the stop it ends the
+	// stop; further away the report came late, and the silence before it is
+	// judged as a gap.
+	DepartureRadiusM float64
 }
 
-// Split cuts a cleaned track into moving, stop and gap pieces, oldest first.
-// The phone records a point at least every 5 minutes even when standing
-// still, so silence longer than GapThreshold means no data, not a stop.
+// stopSpan is a stop as indexes into a cleaned track: points from..to, and
+// optionally the departure point after them.
+type stopSpan struct {
+	from, to  int
+	departure int // -1: none
+}
+
+func (s stopSpan) end() int {
+	if s.departure >= 0 {
+		return s.departure
+	}
+	return s.to
+}
+
+// Split cuts a track into moving, stop and gap pieces, oldest first. It
+// cleans the track itself: the phone's motionchange events are read from
+// every point, since a stop must not be lost to a coarse fix.
 func (t LoadLocationTrack) Split(params TrackSplitParams) []TrackPiece {
+	raw := make(LoadLocationTrack, len(t))
+	copy(raw, t)
+	sort.SliceStable(raw, func(i, j int) bool { return raw[i].RecordedAt.Before(raw[j].RecordedAt) })
+	clean := raw.Clean(params.MaxAccuracyM)
+	if len(clean) == 0 {
+		return nil
+	}
+	spans := mergeStopSpans(append(clean.reportedStops(raw, params), clean.seenStops(params)...))
+
 	var pieces []TrackPiece
-	start := 0
-	for i := 1; i <= len(t); i++ {
-		if i < len(t) && t[i].RecordedAt.Sub(t[i-1].RecordedAt) <= params.GapThreshold {
+	movingFrom := 0
+	moving := func(to int) {
+		if to > movingFrom {
+			pieces = append(pieces, TrackPiece{Kind: TrackPieceMoving, Points: clean[movingFrom : to+1]})
+		}
+	}
+	next := 0 // next span
+	for i := 0; i < len(clean); {
+		if next < len(spans) && spans[next].from == i {
+			s := spans[next]
+			next++
+			moving(i)
+			stop := TrackPiece{Kind: TrackPieceStop, Points: clean[s.from : s.to+1]}
+			if s.departure >= 0 {
+				stop.Departure = clean[s.departure]
+			}
+			pieces = append(pieces, stop)
+			movingFrom, i = s.end(), s.end()
 			continue
 		}
-		pieces = append(pieces, t[start:i].splitRun(params)...)
-		if i < len(t) {
-			pieces = append(pieces, TrackPiece{Kind: TrackPieceGap, Points: LoadLocationTrack{t[i-1], t[i]}})
+		if i+1 < len(clean) && clean.isGap(i, params) {
+			moving(i)
+			pieces = append(pieces, TrackPiece{Kind: TrackPieceGap, Points: clean[i : i+2]})
+			movingFrom = i + 1
 		}
-		start = i
+		i++
 	}
+	moving(len(clean) - 1)
 	return pieces
 }
 
-// splitRun splits a run without gaps into moving pieces and stops.
-func (t LoadLocationTrack) splitRun(params TrackSplitParams) []TrackPiece {
-	var pieces []TrackPiece
-	movingFrom := 0
+// isGap reports whether the silence between points i and i+1 is a gap.
+func (t LoadLocationTrack) isGap(i int, params TrackSplitParams) bool {
+	return t[i+1].RecordedAt.Sub(t[i].RecordedAt) > params.GapThreshold &&
+		geo.DistanceM(t[i].Point(), t[i+1].Point()) > params.StopRadiusM
+}
+
+// reportedStops finds the stops the phone reported in raw: from a
+// motionchange to standing to the next motionchange to moving. The phone
+// reports a stop minutes after the truck stopped, so the stop starts at the
+// first point before the report that is already within StopRadiusM of it.
+func (t LoadLocationTrack) reportedStops(raw LoadLocationTrack, params TrackSplitParams) []stopSpan {
+	var spans []stopSpan
+	for i, p := range raw {
+		if !p.isMotionChange(false) {
+			continue
+		}
+		// The stop's place: the report itself, or the last trusted point
+		// before it when the report's fix was too coarse to keep.
+		center := t.lastAtOrBefore(p.RecordedAt)
+		if center < 0 {
+			continue
+		}
+		var resumed *LoadLocationPoint
+		for _, q := range raw[i+1:] {
+			if q.isMotionChange(true) {
+				resumed = q
+				break
+			}
+		}
+
+		near := func(j int) bool { return geo.DistanceM(t[j].Point(), t[center].Point()) <= params.StopRadiusM }
+		s := stopSpan{from: center, to: center, departure: -1}
+		for s.from > 0 && near(s.from-1) {
+			s.from--
+		}
+		for s.to+1 < len(t) && near(s.to+1) && (resumed == nil || !t[s.to+1].RecordedAt.After(resumed.RecordedAt)) {
+			s.to++
+		}
+		if resumed != nil && s.to+1 < len(t) && !t[s.to+1].RecordedAt.After(resumed.RecordedAt) &&
+			geo.DistanceM(t[s.to+1].Point(), t[center].Point()) <= params.DepartureRadiusM {
+			s.departure = s.to + 1
+		}
+		spans = append(spans, s)
+	}
+	return spans
+}
+
+// seenStops finds stops in the points alone: runs within StopRadiusM of
+// their first point lasting at least StopMinDuration. They catch the stops
+// the phone misses, such as with the engine running or on a charger.
+func (t LoadLocationTrack) seenStops(params TrackSplitParams) []stopSpan {
+	var spans []stopSpan
 	for i := 0; i < len(t); {
 		j := i
 		for j+1 < len(t) && geo.DistanceM(t[i].Point(), t[j+1].Point()) <= params.StopRadiusM {
@@ -218,15 +350,40 @@ func (t LoadLocationTrack) splitRun(params TrackSplitParams) []TrackPiece {
 			i++
 			continue
 		}
-		if i > movingFrom {
-			pieces = append(pieces, TrackPiece{Kind: TrackPieceMoving, Points: t[movingFrom : i+1]})
-		}
-		pieces = append(pieces, TrackPiece{Kind: TrackPieceStop, Points: t[i : j+1]})
-		movingFrom = j
+		spans = append(spans, stopSpan{from: i, to: j, departure: -1})
 		i = j + 1
 	}
-	if len(t)-1 > movingFrom {
-		pieces = append(pieces, TrackPiece{Kind: TrackPieceMoving, Points: t[movingFrom:]})
+	return spans
+}
+
+// mergeStopSpans sorts spans and joins the ones that overlap or touch.
+func mergeStopSpans(spans []stopSpan) []stopSpan {
+	sort.Slice(spans, func(i, j int) bool { return spans[i].from < spans[j].from })
+	var out []stopSpan
+	for _, s := range spans {
+		n := len(out)
+		if n == 0 || s.from > out[n-1].end() {
+			out = append(out, s)
+			continue
+		}
+		last := &out[n-1]
+		if s.end() > last.end() {
+			last.to, last.departure = s.to, s.departure
+		}
+		// A departure covered by a longer stop is just one of its points.
+		if last.departure >= 0 && last.departure <= last.to {
+			last.departure = -1
+		}
 	}
-	return pieces
+	return out
+}
+
+// lastAtOrBefore returns the index of the last point recorded at or before
+// at, -1 when there is none.
+func (t LoadLocationTrack) lastAtOrBefore(at time.Time) int {
+	return sort.Search(len(t), func(i int) bool { return t[i].RecordedAt.After(at) }) - 1
+}
+
+func (p *LoadLocationPoint) isMotionChange(moving bool) bool {
+	return p.Event == LoadLocationEventMotionChange && p.IsMoving != nil && *p.IsMoving == moving
 }

@@ -168,13 +168,17 @@ type Config struct {
 		Debounce time.Duration
 		// Timeout for matching one load.
 		Timeout time.Duration
-		// GapThreshold: silence longer than this is a gap, not a stop (the
-		// phone records a point at least every 5 min while standing).
+		// GapThreshold: silence longer than this with a shift further than
+		// StopRadiusM is a gap (standing, the phone records nothing).
 		GapThreshold time.Duration
 		// A stop is a run of points within StopRadiusM of its first point
-		// lasting at least StopMinDuration.
+		// lasting at least StopMinDuration, or one the phone reported.
 		StopRadiusM     float64
 		StopMinDuration time.Duration
+		// DepartureRadiusM: the phone's "moving again" within this distance of
+		// a stop ends the stop; further away it came late (see
+		// domain.TrackSplitParams).
+		DepartureRadiusM float64
 		// MaxAccuracyM: points coarser than this aren't matched.
 		MaxAccuracyM float64
 		// Road search radius per point: accuracy × RadiusMultiplier, clamped
@@ -340,13 +344,14 @@ func New() (*Config, error) {
 	if c.Matching.Timeout, err = getEnvDuration("MATCHING_TIMEOUT", "5m"); err != nil {
 		return nil, fmt.Errorf("MATCHING_TIMEOUT: %w", err)
 	}
-	if c.Matching.GapThreshold, err = getEnvDuration("MATCHING_GAP_THRESHOLD", "10m"); err != nil {
+	if c.Matching.GapThreshold, err = getEnvDuration("MATCHING_GAP_THRESHOLD", "3m"); err != nil {
 		return nil, fmt.Errorf("MATCHING_GAP_THRESHOLD: %w", err)
 	}
-	if c.Matching.StopMinDuration, err = getEnvDuration("MATCHING_STOP_MIN_DURATION", "10m"); err != nil {
+	if c.Matching.StopMinDuration, err = getEnvDuration("MATCHING_STOP_MIN_DURATION", "5m"); err != nil {
 		return nil, fmt.Errorf("MATCHING_STOP_MIN_DURATION: %w", err)
 	}
 	c.Matching.StopRadiusM = getEnvFloat("MATCHING_STOP_RADIUS_M", 50)
+	c.Matching.DepartureRadiusM = getEnvFloat("MATCHING_DEPARTURE_RADIUS_M", 250)
 	c.Matching.MaxAccuracyM = getEnvFloat("MATCHING_MAX_ACCURACY_M", 50)
 	c.Matching.RadiusMultiplier = getEnvFloat("MATCHING_RADIUS_MULTIPLIER", 3)
 	c.Matching.MinRadiusM = getEnvFloat("MATCHING_MIN_RADIUS_M", 25)
