@@ -2,6 +2,8 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -13,17 +15,28 @@ import (
 type LoadLocationPoints struct {
 	bun.BaseModel `bun:"table:load_location_points,alias:llp"`
 
-	ID              int64     `bun:"id,pk,autoincrement"`
-	LoadID          string    `bun:"load_id,type:uuid"`
-	CarrierID       string    `bun:"carrier_id,type:uuid"`
-	Lat             float64   `bun:"lat"`
-	Lng             float64   `bun:"lng"`
-	AccuracyM       *float32  `bun:"accuracy_m"`
-	SpeedMps        *float32  `bun:"speed_mps"`
-	HeadingDeg      *float32  `bun:"heading_deg"`
-	RecordedAt      time.Time `bun:"recorded_at"`
-	CreatedAt       time.Time `bun:"created_at"`
-	StatusHistoryID *int64    `bun:"load_status_history_id,nullzero"`
+	ID                 int64           `bun:"id,pk,autoincrement"`
+	UUID               *string         `bun:"uuid,type:uuid"`
+	LoadID             string          `bun:"load_id,type:uuid"`
+	CarrierID          *string         `bun:"carrier_id,type:uuid"`
+	Lat                float64         `bun:"lat"`
+	Lng                float64         `bun:"lng"`
+	AccuracyM          *float32        `bun:"accuracy_m"`
+	AltitudeM          *float32        `bun:"altitude_m"`
+	SpeedMps           *float32        `bun:"speed_mps"`
+	HeadingDeg         *float32        `bun:"heading_deg"`
+	Event              string          `bun:"event,nullzero"`
+	IsMoving           *bool           `bun:"is_moving"`
+	ActivityType       string          `bun:"activity_type,nullzero"`
+	ActivityConfidence *int16          `bun:"activity_confidence"`
+	OdometerM          *float64        `bun:"odometer_m"`
+	BatteryLevel       *float32        `bun:"battery_level"`
+	IsCharging         *bool           `bun:"is_charging"`
+	IsMock             *bool           `bun:"is_mock"`
+	Provider           json.RawMessage `bun:"provider,type:jsonb,nullzero"`
+	RecordedAt         time.Time       `bun:"recorded_at"`
+	CreatedAt          time.Time       `bun:"created_at"`
+	StatusHistoryID    *int64          `bun:"load_status_history_id,nullzero"`
 }
 
 type loadLocationPointsRepo struct {
@@ -34,18 +47,17 @@ func NewLoadLocationPointsRepo(db bun.IDB) domain.LoadLocationPointRepository {
 	return &loadLocationPointsRepo{db: db}
 }
 
-// Save and BatchSave silently skip a point that's already stored for the
-// load (same recorded_at, see the unique index in migration 000016): the
-// phone re-sends a whole batch when it didn't get the response. The conflict
-// target is left out on purpose, so the insert still works before that
-// migration is applied. RETURNING is off because stored IDs aren't read
-// back, and with skipped rows fewer IDs than models would come back.
+// Save and BatchSave silently skip a point whose uuid is already stored: the
+// tracking library re-sends a whole batch when it didn't get the response.
+// Points without a uuid never conflict. RETURNING is off because stored IDs
+// aren't read back, and with skipped rows fewer IDs than models would come
+// back.
 func (r *loadLocationPointsRepo) Save(ctx context.Context, point *domain.LoadLocationPoint) error {
 	db := postgres.FromContext(ctx, r.db)
 	model := r.toModel(point)
 
 	_, err := db.NewInsert().Model(model).
-		On("CONFLICT DO NOTHING").
+		On("CONFLICT (uuid) DO NOTHING").
 		Returning("NULL").
 		Exec(ctx)
 	if err != nil {
@@ -66,7 +78,7 @@ func (r *loadLocationPointsRepo) BatchSave(ctx context.Context, points []*domain
 	}
 
 	_, err := db.NewInsert().Model(&models).
-		On("CONFLICT DO NOTHING").
+		On("CONFLICT (uuid) DO NOTHING").
 		Returning("NULL").
 		Exec(ctx)
 	if err != nil {
@@ -75,41 +87,34 @@ func (r *loadLocationPointsRepo) BatchSave(ctx context.Context, points []*domain
 	return nil
 }
 
-// FindByLoadID returns a page of the load's points, oldest first: points
-// recorded while a client pages through the track land at the end instead of
-// shifting the pages it has already read.
-func (r *loadLocationPointsRepo) FindByLoadID(ctx context.Context, loadID uuid.UUID, limit, offset int) ([]*domain.LoadLocationPoint, int, error) {
+func (r *loadLocationPointsRepo) FindByLoadIDAfter(ctx context.Context, loadID uuid.UUID, after time.Time) (domain.LoadLocationTrack, error) {
 	db := postgres.FromContext(ctx, r.db)
 	var models []LoadLocationPoints
 	q := db.NewSelect().Model(&models).
 		Where("load_id = ?", loadID.String()).
 		Order("recorded_at ASC", "id ASC")
-
-	if limit > 0 {
-		q = q.Limit(limit)
-	} else {
-		q = q.Limit(100)
+	if !after.IsZero() {
+		q = q.Where("recorded_at > ?", after)
 	}
-	if offset > 0 {
-		q = q.Offset(offset)
+	if err := q.Scan(ctx); err != nil {
+		return nil, postgres.Error(err, &LoadLocationPoints{})
 	}
+	return r.toTrack(models), nil
+}
 
-	err := q.Scan(ctx)
+func (r *loadLocationPointsRepo) FindRecentByLoadID(ctx context.Context, loadID uuid.UUID, n int) (domain.LoadLocationTrack, error) {
+	db := postgres.FromContext(ctx, r.db)
+	var models []LoadLocationPoints
+	err := db.NewSelect().Model(&models).
+		Where("load_id = ?", loadID.String()).
+		Order("recorded_at DESC", "id DESC").
+		Limit(n).
+		Scan(ctx)
 	if err != nil {
-		return nil, 0, postgres.Error(err, &LoadLocationPoints{})
+		return nil, postgres.Error(err, &LoadLocationPoints{})
 	}
-
-	count, err := q.Count(ctx)
-	if err != nil {
-		return nil, 0, postgres.Error(err, &LoadLocationPoints{})
-	}
-
-	result := make([]*domain.LoadLocationPoint, len(models))
-	for i := range models {
-		result[i] = r.toDomain(&models[i])
-	}
-
-	return result, count, nil
+	slices.Reverse(models)
+	return r.toTrack(models), nil
 }
 
 func (r *loadLocationPointsRepo) FindLatestByLoadID(ctx context.Context, loadID uuid.UUID) (*domain.LoadLocationPoint, error) {
@@ -155,11 +160,7 @@ func (r *loadLocationPointsRepo) FindAllByLoadID(ctx context.Context, loadID uui
 	if err != nil {
 		return nil, postgres.Error(err, &LoadLocationPoints{})
 	}
-	result := make(domain.LoadLocationTrack, len(models))
-	for i := range models {
-		result[i] = r.toDomain(&models[i])
-	}
-	return result, nil
+	return r.toTrack(models), nil
 }
 
 func (r *loadLocationPointsRepo) LastIDByLoadID(ctx context.Context, loadID uuid.UUID) (int64, error) {
@@ -175,22 +176,50 @@ func (r *loadLocationPointsRepo) LastIDByLoadID(ctx context.Context, loadID uuid
 	return lastID, nil
 }
 
+func (r *loadLocationPointsRepo) toTrack(models []LoadLocationPoints) domain.LoadLocationTrack {
+	track := make(domain.LoadLocationTrack, len(models))
+	for i := range models {
+		track[i] = r.toDomain(&models[i])
+	}
+	return track
+}
+
 func (r *loadLocationPointsRepo) toModel(e *domain.LoadLocationPoint) *LoadLocationPoints {
 	if e == nil {
 		return nil
 	}
-	return &LoadLocationPoints{
-		LoadID:          e.LoadID.String(),
-		CarrierID:       e.CarrierID.String(),
-		Lat:             e.Lat,
-		Lng:             e.Lng,
-		AccuracyM:       e.AccuracyM,
-		SpeedMps:        e.SpeedMps,
-		HeadingDeg:      e.HeadingDeg,
-		RecordedAt:      e.RecordedAt,
-		CreatedAt:       e.CreatedAt,
-		StatusHistoryID: e.StatusHistoryID,
+	m := &LoadLocationPoints{
+		LoadID:             e.LoadID.String(),
+		Lat:                e.Lat,
+		Lng:                e.Lng,
+		AccuracyM:          e.AccuracyM,
+		AltitudeM:          e.AltitudeM,
+		SpeedMps:           e.SpeedMps,
+		HeadingDeg:         e.HeadingDeg,
+		Event:              e.Event,
+		IsMoving:           e.IsMoving,
+		ActivityType:       e.ActivityType,
+		ActivityConfidence: e.ActivityConfidence,
+		OdometerM:          e.OdometerM,
+		BatteryLevel:       e.BatteryLevel,
+		IsCharging:         e.IsCharging,
+		IsMock:             e.IsMock,
+		Provider:           e.Provider,
+		RecordedAt:         e.RecordedAt,
+		CreatedAt:          e.CreatedAt,
+		StatusHistoryID:    e.StatusHistoryID,
 	}
+
+	if e.UUID != uuid.Nil {
+		s := e.UUID.String()
+		m.UUID = &s
+	}
+	if e.CarrierID != uuid.Nil {
+		s := e.CarrierID.String()
+		m.CarrierID = &s
+	}
+
+	return m
 }
 
 func (r *loadLocationPointsRepo) toDomain(m *LoadLocationPoints) *domain.LoadLocationPoint {
@@ -198,18 +227,35 @@ func (r *loadLocationPointsRepo) toDomain(m *LoadLocationPoints) *domain.LoadLoc
 		return nil
 	}
 	loadID, _ := uuid.Parse(m.LoadID)
-	carrierID, _ := uuid.Parse(m.CarrierID)
-	return &domain.LoadLocationPoint{
-		ID:              m.ID,
-		LoadID:          loadID,
-		CarrierID:       carrierID,
-		Lat:             m.Lat,
-		Lng:             m.Lng,
-		AccuracyM:       m.AccuracyM,
-		SpeedMps:        m.SpeedMps,
-		HeadingDeg:      m.HeadingDeg,
-		RecordedAt:      m.RecordedAt,
-		CreatedAt:       m.CreatedAt,
-		StatusHistoryID: m.StatusHistoryID,
+	e := &domain.LoadLocationPoint{
+		ID:                 m.ID,
+		LoadID:             loadID,
+		Lat:                m.Lat,
+		Lng:                m.Lng,
+		AccuracyM:          m.AccuracyM,
+		AltitudeM:          m.AltitudeM,
+		SpeedMps:           m.SpeedMps,
+		HeadingDeg:         m.HeadingDeg,
+		Event:              m.Event,
+		IsMoving:           m.IsMoving,
+		ActivityType:       m.ActivityType,
+		ActivityConfidence: m.ActivityConfidence,
+		OdometerM:          m.OdometerM,
+		BatteryLevel:       m.BatteryLevel,
+		IsCharging:         m.IsCharging,
+		IsMock:             m.IsMock,
+		Provider:           m.Provider,
+		RecordedAt:         m.RecordedAt,
+		CreatedAt:          m.CreatedAt,
+		StatusHistoryID:    m.StatusHistoryID,
 	}
+
+	if m.UUID != nil {
+		e.UUID, _ = uuid.Parse(*m.UUID)
+	}
+	if m.CarrierID != nil {
+		e.CarrierID, _ = uuid.Parse(*m.CarrierID)
+	}
+
+	return e
 }

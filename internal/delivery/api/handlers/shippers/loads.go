@@ -3,7 +3,6 @@ package shippers
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
@@ -184,12 +183,11 @@ func (h *loadsHandler) Cancel() http.HandlerFunc {
 // GetTrack godoc
 // @Security     BearerAuth
 // @Summary      Get load track
-// @Description  Location history of a load, oldest first. Page with limit/offset; points recorded meanwhile are appended at the end, so a client polling for new points can continue from the number of points it already has.
+// @Description  Location history of a load, oldest first. The matched route (/route) covers the track up to its matched_until, so a map needs only the points after it: pass after=matched_until, then poll with after=the newest point shown. A point from the phone's offline queue may land before that and is drawn by the next re-match.
 // @Tags         Loads
 // @Produce      json
 // @Param        id     path  string true  "Load ID"
-// @Param        limit  query int    false "Max number of points (default 500, max 1000)"
-// @Param        offset query int    false "Pagination offset"
+// @Param        after  query string false "Only points recorded after this time (RFC 3339)"
 // @Success      200  {object} query.GetTrackResponse
 // @Failure      400  {object} outerr.Response
 // @Failure      401  {object} outerr.Response
@@ -204,10 +202,8 @@ func (h *loadsHandler) GetTrack() http.HandlerFunc {
 		}
 
 		loadID := chi.URLParam(r, "id")
-		limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-		offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
 
-		resp, err := h.loadsUsecase.Query.GetTrack(r.Context(), loadID, userID, limit, offset)
+		resp, err := h.loadsUsecase.Query.GetTrack(r.Context(), loadID, userID, r.URL.Query().Get("after"))
 		if err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return

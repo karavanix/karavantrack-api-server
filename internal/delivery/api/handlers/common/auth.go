@@ -2,6 +2,7 @@ package common
 
 import (
 	"encoding/json"
+	"mime"
 	"net/http"
 
 	"github.com/go-chi/render"
@@ -314,9 +315,10 @@ func (h *authHander) TelegramOAuth() http.HandlerFunc {
 
 // Refresh godoc
 // @Summary      Refresh tokens
-// @Description  Exchange a valid refresh token for a new token pair
+// @Description  Exchange a valid refresh token for a new token pair. The body is JSON or a form (the phone's tracking library refreshes with a form), chosen by Content-Type
 // @Tags         Auth
 // @Accept       json
+// @Accept       x-www-form-urlencoded
 // @Produce      json
 // @Param        body body command.RefreshTokenRequest true "Refresh token"
 // @Success      200  {object} command.LoginResponse
@@ -325,7 +327,13 @@ func (h *authHander) TelegramOAuth() http.HandlerFunc {
 func (h *authHander) Refresh() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req command.RefreshTokenRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if mediaType, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type")); mediaType == "application/x-www-form-urlencoded" {
+			if err := r.ParseForm(); err != nil {
+				outerr.BadRequest(w, r, "invalid request body")
+				return
+			}
+			req.RefreshToken = r.PostForm.Get("refresh_token")
+		} else if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			outerr.BadRequest(w, r, "invalid request body")
 			return
 		}

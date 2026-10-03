@@ -132,9 +132,7 @@ func (l *Load) Assign(note string, carrierID uuid.UUID, attachmentIDs ...uuid.UU
 		return errors.New("carrier ID is required")
 	}
 	l.CarrierID = carrierID
-	l.Status = LoadStatusAssigned
-	l.UpdatedAt = time.Now()
-	l.History = append(l.History, l.newHistory(LoadStatusCreated, LoadStatusAssigned, note, attachmentIDs...))
+	l.transition(LoadStatusAssigned, note, attachmentIDs...)
 	return nil
 }
 
@@ -143,9 +141,7 @@ func (l *Load) Accept(note string, attachmentIDs ...uuid.UUID) error {
 	if l.Status != LoadStatusAssigned {
 		return errors.New("can only accept an assigned load")
 	}
-	l.Status = LoadStatusAccepted
-	l.UpdatedAt = time.Now()
-	l.History = append(l.History, l.newHistory(LoadStatusAssigned, LoadStatusAccepted, note, attachmentIDs...))
+	l.transition(LoadStatusAccepted, note, attachmentIDs...)
 	return nil
 }
 
@@ -154,11 +150,7 @@ func (l *Load) BeginPickup(note string, attachmentIDs ...uuid.UUID) (*LoadStatus
 	if l.Status != LoadStatusAccepted {
 		return nil, errors.New("can only begin pickup on an accepted load")
 	}
-	l.Status = LoadStatusPickingUp
-	l.UpdatedAt = time.Now()
-	h := l.newHistory(LoadStatusAccepted, LoadStatusPickingUp, note, attachmentIDs...)
-	l.History = append(l.History, h)
-	return h, nil
+	return l.transition(LoadStatusPickingUp, note, attachmentIDs...), nil
 }
 
 // ConfirmPickup transitions picking_up → picked_up (cargo loaded onto truck).
@@ -166,11 +158,7 @@ func (l *Load) ConfirmPickup(note string, attachmentIDs ...uuid.UUID) (*LoadStat
 	if l.Status != LoadStatusPickingUp {
 		return nil, errors.New("can only confirm pickup on a picking_up load")
 	}
-	l.Status = LoadStatusPickedUp
-	l.UpdatedAt = time.Now()
-	h := l.newHistory(LoadStatusPickingUp, LoadStatusPickedUp, note, attachmentIDs...)
-	l.History = append(l.History, h)
-	return h, nil
+	return l.transition(LoadStatusPickedUp, note, attachmentIDs...), nil
 }
 
 // StartTrip transitions picked_up → in_transit (truck en route to destination).
@@ -179,11 +167,7 @@ func (l *Load) StartTrip(note string, attachmentIDs ...uuid.UUID) (*LoadStatusHi
 	if l.Status != LoadStatusPickedUp && l.Status != LoadStatusAccepted {
 		return nil, errors.New("can only start trip on a picked_up load")
 	}
-	l.Status = LoadStatusInTransit
-	l.UpdatedAt = time.Now()
-	h := l.newHistory(LoadStatusPickedUp, LoadStatusInTransit, note, attachmentIDs...)
-	l.History = append(l.History, h)
-	return h, nil
+	return l.transition(LoadStatusInTransit, note, attachmentIDs...), nil
 }
 
 // BeginDropoff transitions in_transit → dropping_off (carrier arrived at destination).
@@ -191,11 +175,7 @@ func (l *Load) BeginDropoff(note string, attachmentIDs ...uuid.UUID) (*LoadStatu
 	if l.Status != LoadStatusInTransit {
 		return nil, errors.New("can only begin dropoff on an in_transit load")
 	}
-	l.Status = LoadStatusDroppingOff
-	l.UpdatedAt = time.Now()
-	h := l.newHistory(LoadStatusInTransit, LoadStatusDroppingOff, note, attachmentIDs...)
-	l.History = append(l.History, h)
-	return h, nil
+	return l.transition(LoadStatusDroppingOff, note, attachmentIDs...), nil
 }
 
 // ConfirmDropoff transitions dropping_off → dropped_off (cargo unloaded).
@@ -203,11 +183,7 @@ func (l *Load) ConfirmDropoff(note string, attachmentIDs ...uuid.UUID) (*LoadSta
 	if l.Status != LoadStatusDroppingOff {
 		return nil, errors.New("can only confirm dropoff on a dropping_off load")
 	}
-	l.Status = LoadStatusDroppedOff
-	l.UpdatedAt = time.Now()
-	h := l.newHistory(LoadStatusDroppingOff, LoadStatusDroppedOff, note, attachmentIDs...)
-	l.History = append(l.History, h)
-	return h, nil
+	return l.transition(LoadStatusDroppedOff, note, attachmentIDs...), nil
 }
 
 // ConfirmByOwner confirms the load completion by the cargo owner.
@@ -216,9 +192,7 @@ func (l *Load) ConfirmByOwner(note string, attachmentIDs ...uuid.UUID) error {
 	if l.Status != LoadStatusDroppedOff {
 		return errors.New("can only confirm a dropped_off load")
 	}
-	l.Status = LoadStatusConfirmed
-	l.UpdatedAt = time.Now()
-	l.History = append(l.History, l.newHistory(LoadStatusDroppedOff, LoadStatusConfirmed, note, attachmentIDs...))
+	l.transition(LoadStatusConfirmed, note, attachmentIDs...)
 	return nil
 }
 
@@ -227,10 +201,18 @@ func (l *Load) Cancel(note string, attachmentIDs ...uuid.UUID) error {
 	if l.Status == LoadStatusConfirmed || l.Status == LoadStatusCancelled {
 		return errors.New("cannot cancel a confirmed or already cancelled load")
 	}
-	l.Status = LoadStatusCancelled
-	l.UpdatedAt = time.Now()
-	l.History = append(l.History, l.newHistory(LoadStatusDroppedOff, LoadStatusCancelled, note, attachmentIDs...))
+	l.transition(LoadStatusCancelled, note, attachmentIDs...)
 	return nil
+}
+
+// transition moves the load to status to and records it in the history,
+// from the status the load is in now.
+func (l *Load) transition(to LoadStatus, note string, attachmentIDs ...uuid.UUID) *LoadStatusHistory {
+	h := l.newHistory(l.Status, to, note, attachmentIDs...)
+	l.Status = to
+	l.UpdatedAt = h.CreatedAt
+	l.History = append(l.History, h)
+	return h
 }
 
 func (l *Load) newHistory(from, to LoadStatus, note string, attachmentIDs ...uuid.UUID) *LoadStatusHistory {

@@ -370,3 +370,42 @@ func TestTraceRequest_RadiusAndBreakage(t *testing.T) {
 		t.Errorf("breakage = %v", req.BreakageDistanceM)
 	}
 }
+
+func TestMatchLoadTrack_ReportedStopEndsAtDeparture(t *testing.T) {
+	var id int64
+	points := drive(&id, 0, 0, 3) // minutes 0-4, arrives at 2 km
+	motion := func(minute, northM float64, moving bool) *domain.LoadLocationPoint {
+		id++
+		p := northOf(northM)
+		return &domain.LoadLocationPoint{
+			ID: id, Lat: p.Lat, Lng: p.Lng, RecordedAt: t0.Add(time.Duration(minute * float64(time.Minute))),
+			Event: domain.LoadLocationEventMotionChange, IsMoving: &moving,
+		}
+	}
+	// Reports standing at minute 9, moving 2 hours later 200 m away.
+	points = append(points, motion(9, 2000, false), motion(129, 2200, true))
+	points = append(points, drive(&id, 131, 3200, 2)...)
+
+	cfg := testConfig()
+	cfg.GapThreshold, cfg.StopMinDuration, cfg.DepartureRadiusM = 3*time.Minute, 5*time.Minute, 250
+	fp := &fakeProvider{trace: func(req *ports.TraceAttributesRequest) (*ports.TraceAttributesResult, error) {
+		return straightRoad(req), nil
+	}}
+	track, err := NewService(fp, cfg).MatchLoadTrack(context.Background(), uuid.New(), points)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := []domain.LoadTrackSegmentKind{domain.LoadTrackSegmentMatched, domain.LoadTrackSegmentStop, domain.LoadTrackSegmentMatched}
+	if !sameKinds(kinds(track), want) {
+		t.Fatalf("kinds = %v, want %v", kinds(track), want)
+	}
+	stop := track.Segments[1]
+	if !stop.StartedAt.Equal(t0.Add(4*time.Minute)) || !stop.EndedAt.Equal(t0.Add(129*time.Minute)) {
+		t.Errorf("stop lasts %v - %v", stop.StartedAt.Sub(t0), stop.EndedAt.Sub(t0))
+	}
+	// The marker stands where the truck stood, not pulled to the departure.
+	if d := geo.DistanceM(stop.Geometry[0], northOf(2000)); d > 1 {
+		t.Errorf("stop marker is %v m off", d)
+	}
+}

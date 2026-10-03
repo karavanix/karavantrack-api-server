@@ -34,7 +34,7 @@ func NewGetPublicTrackUsecase(
 // It resolves token -> load_id and then delegates straight to
 // GetTrackUsecase.GetTrack, reusing its repo calls instead of duplicating
 // the location-history query logic.
-func (u *GetPublicTrackUsecase) GetPublicTrack(ctx context.Context, token string, limit, offset int) (_ *loadsquery.GetTrackResponse, err error) {
+func (u *GetPublicTrackUsecase) GetPublicTrack(ctx context.Context, token string, after string) (_ *loadsquery.GetTrackResponse, err error) {
 	ctx, cancel := context.WithTimeout(ctx, u.contextDuration)
 	defer cancel()
 
@@ -55,5 +55,5 @@ func (u *GetPublicTrackUsecase) GetPublicTrack(ctx context.Context, token string
 
 	// The tracking token already proves authorization for this specific load,
 	// so the requester-based access check in GetTrack is skipped ("").
-	return u.getTrackUsecase.GetTrack(ctx, link.LoadID.String(), "", limit, offset)
+	return u.getTrackUsecase.GetTrack(ctx, link.LoadID.String(), "", after)
 }

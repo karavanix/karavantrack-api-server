@@ -2,8 +2,6 @@ package command
 
 import (
 	"context"
-	"errors"
-	"sort"
 	"time"
 
 	"github.com/google/uuid"
@@ -118,7 +116,7 @@ func (u *RegisterLoadLocationBatchUsecase) RegisterLoadLocationBatch(ctx context
 	// _flushQueue in background_service.dart), so one bad point stuck at the
 	// front of the offline queue would otherwise block every real point
 	// behind it forever instead of just being dropped once.
-	candidates := make([]*domain.LoadLocationPoint, 0, len(req.Points))
+	points := make([]*domain.LoadLocationPoint, 0, len(req.Points))
 	for _, p := range req.Points {
 		point, err := domain.NewLoadLocationPoint(
 			input.loadID,
@@ -134,33 +132,7 @@ func (u *RegisterLoadLocationBatchUsecase) RegisterLoadLocationBatch(ctx context
 			logger.InfoContext(ctx, "dropping invalid load location point from batch", "error", err.Error())
 			continue
 		}
-		candidates = append(candidates, point)
-	}
-	if len(candidates) == 0 {
-		return nil
-	}
-	sort.Slice(candidates, func(i, j int) bool {
-		return candidates[i].RecordedAt.Before(candidates[j].RecordedAt)
-	})
-
-	latest, err := u.loadLocationPointRepo.FindLatestByLoadID(ctx, input.loadID)
-	if err != nil && !errors.Is(err, inerr.ErrNotFound{}) {
-		logger.ErrorContext(ctx, "failed to look up latest load location point", err)
-		return err
-	}
-
-	// Filter out GPS teleports chained against the running "latest" point —
-	// a single bad fix in an offline backlog must not corrupt the plausible
-	// points around it, so this checks each candidate against the last kept
-	// point, not against its raw neighbor in the batch.
-	points := make([]*domain.LoadLocationPoint, 0, len(candidates))
-	for _, point := range candidates {
-		if latest != nil && !point.IsPlausibleSuccessorOf(latest) {
-			logger.InfoContext(ctx, "dropping implausible load location point from batch")
-			continue
-		}
 		points = append(points, point)
-		latest = point
 	}
 	if len(points) == 0 {
 		return nil

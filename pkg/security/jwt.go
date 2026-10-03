@@ -20,9 +20,12 @@ type RefreshClaims struct {
 }
 
 type TokenDetails struct {
-	AccessToken      string
-	RefreshToken     string
-	AccessExpiresAt  time.Time
+	AccessToken     string
+	RefreshToken    string
+	AccessExpiresAt time.Time
+	// AccessTTL is how long the access token lives, for clients that
+	// refresh ahead of expiry.
+	AccessTTL        time.Duration
 	RefreshExpiresAt time.Time
 	RefreshJTI       string
 }
@@ -85,6 +88,7 @@ func (m *JWTProvider) GenerateTokens(userID string, role string) (*TokenDetails,
 		AccessToken:      accessToken,
 		RefreshToken:     refreshToken,
 		AccessExpiresAt:  accessExp,
+		AccessTTL:        m.AccessTTL,
 		RefreshExpiresAt: refreshExp,
 		RefreshJTI:       jti,
 	}, nil

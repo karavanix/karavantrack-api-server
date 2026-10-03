@@ -13,14 +13,10 @@ func NewRouter(opts *delivery.HandlerOptions) http.Handler {
 
 	handler := handlers.NewHandler(opts)
 
-	r.OnConnect(handler.Connect())
 	r.OnDisconnect(handler.Disconnect())
-	r.OnPong(handler.Pong())
 
 	r.On("join", handler.Join())
 	r.On("leave", handler.Leave())
-	r.On("location", handler.Location())
-	r.On("live_location_ack", handler.LiveLocationAck())
 
 	return r
 }

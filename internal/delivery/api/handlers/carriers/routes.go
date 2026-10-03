@@ -17,6 +17,7 @@ func RegisterRoutes(r chi.Router, opts *delivery.HandlerOptions) {
 	loadsH := NewLoadsHandler(opts)
 	companyH := NewCompanyHandler(opts)
 	invitesH := NewInvitesHandler(opts)
+	trackingH := NewTrackingHandler(opts)
 
 	// Carrier-specific routes (RoleCarrier only)
 	r.Group(func(r chi.Router) {
@@ -37,6 +38,9 @@ func RegisterRoutes(r chi.Router, opts *delivery.HandlerOptions) {
 		r.Post("/loads/{id}/dropoff/confirm", loadsH.ConfirmDropoff())
 		r.Post("/loads/{id}/location", loadsH.RegisterLocation())
 		r.Post("/loads/{id}/location/batch", loadsH.RegisterLocationBatch())
+
+		// Tracking
+		r.Post("/tracking/locations", trackingH.RegisterLocations())
 
 		// Invite actions
 		r.Post("/invites/{token}/accept", invitesH.Accept())
