@@ -65,7 +65,10 @@ func (r *fakeLoadLocationPointRepo) BatchSave(ctx context.Context, points []*dom
 	r.saved = points
 	return nil
 }
-func (r *fakeLoadLocationPointRepo) FindByLoadID(ctx context.Context, loadID uuid.UUID, limit, offset int) ([]*domain.LoadLocationPoint, int, error) {
+func (r *fakeLoadLocationPointRepo) FindByLoadIDAfter(ctx context.Context, loadID uuid.UUID, after time.Time) (domain.LoadLocationTrack, error) {
+	panic("not implemented")
+}
+func (r *fakeLoadLocationPointRepo) FindRecentByLoadID(ctx context.Context, loadID uuid.UUID, n int) (domain.LoadLocationTrack, error) {
 	panic("not implemented")
 }
 func (r *fakeLoadLocationPointRepo) FindLatestByLoadID(ctx context.Context, loadID uuid.UUID) (*domain.LoadLocationPoint, error) {

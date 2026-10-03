@@ -249,15 +249,20 @@ func (s *ServerApp) Run() error {
 	)
 	usersUsecase := users.NewUsecase(s.config.Context.Timeout, usersRepo, loadsRepo, fcmDevicesRepo, revocationService)
 	companiesUsecase := companies.NewUsecase(s.config.Context.Timeout, txManager, companiesRepo, companyMembersRepo, companyCarriersRepo, usersRepo, loadsRepo, rbacService)
-	loadsUsecase := loads.NewUsecase(s.config.Context.Timeout, loadsRepo, usersRepo, loadLocationsPointsRepo, loadTracksRepo, companyMembersRepo, attachmentsRepo, s3Client, rbacService, s.taskQueue, presenceService, watcherService, liveAckService, matchScheduler)
 	trackingWindowParams := domain.TrackingWindowParams{
 		ClockSkew:           s.config.Tracking.ClockSkew,
 		DroppedOffStopAfter: s.config.Tracking.DroppedOffStopAfter,
 	}
+	connectionParams := domain.ConnectionParams{
+		Window:      trackingWindowParams,
+		Split:       routingsvc.ConfigFrom(s.config).SplitParams(),
+		NoDataAfter: s.config.Tracking.NoDataAfter,
+	}
+	loadsUsecase := loads.NewUsecase(s.config.Context.Timeout, loadsRepo, usersRepo, loadLocationsPointsRepo, loadTracksRepo, companyMembersRepo, attachmentsRepo, s3Client, rbacService, s.taskQueue, connectionParams, matchScheduler)
 	locationUsecase := location.NewUsecase(s.config.Context.Timeout, trackingWindowParams, s.bkr, eventFactory, loadsRepo, loadLocationsPointsRepo, matchScheduler)
 	invitesUsecase := invites.NewUsecase(s.config.Context.Timeout, loadsRepo, usersRepo, companiesRepo, loadInvitesRepo, rbacService, s.taskQueue, s.config.PublicAppBaseURL)
 	attachmentsUsecase := attachments.NewUsecase(s.config.Context.Timeout, s.config, txManager, attachmentsRepo, s3Client)
-	trackingUsecase := tracking.NewUsecase(s.config.Context.Timeout, loadsRepo, loadTrackingLinksRepo, loadLocationsPointsRepo, loadTracksRepo, rbacService, s.config.PublicAppBaseURL, presenceService, watcherService, liveAckService)
+	trackingUsecase := tracking.NewUsecase(s.config.Context.Timeout, loadsRepo, loadTrackingLinksRepo, loadLocationsPointsRepo, loadTracksRepo, rbacService, s.config.PublicAppBaseURL, connectionParams)
 	leadsUsecase := leads.NewUsecase(s.config.Context.Timeout, leadsRepo)
 	routingUsecase := routing.NewUsecase(s.config.Context.Timeout, s.config.Matching.Timeout, txManager, loadsRepo, loadLocationsPointsRepo, loadTracksRepo, routingService, matchScheduler)
 

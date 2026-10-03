@@ -5,10 +5,7 @@ import (
 
 	"github.com/hibiken/asynq"
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
-	"github.com/karavanix/karavantrack-api-server/internal/service/liveack"
-	"github.com/karavanix/karavantrack-api-server/internal/service/presence"
 	"github.com/karavanix/karavantrack-api-server/internal/service/rbac"
-	"github.com/karavanix/karavantrack-api-server/internal/service/watcher"
 	"github.com/karavanix/karavantrack-api-server/internal/tasks"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/loads/command"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/loads/query"
@@ -55,9 +52,7 @@ func NewUsecase(
 	s3Client *s3.S3Client,
 	rbacService rbac.Service,
 	taskQueue *asynq.Client,
-	presenceService presence.Service,
-	watcherService watcher.Service,
-	liveAckService liveack.Service,
+	connectionParams domain.ConnectionParams,
 	matchScheduler *tasks.MatchLoadTrackScheduler,
 ) *Usecase {
 	return &Usecase{
@@ -80,7 +75,7 @@ func NewUsecase(
 			GetTrackUsecase:            query.NewGetTrackUsecase(contextDuration, loadsRepo, loadLocationPointRepo, rbacService),
 			GetRouteUsecase:            query.NewGetRouteUsecase(contextDuration, loadsRepo, loadTracksRepo, rbacService),
 			GetPositionUsecase:         query.NewGetPositionUsecase(contextDuration, loadsRepo, loadLocationPointRepo, rbacService),
-			GetConnectionStatusUsecase: query.NewGetConnectionStatusUsecase(contextDuration, loadsRepo, loadLocationPointRepo, rbacService, presenceService, watcherService, liveAckService),
+			GetConnectionStatusUsecase: query.NewGetConnectionStatusUsecase(contextDuration, loadsRepo, loadLocationPointRepo, rbacService, connectionParams),
 			GetStatsUsecase:            query.NewGetStatsUsecase(contextDuration, loadsRepo, rbacService),
 		},
 	}

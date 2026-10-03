@@ -109,7 +109,11 @@ func NewLoadLocationPoint(
 type LoadLocationPointRepository interface {
 	Save(ctx context.Context, point *LoadLocationPoint) error
 	BatchSave(ctx context.Context, points []*LoadLocationPoint) error
-	FindByLoadID(ctx context.Context, loadID uuid.UUID, limit, offset int) ([]*LoadLocationPoint, int, error)
+	// FindByLoadIDAfter returns the load's points recorded after the given
+	// time, oldest first; a zero time returns all of them.
+	FindByLoadIDAfter(ctx context.Context, loadID uuid.UUID, after time.Time) (LoadLocationTrack, error)
+	// FindRecentByLoadID returns the load's latest n points, oldest first.
+	FindRecentByLoadID(ctx context.Context, loadID uuid.UUID, n int) (LoadLocationTrack, error)
 	FindLatestByLoadID(ctx context.Context, loadID uuid.UUID) (*LoadLocationPoint, error)
 	FindByStatusHistoryIDs(ctx context.Context, historyIDs []int64) ([]*LoadLocationPoint, error)
 	// FindAllByLoadID returns every stored point of the load, oldest first.

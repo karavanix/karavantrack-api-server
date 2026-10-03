@@ -155,6 +155,10 @@ type Config struct {
 		// tracking this long after the drop-off (env:
 		// TRACKING_DROPPED_OFF_STOP_AFTER).
 		DroppedOffStopAfter time.Duration
+		// NoDataAfter: the connection status of a load whose truck isn't
+		// standing turns to no_data when its last point is older than this
+		// (env: TRACKING_NO_DATA_AFTER).
+		NoDataAfter time.Duration
 	}
 
 	// Matching configures map matching of load tracks. Defaults come from
@@ -334,6 +338,9 @@ func New() (*Config, error) {
 	}
 	if c.Tracking.DroppedOffStopAfter, err = getEnvDuration("TRACKING_DROPPED_OFF_STOP_AFTER", "24h"); err != nil {
 		return nil, fmt.Errorf("TRACKING_DROPPED_OFF_STOP_AFTER: %w", err)
+	}
+	if c.Tracking.NoDataAfter, err = getEnvDuration("TRACKING_NO_DATA_AFTER", "5m"); err != nil {
+		return nil, fmt.Errorf("TRACKING_NO_DATA_AFTER: %w", err)
 	}
 
 	// Matching

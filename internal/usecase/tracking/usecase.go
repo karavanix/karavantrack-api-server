@@ -4,10 +4,7 @@ import (
 	"time"
 
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
-	"github.com/karavanix/karavantrack-api-server/internal/service/liveack"
-	"github.com/karavanix/karavantrack-api-server/internal/service/presence"
 	"github.com/karavanix/karavantrack-api-server/internal/service/rbac"
-	"github.com/karavanix/karavantrack-api-server/internal/service/watcher"
 	loadsquery "github.com/karavanix/karavantrack-api-server/internal/usecase/loads/query"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/tracking/command"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/tracking/query"
@@ -36,9 +33,7 @@ func NewUsecase(
 	loadTracksRepo domain.LoadTrackRepository,
 	rbacService rbac.Service,
 	publicAppBaseURL string,
-	presenceService presence.Service,
-	watcherService watcher.Service,
-	liveAckService liveack.Service,
+	connectionParams domain.ConnectionParams,
 ) *Usecase {
 	// Reuse the existing authenticated loads/query usecases for the
 	// "current position" and "location history" logic instead of
@@ -47,7 +42,7 @@ func NewUsecase(
 	getPositionUsecase := loadsquery.NewGetPositionUsecase(contextDuration, loadsRepo, loadLocationPointRepo, rbacService)
 	getTrackUsecase := loadsquery.NewGetTrackUsecase(contextDuration, loadsRepo, loadLocationPointRepo, rbacService)
 	getRouteUsecase := loadsquery.NewGetRouteUsecase(contextDuration, loadsRepo, loadTracksRepo, rbacService)
-	getConnectionStatusUsecase := loadsquery.NewGetConnectionStatusUsecase(contextDuration, loadsRepo, loadLocationPointRepo, rbacService, presenceService, watcherService, liveAckService)
+	getConnectionStatusUsecase := loadsquery.NewGetConnectionStatusUsecase(contextDuration, loadsRepo, loadLocationPointRepo, rbacService, connectionParams)
 
 	return &Usecase{
 		Command: Command{
