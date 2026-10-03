@@ -20,14 +20,11 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/infrastructure/valhalla"
 	"github.com/karavanix/karavantrack-api-server/internal/service/broker"
 	"github.com/karavanix/karavantrack-api-server/internal/service/email"
-	"github.com/karavanix/karavantrack-api-server/internal/service/liveack"
 	"github.com/karavanix/karavantrack-api-server/internal/service/notification"
 	"github.com/karavanix/karavantrack-api-server/internal/service/otp"
-	"github.com/karavanix/karavantrack-api-server/internal/service/presence"
 	"github.com/karavanix/karavantrack-api-server/internal/service/rbac"
 	"github.com/karavanix/karavantrack-api-server/internal/service/revocation"
 	routingsvc "github.com/karavanix/karavantrack-api-server/internal/service/routing"
-	"github.com/karavanix/karavantrack-api-server/internal/service/watcher"
 	"github.com/karavanix/karavantrack-api-server/internal/tasks"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/attachments"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/auth"
@@ -147,7 +144,6 @@ func (s *ServerApp) Run() error {
 	}
 
 	// cache
-	presenceRepo := cache.NewPresenceRedisStore(s.config, s.redis)
 	otpStore := cache.NewOTPStore(s.redis)
 	pkceStore := cache.NewPKCEStore(s.config, s.redis)
 
@@ -215,11 +211,8 @@ func (s *ServerApp) Run() error {
 	}
 
 	// service
-	presenceService := presence.NewService(s.config.Context.Timeout, presenceRepo)
 	notificationService := notification.NewService(fcmClient, fcmDevicesRepo)
 	rbacService := rbac.NewService(s.config.Context.Timeout, companyMembersRepo)
-	watcherService := watcher.NewService(s.redis)
-	liveAckService := liveack.NewService(s.redis)
 	revocationService := revocation.NewService(s.redis, s.config.JWT.RefreshTTL)
 	otpService := otp.NewService(otpStore, otp.Config{
 		Secret:      []byte(s.config.OTP.Secret),
@@ -249,15 +242,20 @@ func (s *ServerApp) Run() error {
 	)
 	usersUsecase := users.NewUsecase(s.config.Context.Timeout, usersRepo, loadsRepo, fcmDevicesRepo, revocationService)
 	companiesUsecase := companies.NewUsecase(s.config.Context.Timeout, txManager, companiesRepo, companyMembersRepo, companyCarriersRepo, usersRepo, loadsRepo, rbacService)
-	loadsUsecase := loads.NewUsecase(s.config.Context.Timeout, loadsRepo, usersRepo, loadLocationsPointsRepo, loadTracksRepo, companyMembersRepo, attachmentsRepo, s3Client, rbacService, s.taskQueue, presenceService, watcherService, liveAckService, matchScheduler)
 	trackingWindowParams := domain.TrackingWindowParams{
 		ClockSkew:           s.config.Tracking.ClockSkew,
 		DroppedOffStopAfter: s.config.Tracking.DroppedOffStopAfter,
 	}
+	connectionParams := domain.ConnectionParams{
+		Window:      trackingWindowParams,
+		Split:       routingsvc.ConfigFrom(s.config).SplitParams(),
+		NoDataAfter: s.config.Tracking.NoDataAfter,
+	}
+	loadsUsecase := loads.NewUsecase(s.config.Context.Timeout, loadsRepo, usersRepo, loadLocationsPointsRepo, loadTracksRepo, companyMembersRepo, attachmentsRepo, s3Client, rbacService, s.taskQueue, connectionParams, matchScheduler)
 	locationUsecase := location.NewUsecase(s.config.Context.Timeout, trackingWindowParams, s.bkr, eventFactory, loadsRepo, loadLocationsPointsRepo, matchScheduler)
 	invitesUsecase := invites.NewUsecase(s.config.Context.Timeout, loadsRepo, usersRepo, companiesRepo, loadInvitesRepo, rbacService, s.taskQueue, s.config.PublicAppBaseURL)
 	attachmentsUsecase := attachments.NewUsecase(s.config.Context.Timeout, s.config, txManager, attachmentsRepo, s3Client)
-	trackingUsecase := tracking.NewUsecase(s.config.Context.Timeout, loadsRepo, loadTrackingLinksRepo, loadLocationsPointsRepo, loadTracksRepo, rbacService, s.config.PublicAppBaseURL, presenceService, watcherService, liveAckService)
+	trackingUsecase := tracking.NewUsecase(s.config.Context.Timeout, loadsRepo, loadTrackingLinksRepo, loadLocationsPointsRepo, loadTracksRepo, rbacService, s.config.PublicAppBaseURL, connectionParams)
 	leadsUsecase := leads.NewUsecase(s.config.Context.Timeout, leadsRepo)
 	routingUsecase := routing.NewUsecase(s.config.Context.Timeout, s.config.Matching.Timeout, txManager, loadsRepo, loadLocationsPointsRepo, loadTracksRepo, routingService, matchScheduler)
 
@@ -268,11 +266,7 @@ func (s *ServerApp) Run() error {
 		JWTProvider:         jwtProvider,
 		Broker:              s.bkr,
 		Redis:               s.redis,
-		EventFactory:        eventFactory,
-		PresenceService:     presenceService,
 		NotificationService: notificationService,
-		WatcherService:      watcherService,
-		LiveAckService:      liveAckService,
 		AuthUsecase:         authUsecase,
 		UsersUsecase:        usersUsecase,
 		CompaniesUsecase:    companiesUsecase,

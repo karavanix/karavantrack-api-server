@@ -405,11 +405,35 @@ definitions:
     type: object
   query.ConnectionStatusResponse:
     properties:
+      battery_level:
+        description: |-
+          BatteryLevel of the driver's phone, 0..1, and whether it's charging,
+          as of the latest point that reported them.
+        type: number
+      is_charging:
+        type: boolean
       last_point_at:
         type: string
       reason:
+        enum:
+        - location_off
+        - permission_denied
+        type: string
+      since:
+        description: 'Since: when the truck stopped (stopped) or GPS went off (gps_disabled).'
         type: string
       state:
+        description: |-
+          State: not_started (the load isn't tracked), moving, stopped (since
+          Since; the phone sends nothing while standing), no_data (no fresh
+          point while not standing) or gps_disabled (Android reported location
+          services off or the permission gone; Reason says which).
+        enum:
+        - not_started
+        - moving
+        - stopped
+        - no_data
+        - gps_disabled
         type: string
     type: object
   query.GetCarrierByContactResponse:
@@ -527,8 +551,6 @@ definitions:
         items:
           $ref: '#/definitions/query.TrackPointResponse'
         type: array
-      total:
-        type: integer
     type: object
   query.HistoryAttachmentResponse:
     properties:
@@ -2097,23 +2119,21 @@ paths:
       - Loads
   /loads/{id}/track:
     get:
-      description: Location history of a load, oldest first. Page with limit/offset;
-        points recorded meanwhile are appended at the end, so a client polling for
-        new points can continue from the number of points it already has.
+      description: 'Location history of a load, oldest first. The matched route (/route)
+        covers the track up to its matched_until, so a map needs only the points after
+        it: pass after=matched_until, then poll with after=the newest point shown.
+        A point from the phone''s offline queue may land before that and is drawn
+        by the next re-match.'
       parameters:
       - description: Load ID
         in: path
         name: id
         required: true
         type: string
-      - description: Max number of points (default 500, max 1000)
+      - description: Only points recorded after this time (RFC 3339)
         in: query
-        name: limit
-        type: integer
-      - description: Pagination offset
-        in: query
-        name: offset
-        type: integer
+        name: after
+        type: string
       produces:
       - application/json
       responses:
@@ -2228,21 +2248,18 @@ paths:
   /public/tracking/{token}/track:
     get:
       description: PUBLIC, unauthenticated location history for a load, by tracking-link
-        token, oldest first (same shape and paging as the authenticated GET /loads/{id}/track)
+        token, oldest first (same shape as the authenticated GET /loads/{id}/track)
       parameters:
       - description: Tracking link token
         in: path
         name: token
         required: true
         type: string
-      - description: Max number of points (default 500, max 1000)
+      - description: Only points recorded after this time (RFC 3339), e.g. the route's
+          matched_until or the newest point already shown
         in: query
-        name: limit
-        type: integer
-      - description: Pagination offset
-        in: query
-        name: offset
-        type: integer
+        name: after
+        type: string
       produces:
       - application/json
       responses:
@@ -2250,6 +2267,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/query.GetTrackResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/outerr.Response'
         "404":
           description: Not Found
           schema:

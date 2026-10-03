@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"encoding/json"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -86,41 +87,34 @@ func (r *loadLocationPointsRepo) BatchSave(ctx context.Context, points []*domain
 	return nil
 }
 
-// FindByLoadID returns a page of the load's points, oldest first: points
-// recorded while a client pages through the track land at the end instead of
-// shifting the pages it has already read.
-func (r *loadLocationPointsRepo) FindByLoadID(ctx context.Context, loadID uuid.UUID, limit, offset int) ([]*domain.LoadLocationPoint, int, error) {
+func (r *loadLocationPointsRepo) FindByLoadIDAfter(ctx context.Context, loadID uuid.UUID, after time.Time) (domain.LoadLocationTrack, error) {
 	db := postgres.FromContext(ctx, r.db)
 	var models []LoadLocationPoints
 	q := db.NewSelect().Model(&models).
 		Where("load_id = ?", loadID.String()).
 		Order("recorded_at ASC", "id ASC")
-
-	if limit > 0 {
-		q = q.Limit(limit)
-	} else {
-		q = q.Limit(100)
+	if !after.IsZero() {
+		q = q.Where("recorded_at > ?", after)
 	}
-	if offset > 0 {
-		q = q.Offset(offset)
+	if err := q.Scan(ctx); err != nil {
+		return nil, postgres.Error(err, &LoadLocationPoints{})
 	}
+	return r.toTrack(models), nil
+}
 
-	err := q.Scan(ctx)
+func (r *loadLocationPointsRepo) FindRecentByLoadID(ctx context.Context, loadID uuid.UUID, n int) (domain.LoadLocationTrack, error) {
+	db := postgres.FromContext(ctx, r.db)
+	var models []LoadLocationPoints
+	err := db.NewSelect().Model(&models).
+		Where("load_id = ?", loadID.String()).
+		Order("recorded_at DESC", "id DESC").
+		Limit(n).
+		Scan(ctx)
 	if err != nil {
-		return nil, 0, postgres.Error(err, &LoadLocationPoints{})
+		return nil, postgres.Error(err, &LoadLocationPoints{})
 	}
-
-	count, err := q.Count(ctx)
-	if err != nil {
-		return nil, 0, postgres.Error(err, &LoadLocationPoints{})
-	}
-
-	result := make([]*domain.LoadLocationPoint, len(models))
-	for i := range models {
-		result[i] = r.toDomain(&models[i])
-	}
-
-	return result, count, nil
+	slices.Reverse(models)
+	return r.toTrack(models), nil
 }
 
 func (r *loadLocationPointsRepo) FindLatestByLoadID(ctx context.Context, loadID uuid.UUID) (*domain.LoadLocationPoint, error) {
@@ -166,11 +160,7 @@ func (r *loadLocationPointsRepo) FindAllByLoadID(ctx context.Context, loadID uui
 	if err != nil {
 		return nil, postgres.Error(err, &LoadLocationPoints{})
 	}
-	result := make(domain.LoadLocationTrack, len(models))
-	for i := range models {
-		result[i] = r.toDomain(&models[i])
-	}
-	return result, nil
+	return r.toTrack(models), nil
 }
 
 func (r *loadLocationPointsRepo) LastIDByLoadID(ctx context.Context, loadID uuid.UUID) (int64, error) {
@@ -184,6 +174,14 @@ func (r *loadLocationPointsRepo) LastIDByLoadID(ctx context.Context, loadID uuid
 		return 0, postgres.Error(err, &LoadLocationPoints{})
 	}
 	return lastID, nil
+}
+
+func (r *loadLocationPointsRepo) toTrack(models []LoadLocationPoints) domain.LoadLocationTrack {
+	track := make(domain.LoadLocationTrack, len(models))
+	for i := range models {
+		track[i] = r.toDomain(&models[i])
+	}
+	return track
 }
 
 func (r *loadLocationPointsRepo) toModel(e *domain.LoadLocationPoint) *LoadLocationPoints {

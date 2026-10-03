@@ -1948,7 +1948,7 @@ const docTemplateshipper = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Location history of a load, oldest first. Page with limit/offset; points recorded meanwhile are appended at the end, so a client polling for new points can continue from the number of points it already has.",
+                "description": "Location history of a load, oldest first. The matched route (/route) covers the track up to its matched_until, so a map needs only the points after it: pass after=matched_until, then poll with after=the newest point shown. A point from the phone's offline queue may land before that and is drawn by the next re-match.",
                 "produces": [
                     "application/json"
                 ],
@@ -1965,15 +1965,9 @@ const docTemplateshipper = `{
                         "required": true
                     },
                     {
-                        "type": "integer",
-                        "description": "Max number of points (default 500, max 1000)",
-                        "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Pagination offset",
-                        "name": "offset",
+                        "type": "string",
+                        "description": "Only points recorded after this time (RFC 3339)",
+                        "name": "after",
                         "in": "query"
                     }
                 ],
@@ -2135,7 +2129,7 @@ const docTemplateshipper = `{
         },
         "/public/tracking/{token}/track": {
             "get": {
-                "description": "PUBLIC, unauthenticated location history for a load, by tracking-link token, oldest first (same shape and paging as the authenticated GET /loads/{id}/track)",
+                "description": "PUBLIC, unauthenticated location history for a load, by tracking-link token, oldest first (same shape as the authenticated GET /loads/{id}/track)",
                 "produces": [
                     "application/json"
                 ],
@@ -2152,15 +2146,9 @@ const docTemplateshipper = `{
                         "required": true
                     },
                     {
-                        "type": "integer",
-                        "description": "Max number of points (default 500, max 1000)",
-                        "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Pagination offset",
-                        "name": "offset",
+                        "type": "string",
+                        "description": "Only points recorded after this time (RFC 3339), e.g. the route's matched_until or the newest point already shown",
+                        "name": "after",
                         "in": "query"
                     }
                 ],
@@ -2169,6 +2157,12 @@ const docTemplateshipper = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/query.GetTrackResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
                         }
                     },
                     "404": {
@@ -3213,14 +3207,37 @@ const docTemplateshipper = `{
         "query.ConnectionStatusResponse": {
             "type": "object",
             "properties": {
+                "battery_level": {
+                    "description": "BatteryLevel of the driver's phone, 0..1, and whether it's charging,\nas of the latest point that reported them.",
+                    "type": "number"
+                },
+                "is_charging": {
+                    "type": "boolean"
+                },
                 "last_point_at": {
                     "type": "string"
                 },
                 "reason": {
+                    "type": "string",
+                    "enum": [
+                        "location_off",
+                        "permission_denied"
+                    ]
+                },
+                "since": {
+                    "description": "Since: when the truck stopped (stopped) or GPS went off (gps_disabled).",
                     "type": "string"
                 },
                 "state": {
-                    "type": "string"
+                    "description": "State: not_started (the load isn't tracked), moving, stopped (since\nSince; the phone sends nothing while standing), no_data (no fresh\npoint while not standing) or gps_disabled (Android reported location\nservices off or the permission gone; Reason says which).",
+                    "type": "string",
+                    "enum": [
+                        "not_started",
+                        "moving",
+                        "stopped",
+                        "no_data",
+                        "gps_disabled"
+                    ]
                 }
             }
         },
@@ -3394,9 +3411,6 @@ const docTemplateshipper = `{
                     "items": {
                         "$ref": "#/definitions/query.TrackPointResponse"
                     }
-                },
-                "total": {
-                    "type": "integer"
                 }
             }
         },

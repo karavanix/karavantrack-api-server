@@ -2,7 +2,6 @@ package common
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
@@ -65,22 +64,20 @@ func (h *publicTrackingHandler) GetRoute() http.HandlerFunc {
 
 // GetTrack godoc
 // @Summary      Get public cargo tracking history
-// @Description  PUBLIC, unauthenticated location history for a load, by tracking-link token, oldest first (same shape and paging as the authenticated GET /loads/{id}/track)
+// @Description  PUBLIC, unauthenticated location history for a load, by tracking-link token, oldest first (same shape as the authenticated GET /loads/{id}/track)
 // @Tags         Tracking
 // @Produce      json
 // @Param        token  path  string true  "Tracking link token"
-// @Param        limit  query int    false "Max number of points (default 500, max 1000)"
-// @Param        offset query int    false "Pagination offset"
+// @Param        after  query string false "Only points recorded after this time (RFC 3339), e.g. the route's matched_until or the newest point already shown"
 // @Success      200  {object} query.GetTrackResponse
+// @Failure      400  {object} outerr.Response
 // @Failure      404  {object} outerr.Response
 // @Router       /public/tracking/{token}/track [get]
 func (h *publicTrackingHandler) GetTrack() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		token := chi.URLParam(r, "token")
-		limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-		offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
 
-		resp, err := h.trackingUsecase.Query.GetPublicTrack(r.Context(), token, limit, offset)
+		resp, err := h.trackingUsecase.Query.GetPublicTrack(r.Context(), token, r.URL.Query().Get("after"))
 		if err != nil {
 			outerr.HandleHTTP(w, r, err)
 			return

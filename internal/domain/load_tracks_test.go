@@ -29,9 +29,11 @@ func (b *trackBuilder) at(minute float64, northM float64) *domain.LoadLocationPo
 func accuracy(v float32) *float32 { return &v }
 
 var splitParams = domain.TrackSplitParams{
-	GapThreshold:    10 * time.Minute,
-	StopRadiusM:     50,
-	StopMinDuration: 10 * time.Minute,
+	MaxAccuracyM:     50,
+	GapThreshold:     3 * time.Minute,
+	StopRadiusM:      50,
+	StopMinDuration:  5 * time.Minute,
+	DepartureRadiusM: 250,
 }
 
 func kinds(pieces []domain.TrackPiece) []domain.TrackPieceKind {
