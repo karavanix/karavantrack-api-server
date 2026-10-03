@@ -53,8 +53,10 @@ type AppleSignInRequest struct {
 type AppleSignInResponse struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
-	Role         string `json:"role"`
-	IsNewUser    bool   `json:"is_new_user"`
+	// ExpiresIn is the access token's lifetime in seconds.
+	ExpiresIn int    `json:"expires_in"`
+	Role      string `json:"role"`
+	IsNewUser bool   `json:"is_new_user"`
 }
 
 func (u *AppleSignInUsecase) AppleSignIn(ctx context.Context, req *AppleSignInRequest) (_ *AppleSignInResponse, err error) {
@@ -150,6 +152,7 @@ func (u *AppleSignInUsecase) AppleSignIn(ctx context.Context, req *AppleSignInRe
 	return &AppleSignInResponse{
 		AccessToken:  creds.AccessToken,
 		RefreshToken: creds.RefreshToken,
+		ExpiresIn:    int(creds.AccessTTL.Seconds()),
 		Role:         user.Role.String(),
 		IsNewUser:    isNewUser,
 	}, nil

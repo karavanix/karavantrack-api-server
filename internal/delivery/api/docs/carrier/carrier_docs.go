@@ -489,9 +489,10 @@ const docTemplatecarrier = `{
         },
         "/auth/refresh": {
             "post": {
-                "description": "Exchange a valid refresh token for a new token pair",
+                "description": "Exchange a valid refresh token for a new token pair. The body is JSON or a form (the phone's tracking library refreshes with a form), chosen by Content-Type",
                 "consumes": [
-                    "application/json"
+                    "application/json",
+                    "application/x-www-form-urlencoded"
                 ],
                 "produces": [
                     "application/json"
@@ -1599,6 +1600,63 @@ const docTemplatecarrier = `{
                 }
             }
         },
+        "/tracking/locations": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Takes a batch of the phone's tracking library records. Each point carries its load_id; points outside their load's tracking window (from acceptance to confirmation, a cancelled load keeps taking them), of other drivers' loads or malformed are dropped, not rejected. Any parsable body gets 200, so the phone can clear its queue; the response's load_status and stop_tracking describe the load of the batch's latest point.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tracking"
+                ],
+                "summary": "Register GPS points from the tracking library",
+                "parameters": [
+                    {
+                        "description": "Tracking library records",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/command.RegisterLocationsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/command.RegisterLocationsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    },
+                    "413": {
+                        "description": "Request Entity Too Large",
+                        "schema": {
+                            "$ref": "#/definitions/outerr.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/users/me": {
             "get": {
                 "security": [
@@ -1836,6 +1894,10 @@ const docTemplatecarrier = `{
                 "access_token": {
                     "type": "string"
                 },
+                "expires_in": {
+                    "description": "ExpiresIn is the access token's lifetime in seconds.",
+                    "type": "integer"
+                },
                 "is_new_user": {
                     "type": "boolean"
                 },
@@ -1877,6 +1939,10 @@ const docTemplatecarrier = `{
             "properties": {
                 "access_token": {
                     "type": "string"
+                },
+                "expires_in": {
+                    "description": "ExpiresIn is the access token's lifetime in seconds.",
+                    "type": "integer"
                 },
                 "refresh_token": {
                     "type": "string"
@@ -1984,6 +2050,101 @@ const docTemplatecarrier = `{
                 }
             }
         },
+        "command.RegisterLocationsPoint": {
+            "type": "object",
+            "properties": {
+                "accuracy_m": {
+                    "type": "number"
+                },
+                "activity_confidence": {
+                    "type": "integer"
+                },
+                "activity_type": {
+                    "type": "string"
+                },
+                "altitude_m": {
+                    "type": "number"
+                },
+                "battery_level": {
+                    "description": "BatteryLevel is a fraction, 0..1.",
+                    "type": "number"
+                },
+                "event": {
+                    "description": "Event is \"\" for a regular location.",
+                    "type": "string"
+                },
+                "heading_deg": {
+                    "type": "number"
+                },
+                "is_charging": {
+                    "type": "boolean"
+                },
+                "is_mock": {
+                    "type": "boolean"
+                },
+                "is_moving": {
+                    "type": "boolean"
+                },
+                "lat": {
+                    "type": "number"
+                },
+                "lng": {
+                    "type": "number"
+                },
+                "load_id": {
+                    "type": "string"
+                },
+                "odometer_m": {
+                    "type": "number"
+                },
+                "provider": {
+                    "description": "Provider is what Android attaches to a providerchange record.",
+                    "type": "object"
+                },
+                "recorded_at": {
+                    "type": "string"
+                },
+                "speed_mps": {
+                    "description": "SpeedMps and HeadingDeg are -1 when unknown.",
+                    "type": "number"
+                },
+                "uuid": {
+                    "type": "string"
+                }
+            }
+        },
+        "command.RegisterLocationsRequest": {
+            "type": "object",
+            "properties": {
+                "points": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/command.RegisterLocationsPoint"
+                    }
+                }
+            }
+        },
+        "command.RegisterLocationsResponse": {
+            "type": "object",
+            "properties": {
+                "accepted": {
+                    "description": "Accepted points were stored (or had already been stored).",
+                    "type": "integer"
+                },
+                "dropped": {
+                    "description": "Dropped points are malformed or fall outside their load's tracking\nwindow; they're not coming back, so the phone deletes them all the same.",
+                    "type": "integer"
+                },
+                "load_status": {
+                    "description": "LoadStatus is the status of the load of the batch's latest point; null\nwhen that load doesn't exist or isn't this driver's.",
+                    "type": "string"
+                },
+                "stop_tracking": {
+                    "description": "StopTracking tells the phone to stop: that load is confirmed,\ncancelled, waiting for a confirmation too long, or not this driver's.",
+                    "type": "boolean"
+                }
+            }
+        },
         "command.RegisterRequest": {
             "type": "object",
             "required": [
@@ -2051,6 +2212,10 @@ const docTemplatecarrier = `{
             "properties": {
                 "access_token": {
                     "type": "string"
+                },
+                "expires_in": {
+                    "description": "ExpiresIn is the access token's lifetime in seconds.",
+                    "type": "integer"
                 },
                 "is_new_user": {
                     "type": "boolean"
@@ -2135,6 +2300,10 @@ const docTemplatecarrier = `{
             "properties": {
                 "access_token": {
                     "type": "string"
+                },
+                "expires_in": {
+                    "description": "ExpiresIn is the access token's lifetime in seconds.",
+                    "type": "integer"
                 },
                 "refresh_token": {
                     "type": "string"

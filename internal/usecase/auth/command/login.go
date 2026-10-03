@@ -37,6 +37,8 @@ type LoginRequest struct {
 type LoginResponse struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
+	// ExpiresIn is the access token's lifetime in seconds.
+	ExpiresIn int `json:"expires_in"`
 }
 
 func (l *LoginUsecase) Login(ctx context.Context, req *LoginRequest) (_ *LoginResponse, err error) {
@@ -98,5 +100,6 @@ func (l *LoginUsecase) Login(ctx context.Context, req *LoginRequest) (_ *LoginRe
 	return &LoginResponse{
 		AccessToken:  creds.AccessToken,
 		RefreshToken: creds.RefreshToken,
+		ExpiresIn:    int(creds.AccessTTL.Seconds()),
 	}, nil
 }

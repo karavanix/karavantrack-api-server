@@ -13,6 +13,7 @@ import (
 type Command struct {
 	*command.RegisterLoadLocationUsecase
 	*command.RegisterLoadLocationBatchUsecase
+	*command.RegisterLocationsUsecase
 }
 
 type Query struct {
@@ -25,6 +26,7 @@ type Usecase struct {
 
 func NewUsecase(
 	contextDuration time.Duration,
+	windowParams domain.TrackingWindowParams,
 	bkr broker.Broker,
 	eventFactory *events.Factory,
 	loadsRepo domain.LoadRepository,
@@ -35,6 +37,7 @@ func NewUsecase(
 		Command: Command{
 			RegisterLoadLocationUsecase:      command.NewRegisterLoadLocationUsecase(contextDuration, bkr, eventFactory, loadsRepo, loadLocationPointRepo, matchScheduler),
 			RegisterLoadLocationBatchUsecase: command.NewRegisterLoadLocationBatchUsecase(contextDuration, bkr, eventFactory, loadsRepo, loadLocationPointRepo, matchScheduler),
+			RegisterLocationsUsecase:         command.NewRegisterLocationsUsecase(contextDuration, windowParams, bkr, eventFactory, loadsRepo, loadLocationPointRepo, matchScheduler),
 		},
 		Query: Query{},
 	}

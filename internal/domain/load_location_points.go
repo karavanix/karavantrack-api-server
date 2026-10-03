@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"sort"
 	"time"
@@ -11,17 +12,40 @@ import (
 )
 
 type LoadLocationPoint struct {
-	ID              int64
-	LoadID          uuid.UUID
+	ID int64
+	// UUID is the tracking library's record id; uuid.Nil for a point that
+	// didn't come from the library (one attached to a status change).
+	UUID uuid.UUID
+	// CarrierID is uuid.Nil once the driver's account has been deleted.
 	CarrierID       uuid.UUID
+	LoadID          uuid.UUID
 	Lat             float64
 	Lng             float64
 	AccuracyM       *float32
+	AltitudeM       *float32
 	SpeedMps        *float32
 	HeadingDeg      *float32
 	RecordedAt      time.Time
 	CreatedAt       time.Time
 	StatusHistoryID *int64
+
+	// The rest is what the tracking library knows about the moment the point
+	// was recorded; all of it is optional.
+
+	// Event is the library event that produced the point (motionchange,
+	// providerchange, heartbeat, ...), "" for a regular location.
+	Event              string
+	IsMoving           *bool
+	ActivityType       string
+	ActivityConfidence *int16
+	OdometerM          *float64
+	// BatteryLevel is a fraction, 0..1.
+	BatteryLevel *float32
+	IsCharging   *bool
+	IsMock       *bool
+	// Provider is the location-services state Android attaches to a
+	// providerchange point, stored as sent.
+	Provider json.RawMessage
 }
 
 func NewLoadLocationPoint(
@@ -83,29 +107,6 @@ type LoadLocationPointRepository interface {
 	// LastIDByLoadID returns the highest point ID stored for the load, 0
 	// when there are none.
 	LastIDByLoadID(ctx context.Context, loadID uuid.UUID) (int64, error)
-}
-
-// MaxPlausibleSpeedMps is a generous ceiling (~130 km/h) for how fast a
-// truck can plausibly move between two consecutive points. It exists to
-// catch GPS teleports (multi-km jumps from a bad fix), not to model real
-// driving — kept deliberately loose so a real highway sprint never gets
-// rejected as noise.
-const MaxPlausibleSpeedMps = 36.11
-
-// IsPlausibleSuccessorOf reports whether p could realistically follow prev
-// in time, given MaxPlausibleSpeedMps. A nil prev, or two points that are
-// not in forward chronological order, are always considered plausible —
-// this check is only meant to catch outliers, not to reorder or dedupe.
-func (p *LoadLocationPoint) IsPlausibleSuccessorOf(prev *LoadLocationPoint) bool {
-	if prev == nil {
-		return true
-	}
-	dtSeconds := p.RecordedAt.Sub(prev.RecordedAt).Seconds()
-	if dtSeconds <= 0 {
-		return true
-	}
-	distanceMeters := geo.DistanceM(prev.Point(), p.Point())
-	return distanceMeters/dtSeconds <= MaxPlausibleSpeedMps
 }
 
 func (p *LoadLocationPoint) Point() geo.Point {

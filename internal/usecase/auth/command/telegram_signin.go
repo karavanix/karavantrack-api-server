@@ -52,8 +52,10 @@ type TelegramSignInRequest struct {
 type TelegramSignInResponse struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
-	Role         string `json:"role"`
-	IsNewUser    bool   `json:"is_new_user"`
+	// ExpiresIn is the access token's lifetime in seconds.
+	ExpiresIn int    `json:"expires_in"`
+	Role      string `json:"role"`
+	IsNewUser bool   `json:"is_new_user"`
 }
 
 func (u *TelegramSignInUsecase) TelegramSignIn(ctx context.Context, req *TelegramSignInRequest) (_ *TelegramSignInResponse, err error) {
@@ -143,6 +145,7 @@ func (u *TelegramSignInUsecase) TelegramSignIn(ctx context.Context, req *Telegra
 	return &TelegramSignInResponse{
 		AccessToken:  creds.AccessToken,
 		RefreshToken: creds.RefreshToken,
+		ExpiresIn:    int(creds.AccessTTL.Seconds()),
 		Role:         user.Role.String(),
 		IsNewUser:    isNewUser,
 	}, nil

@@ -489,9 +489,10 @@ const docTemplateshipper = `{
         },
         "/auth/refresh": {
             "post": {
-                "description": "Exchange a valid refresh token for a new token pair",
+                "description": "Exchange a valid refresh token for a new token pair. The body is JSON or a form (the phone's tracking library refreshes with a form), chosen by Content-Type",
                 "consumes": [
-                    "application/json"
+                    "application/json",
+                    "application/x-www-form-urlencoded"
                 ],
                 "produces": [
                     "application/json"
@@ -2665,6 +2666,10 @@ const docTemplateshipper = `{
                 "access_token": {
                     "type": "string"
                 },
+                "expires_in": {
+                    "description": "ExpiresIn is the access token's lifetime in seconds.",
+                    "type": "integer"
+                },
                 "is_new_user": {
                     "type": "boolean"
                 },
@@ -2799,6 +2804,10 @@ const docTemplateshipper = `{
                 "access_token": {
                     "type": "string"
                 },
+                "expires_in": {
+                    "description": "ExpiresIn is the access token's lifetime in seconds.",
+                    "type": "integer"
+                },
                 "refresh_token": {
                     "type": "string"
                 }
@@ -2904,6 +2913,10 @@ const docTemplateshipper = `{
                 "access_token": {
                     "type": "string"
                 },
+                "expires_in": {
+                    "description": "ExpiresIn is the access token's lifetime in seconds.",
+                    "type": "integer"
+                },
                 "is_new_user": {
                     "type": "boolean"
                 },
@@ -2987,6 +3000,10 @@ const docTemplateshipper = `{
             "properties": {
                 "access_token": {
                     "type": "string"
+                },
+                "expires_in": {
+                    "description": "ExpiresIn is the access token's lifetime in seconds.",
+                    "type": "integer"
                 },
                 "refresh_token": {
                     "type": "string"

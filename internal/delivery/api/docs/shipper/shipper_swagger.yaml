@@ -43,6 +43,9 @@ definitions:
     properties:
       access_token:
         type: string
+      expires_in:
+        description: ExpiresIn is the access token's lifetime in seconds.
+        type: integer
       is_new_user:
         type: boolean
       refresh_token:
@@ -130,6 +133,9 @@ definitions:
     properties:
       access_token:
         type: string
+      expires_in:
+        description: ExpiresIn is the access token's lifetime in seconds.
+        type: integer
       refresh_token:
         type: string
     type: object
@@ -199,6 +205,9 @@ definitions:
     properties:
       access_token:
         type: string
+      expires_in:
+        description: ExpiresIn is the access token's lifetime in seconds.
+        type: integer
       is_new_user:
         type: boolean
       refresh_token:
@@ -254,6 +263,9 @@ definitions:
     properties:
       access_token:
         type: string
+      expires_in:
+        description: ExpiresIn is the access token's lifetime in seconds.
+        type: integer
       refresh_token:
         type: string
       role:
@@ -1136,7 +1148,10 @@ paths:
     post:
       consumes:
       - application/json
-      description: Exchange a valid refresh token for a new token pair
+      - application/x-www-form-urlencoded
+      description: Exchange a valid refresh token for a new token pair. The body is
+        JSON or a form (the phone's tracking library refreshes with a form), chosen
+        by Content-Type
       parameters:
       - description: Refresh token
         in: body

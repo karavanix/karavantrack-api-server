@@ -78,5 +78,6 @@ func (r *RefreshTokenUsecase) RefreshToken(ctx context.Context, req *RefreshToke
 	return &LoginResponse{
 		AccessToken:  creds.AccessToken,
 		RefreshToken: creds.RefreshToken,
+		ExpiresIn:    int(creds.AccessTTL.Seconds()),
 	}, nil
 }

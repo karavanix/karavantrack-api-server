@@ -145,6 +145,18 @@ type Config struct {
 		Timeout time.Duration
 	}
 
+	// Tracking configures which GPS points a load takes from the driver's
+	// phone and when the phone is told to stop sending them.
+	Tracking struct {
+		// ClockSkew widens the load's tracking window on both sides, since a
+		// point's time comes from the phone's clock (env: TRACKING_CLOCK_SKEW).
+		ClockSkew time.Duration
+		// DroppedOffStopAfter: a load nobody confirms stops the phone's
+		// tracking this long after the drop-off (env:
+		// TRACKING_DROPPED_OFF_STOP_AFTER).
+		DroppedOffStopAfter time.Duration
+	}
+
 	// Matching configures map matching of load tracks. Defaults come from
 	// the gps-lab experiments on our own tracks.
 	Matching struct {
@@ -310,6 +322,14 @@ func New() (*Config, error) {
 	c.Valhalla.URL = getEnv("VALHALLA_URL", "http://localhost:8002")
 	if c.Valhalla.Timeout, err = getEnvDuration("VALHALLA_TIMEOUT", "30s"); err != nil {
 		return nil, fmt.Errorf("VALHALLA_TIMEOUT: %w", err)
+	}
+
+	// Tracking
+	if c.Tracking.ClockSkew, err = getEnvDuration("TRACKING_CLOCK_SKEW", "1m"); err != nil {
+		return nil, fmt.Errorf("TRACKING_CLOCK_SKEW: %w", err)
+	}
+	if c.Tracking.DroppedOffStopAfter, err = getEnvDuration("TRACKING_DROPPED_OFF_STOP_AFTER", "24h"); err != nil {
+		return nil, fmt.Errorf("TRACKING_DROPPED_OFF_STOP_AFTER: %w", err)
 	}
 
 	// Matching

@@ -12,6 +12,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/api"
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/validation"
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/worker"
+	"github.com/karavanix/karavantrack-api-server/internal/domain"
 	"github.com/karavanix/karavantrack-api-server/internal/events"
 	"github.com/karavanix/karavantrack-api-server/internal/infrastructure/persistence/cache"
 	"github.com/karavanix/karavantrack-api-server/internal/infrastructure/persistence/repository"
@@ -249,7 +250,11 @@ func (s *ServerApp) Run() error {
 	usersUsecase := users.NewUsecase(s.config.Context.Timeout, usersRepo, loadsRepo, fcmDevicesRepo, revocationService)
 	companiesUsecase := companies.NewUsecase(s.config.Context.Timeout, txManager, companiesRepo, companyMembersRepo, companyCarriersRepo, usersRepo, loadsRepo, rbacService)
 	loadsUsecase := loads.NewUsecase(s.config.Context.Timeout, loadsRepo, usersRepo, loadLocationsPointsRepo, loadTracksRepo, companyMembersRepo, attachmentsRepo, s3Client, rbacService, s.taskQueue, presenceService, watcherService, liveAckService, matchScheduler)
-	locationUsecase := location.NewUsecase(s.config.Context.Timeout, s.bkr, eventFactory, loadsRepo, loadLocationsPointsRepo, matchScheduler)
+	trackingWindowParams := domain.TrackingWindowParams{
+		ClockSkew:           s.config.Tracking.ClockSkew,
+		DroppedOffStopAfter: s.config.Tracking.DroppedOffStopAfter,
+	}
+	locationUsecase := location.NewUsecase(s.config.Context.Timeout, trackingWindowParams, s.bkr, eventFactory, loadsRepo, loadLocationsPointsRepo, matchScheduler)
 	invitesUsecase := invites.NewUsecase(s.config.Context.Timeout, loadsRepo, usersRepo, companiesRepo, loadInvitesRepo, rbacService, s.taskQueue, s.config.PublicAppBaseURL)
 	attachmentsUsecase := attachments.NewUsecase(s.config.Context.Timeout, s.config, txManager, attachmentsRepo, s3Client)
 	trackingUsecase := tracking.NewUsecase(s.config.Context.Timeout, loadsRepo, loadTrackingLinksRepo, loadLocationsPointsRepo, loadTracksRepo, rbacService, s.config.PublicAppBaseURL, presenceService, watcherService, liveAckService)
