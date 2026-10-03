@@ -20,14 +20,11 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/infrastructure/valhalla"
 	"github.com/karavanix/karavantrack-api-server/internal/service/broker"
 	"github.com/karavanix/karavantrack-api-server/internal/service/email"
-	"github.com/karavanix/karavantrack-api-server/internal/service/liveack"
 	"github.com/karavanix/karavantrack-api-server/internal/service/notification"
 	"github.com/karavanix/karavantrack-api-server/internal/service/otp"
-	"github.com/karavanix/karavantrack-api-server/internal/service/presence"
 	"github.com/karavanix/karavantrack-api-server/internal/service/rbac"
 	"github.com/karavanix/karavantrack-api-server/internal/service/revocation"
 	routingsvc "github.com/karavanix/karavantrack-api-server/internal/service/routing"
-	"github.com/karavanix/karavantrack-api-server/internal/service/watcher"
 	"github.com/karavanix/karavantrack-api-server/internal/tasks"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/attachments"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/auth"
@@ -147,7 +144,6 @@ func (s *ServerApp) Run() error {
 	}
 
 	// cache
-	presenceRepo := cache.NewPresenceRedisStore(s.config, s.redis)
 	otpStore := cache.NewOTPStore(s.redis)
 	pkceStore := cache.NewPKCEStore(s.config, s.redis)
 
@@ -215,11 +211,8 @@ func (s *ServerApp) Run() error {
 	}
 
 	// service
-	presenceService := presence.NewService(s.config.Context.Timeout, presenceRepo)
 	notificationService := notification.NewService(fcmClient, fcmDevicesRepo)
 	rbacService := rbac.NewService(s.config.Context.Timeout, companyMembersRepo)
-	watcherService := watcher.NewService(s.redis)
-	liveAckService := liveack.NewService(s.redis)
 	revocationService := revocation.NewService(s.redis, s.config.JWT.RefreshTTL)
 	otpService := otp.NewService(otpStore, otp.Config{
 		Secret:      []byte(s.config.OTP.Secret),
@@ -273,11 +266,7 @@ func (s *ServerApp) Run() error {
 		JWTProvider:         jwtProvider,
 		Broker:              s.bkr,
 		Redis:               s.redis,
-		EventFactory:        eventFactory,
-		PresenceService:     presenceService,
 		NotificationService: notificationService,
-		WatcherService:      watcherService,
-		LiveAckService:      liveAckService,
 		AuthUsecase:         authUsecase,
 		UsersUsecase:        usersUsecase,
 		CompaniesUsecase:    companiesUsecase,

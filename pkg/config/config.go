@@ -128,7 +128,6 @@ type Config struct {
 		Password        string
 		StaticSubjects  struct{}
 		DynamicSubjects struct {
-			WebsocketConnection      string
 			LoadLocationPointCreated string
 		}
 	}
@@ -323,7 +322,6 @@ func New() (*Config, error) {
 	c.Nats.Username = getEnv("NATS_USERNAME", "karavantruck")
 	c.Nats.Password = getEnv("NATS_PASSWORD", "karavantrack-password")
 
-	c.Nats.DynamicSubjects.WebsocketConnection = "websocket.connection.%s"
 	c.Nats.DynamicSubjects.LoadLocationPointCreated = "load.location.point.%s"
 
 	// Valhalla
