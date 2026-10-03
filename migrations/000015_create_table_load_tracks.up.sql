@@ -26,6 +26,6 @@ CREATE TABLE IF NOT EXISTS load_track_segments (
   from_point_id  bigint NOT NULL,
   to_point_id    bigint NOT NULL,
   PRIMARY KEY (id),
-  CONSTRAINT load_track_segments_load_id_fkey FOREIGN KEY (load_id) REFERENCES load_tracks(load_id) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT load_track_segments_load_id_seq_key UNIQUE (load_id, seq)
+  CONSTRAINT load_track_segments_load_id_seq_key UNIQUE (load_id, seq),
+  CONSTRAINT load_track_segments_load_id_fkey FOREIGN KEY (load_id) REFERENCES load_tracks(load_id) ON DELETE CASCADE ON UPDATE CASCADE
 );
