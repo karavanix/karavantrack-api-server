@@ -3,7 +3,6 @@ package command
 import "time"
 
 // LocationInput carries GPS data optionally attached to a status-change request.
-// Its fields mirror RegisterLoadLocationRequest so the carrier app can reuse the same payload shape.
 type LocationInput struct {
 	Lat        float64    `json:"lat"`
 	Lng        float64    `json:"lng"`
