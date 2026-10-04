@@ -51,5 +51,5 @@ func (u *GetActiveUsecase) GetActive(ctx context.Context, carrierID string) (_ *
 		return nil, err
 	}
 
-	return loadToDetailResponse(ctx, load, u.urlResolver), nil
+	return loadToDetailResponse(ctx, load, u.urlResolver, nil), nil
 }

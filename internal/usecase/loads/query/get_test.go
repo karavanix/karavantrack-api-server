@@ -2,6 +2,7 @@ package query_test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"testing"
 	"time"
@@ -121,7 +122,7 @@ func TestGet_AccessMatrix(t *testing.T) {
 
 	rbacService := rbac.NewService(time.Second, memberRepo)
 	loadRepo := &fakeLoadRepo{load: load}
-	usecase := query.NewGetUsecase(time.Second, loadRepo, rbacService, nil, nil)
+	usecase := query.NewGetUsecase(time.Second, loadRepo, nil, rbacService, nil, nil)
 
 	tests := []struct {
 		name       string
@@ -157,4 +158,77 @@ func TestGet_AccessMatrix(t *testing.T) {
 			}
 		})
 	}
+}
+
+// fakePointsRepo implements domain.LoadLocationPointRepository with only
+// FindByStatusHistoryIDs; the embedded nil interface panics on anything else.
+type fakePointsRepo struct {
+	domain.LoadLocationPointRepository
+	points []*domain.LoadLocationPoint
+	err    error
+}
+
+func (r *fakePointsRepo) FindByStatusHistoryIDs(ctx context.Context, historyIDs []int64) ([]*domain.LoadLocationPoint, error) {
+	return r.points, r.err
+}
+
+// TestGet_HistoryLocation: a status change the app sent a fix with carries
+// it in the history, the latest one should there be two; one without has
+// none, and a failed lookup leaves the whole history without them.
+func TestGet_HistoryLocation(t *testing.T) {
+	carrier := uuid.New()
+	loadID := uuid.New()
+	recordedAt := time.Date(2026, 10, 5, 12, 0, 0, 0, time.UTC)
+	accuracy := float32(8)
+	historyID := func(id int64) *int64 { return &id }
+
+	load := &domain.Load{
+		ID:        loadID,
+		CarrierID: carrier,
+		Status:    domain.LoadStatusPickedUp,
+		History: []*domain.LoadStatusHistory{
+			{ID: 1, FromStatus: domain.LoadStatusAssigned, ToStatus: domain.LoadStatusAccepted},
+			{ID: 2, FromStatus: domain.LoadStatusAccepted, ToStatus: domain.LoadStatusPickingUp},
+			{ID: 3, FromStatus: domain.LoadStatusPickingUp, ToStatus: domain.LoadStatusPickedUp},
+		},
+	}
+	points := []*domain.LoadLocationPoint{
+		{ID: 10, Lat: 41.31, Lng: 69.27, AccuracyM: &accuracy, RecordedAt: recordedAt, StatusHistoryID: historyID(2)},
+		{ID: 12, Lat: 41.40, Lng: 69.30, RecordedAt: recordedAt.Add(time.Hour), StatusHistoryID: historyID(3)},
+		{ID: 11, Lat: 41.39, Lng: 69.29, RecordedAt: recordedAt.Add(time.Minute), StatusHistoryID: historyID(3)},
+	}
+	rbacService := rbac.NewService(time.Second, newFakeCompanyMemberRepo())
+
+	get := func(t *testing.T, repo *fakePointsRepo) []*query.HistoryResponse {
+		t.Helper()
+		usecase := query.NewGetUsecase(time.Second, &fakeLoadRepo{load: load}, repo, rbacService, nil, nil)
+		resp, err := usecase.Get(context.Background(), loadID.String(), carrier.String())
+		if err != nil {
+			t.Fatalf("Get() error = %v", err)
+		}
+		return resp.History
+	}
+
+	t.Run("points sent with the steps", func(t *testing.T) {
+		history := get(t, &fakePointsRepo{points: points})
+		if history[0].Location != nil {
+			t.Errorf("accepted: location = %+v, want none", history[0].Location)
+		}
+		want := query.HistoryLocationResponse{Lat: 41.31, Lng: 69.27, AccuracyM: &accuracy, RecordedAt: recordedAt}
+		if got := history[1].Location; got == nil || *got != want {
+			t.Errorf("picking_up: location = %+v, want %+v", got, want)
+		}
+		if got := history[2].Location; got == nil || got.Lat != 41.40 {
+			t.Errorf("picked_up: location = %+v, want the later point (41.40)", got)
+		}
+	})
+
+	t.Run("lookup failed", func(t *testing.T) {
+		history := get(t, &fakePointsRepo{err: errors.New("db down")})
+		for _, h := range history {
+			if h.Location != nil {
+				t.Errorf("%s: location = %+v, want none", h.ToStatus, h.Location)
+			}
+		}
+	})
 }

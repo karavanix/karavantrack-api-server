@@ -69,7 +69,7 @@ func NewUsecase(
 			CancelUsecase:         command.NewCancelUsecase(contextDuration, loadsRepo, rbacService, taskQueue),
 		},
 		Query: Query{
-			GetUsecase:                 query.NewGetUsecase(contextDuration, loadsRepo, rbacService, attachmentsRepo, s3Client),
+			GetUsecase:                 query.NewGetUsecase(contextDuration, loadsRepo, loadLocationPointRepo, rbacService, attachmentsRepo, s3Client),
 			GetActiveUsecase:           query.NewGetActiveUsecase(contextDuration, loadsRepo, attachmentsRepo, s3Client),
 			ListUsecase:                query.NewListUsecase(contextDuration, loadsRepo, rbacService),
 			GetTrackUsecase:            query.NewGetTrackUsecase(contextDuration, loadsRepo, loadLocationPointRepo, rbacService),
