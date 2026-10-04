@@ -3,6 +3,9 @@ CREATE TABLE IF NOT EXISTS oauth_accounts (
   user_id              uuid NOT NULL,
   provider             varchar(64) NOT NULL,
   provider_account_id  text NOT NULL,
+  -- Apple: the refresh token from exchanging the sign-in's authorization
+  -- code, revoked when the account is deleted (App Store rule).
+  provider_refresh_token text,
   created_at           timestamptz DEFAULT now(),
   PRIMARY KEY (id),
   CONSTRAINT oauth_accounts_provider_provider_account_id_key UNIQUE (provider, provider_account_id),
