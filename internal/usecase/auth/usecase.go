@@ -9,7 +9,6 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/service/ports"
 	"github.com/karavanix/karavantrack-api-server/internal/service/revocation"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/auth/command"
-	"github.com/karavanix/karavantrack-api-server/pkg/apple"
 	"github.com/karavanix/karavantrack-api-server/pkg/database/postgres"
 	"github.com/karavanix/karavantrack-api-server/pkg/security"
 )
@@ -45,7 +44,7 @@ func NewUsecase(
 	txManager postgres.TxManager,
 	usersRepo domain.UserRepository,
 	oauthAccountsRepo domain.OAuthAccountRepository,
-	appleClient *apple.Client,
+	appleClient ports.AppleProvider,
 	telegramClient ports.TelegramProvider,
 	pkceRepo domain.PKCERepository,
 	revocationService revocation.Service,

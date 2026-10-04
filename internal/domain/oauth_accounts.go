@@ -19,7 +19,11 @@ type OAuthAccount struct {
 	UserID            uuid.UUID
 	Provider          OAuthProvider
 	ProviderAccountID string
-	CreatedAt         time.Time
+	// ProviderRefreshToken is the provider's own refresh token (Apple), to
+	// revoke the app's access when the account is deleted. Empty when the
+	// provider gave none.
+	ProviderRefreshToken string
+	CreatedAt            time.Time
 }
 
 func NewOAuthAccount(userID uuid.UUID, provider OAuthProvider, providerAccountID string) *OAuthAccount {
@@ -33,6 +37,9 @@ func NewOAuthAccount(userID uuid.UUID, provider OAuthProvider, providerAccountID
 }
 
 type OAuthAccountRepository interface {
+	// Save inserts the account; an account already linked keeps its user and
+	// takes a non-empty ProviderRefreshToken.
 	Save(ctx context.Context, account *OAuthAccount) error
 	FindByProviderAndProviderAccountID(ctx context.Context, provider OAuthProvider, providerAccountID string) (*OAuthAccount, error)
+	FindByUserID(ctx context.Context, userID uuid.UUID) ([]*OAuthAccount, error)
 }

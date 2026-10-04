@@ -69,6 +69,13 @@ type Config struct {
 
 	Apple struct {
 		BundleID string
+		// TeamID, KeyID and PrivateKey (the .p8 key with Sign in with Apple
+		// enabled, base64-encoded) sign the client secret for Apple's token
+		// endpoints: exchanging the sign-in code and revoking it when the
+		// account is deleted. Without them sign-in works, revocation doesn't.
+		TeamID     string
+		KeyID      string
+		PrivateKey string
 	}
 
 	Telegram struct {
@@ -282,6 +289,9 @@ func New() (*Config, error) {
 
 	// Apple
 	c.Apple.BundleID = getEnv("APPLE_BUNDLE_ID", "")
+	c.Apple.TeamID = getEnv("APPLE_TEAM_ID", "")
+	c.Apple.KeyID = getEnv("APPLE_KEY_ID", "")
+	c.Apple.PrivateKey = getEnv("APPLE_PRIVATE_KEY", "")
 
 	// Telegram — bot-level client ID + per-platform native app IDs
 	c.Telegram.ClientID = getEnv("TELEGRAM_CLIENT_ID", "")

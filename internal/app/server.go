@@ -14,6 +14,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/worker"
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
 	"github.com/karavanix/karavantrack-api-server/internal/events"
+	"github.com/karavanix/karavantrack-api-server/internal/infrastructure/apple"
 	"github.com/karavanix/karavantrack-api-server/internal/infrastructure/persistence/cache"
 	"github.com/karavanix/karavantrack-api-server/internal/infrastructure/persistence/repository"
 	"github.com/karavanix/karavantrack-api-server/internal/infrastructure/telegram"
@@ -37,7 +38,6 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/tracking"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/users"
 	"github.com/karavanix/karavantrack-api-server/pkg/app"
-	"github.com/karavanix/karavantrack-api-server/pkg/apple"
 	"github.com/karavanix/karavantrack-api-server/pkg/config"
 	"github.com/karavanix/karavantrack-api-server/pkg/database/postgres"
 	"github.com/karavanix/karavantrack-api-server/pkg/firebase"
@@ -175,7 +175,7 @@ func (s *ServerApp) Run() error {
 	}
 
 	// apple
-	appleSignInClient, err := apple.NewClient(context.Background(), s.config.Apple.BundleID)
+	appleSignInClient, err := apple.New(context.Background(), s.config)
 	if err != nil {
 		return fmt.Errorf("failed to create Apple client: %w", err)
 	}
@@ -240,7 +240,7 @@ func (s *ServerApp) Run() error {
 			EmailService: emailService,
 		},
 	)
-	usersUsecase := users.NewUsecase(s.config.Context.Timeout, usersRepo, loadsRepo, fcmDevicesRepo, revocationService)
+	usersUsecase := users.NewUsecase(s.config.Context.Timeout, usersRepo, loadsRepo, fcmDevicesRepo, oauthAccountsRepo, appleSignInClient, revocationService)
 	companiesUsecase := companies.NewUsecase(s.config.Context.Timeout, txManager, companiesRepo, companyMembersRepo, companyCarriersRepo, usersRepo, loadsRepo, rbacService)
 	trackingWindowParams := domain.TrackingWindowParams{
 		ClockSkew:           s.config.Tracking.ClockSkew,

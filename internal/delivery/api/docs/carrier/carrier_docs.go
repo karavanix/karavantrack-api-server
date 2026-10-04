@@ -1874,6 +1874,10 @@ const docTemplatecarrier = `{
                 "id_token"
             ],
             "properties": {
+                "authorization_code": {
+                    "description": "AuthorizationCode from the same sign-in: traded for Apple's refresh\ntoken, which is revoked when the account is deleted.",
+                    "type": "string"
+                },
                 "first_name": {
                     "type": "string"
                 },

@@ -28,6 +28,11 @@ definitions:
     type: object
   command.AppleSignInRequest:
     properties:
+      authorization_code:
+        description: |-
+          AuthorizationCode from the same sign-in: traded for Apple's refresh
+          token, which is revoked when the account is deleted.
+        type: string
       first_name:
         type: string
       id_token:

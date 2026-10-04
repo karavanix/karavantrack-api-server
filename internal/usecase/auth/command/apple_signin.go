@@ -5,10 +5,12 @@ import (
 	"errors"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
 	"github.com/karavanix/karavantrack-api-server/internal/domain/shared"
 	"github.com/karavanix/karavantrack-api-server/internal/inerr"
-	"github.com/karavanix/karavantrack-api-server/pkg/apple"
+	"github.com/karavanix/karavantrack-api-server/internal/service/ports"
 	"github.com/karavanix/karavantrack-api-server/pkg/database/postgres"
 	"github.com/karavanix/karavantrack-api-server/pkg/logger"
 	"github.com/karavanix/karavantrack-api-server/pkg/otlp"
@@ -19,7 +21,7 @@ import (
 type AppleSignInUsecase struct {
 	contextDuration   time.Duration
 	jwtProvider       *security.JWTProvider
-	appleClient       *apple.Client
+	appleClient       ports.AppleProvider
 	txManager         postgres.TxManager
 	usersRepo         domain.UserRepository
 	oauthAccountsRepo domain.OAuthAccountRepository
@@ -28,7 +30,7 @@ type AppleSignInUsecase struct {
 func NewAppleSignInUsecase(
 	contextDuration time.Duration,
 	jwtProvider *security.JWTProvider,
-	appleClient *apple.Client,
+	appleClient ports.AppleProvider,
 	txManager postgres.TxManager,
 	usersRepo domain.UserRepository,
 	oauthAccountsRepo domain.OAuthAccountRepository,
@@ -48,6 +50,9 @@ type AppleSignInRequest struct {
 	Role      string `json:"role"`
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
+	// AuthorizationCode from the same sign-in: traded for Apple's refresh
+	// token, which is revoked when the account is deleted.
+	AuthorizationCode string `json:"authorization_code"`
 }
 
 type AppleSignInResponse struct {
@@ -66,10 +71,27 @@ func (u *AppleSignInUsecase) AppleSignIn(ctx context.Context, req *AppleSignInRe
 	ctx, end := otlp.Start(ctx, otel.Tracer("auth"), "AppleSignIn")
 	defer func() { end(err) }()
 
-	userInfo, err := u.appleClient.GetUserInfo(ctx, req.IDToken)
+	userInfo, err := u.appleClient.Verify(ctx, req.IDToken)
 	if err != nil {
 		logger.ErrorContext(ctx, "apple id_token verification failed", err)
 		return nil, inerr.ErrorPermissionDenied
+	}
+
+	// Without it the sign-in still goes through: only revoking on account
+	// deletion is lost, until the next sign-in brings a code again.
+	appleRefreshToken := ""
+	if req.AuthorizationCode != "" {
+		appleRefreshToken, err = u.appleClient.ExchangeCode(ctx, req.AuthorizationCode)
+		if err != nil {
+			logger.WarnContext(ctx, "apple authorization code not exchanged", "error", err)
+			appleRefreshToken = ""
+			err = nil
+		}
+	}
+	newAccount := func(userID uuid.UUID) *domain.OAuthAccount {
+		account := domain.NewOAuthAccount(userID, domain.OAuthProviderApple, userInfo.Sub)
+		account.ProviderRefreshToken = appleRefreshToken
+		return account
 	}
 
 	oauthAccount, err := u.oauthAccountsRepo.FindByProviderAndProviderAccountID(
@@ -88,6 +110,12 @@ func (u *AppleSignInUsecase) AppleSignIn(ctx context.Context, req *AppleSignInRe
 		if err != nil {
 			logger.ErrorContext(ctx, "failed to find linked user", err)
 			return nil, err
+		}
+		if appleRefreshToken != "" {
+			if err = u.oauthAccountsRepo.Save(ctx, newAccount(user.ID)); err != nil {
+				logger.ErrorContext(ctx, "failed to save apple refresh token", err)
+				return nil, err
+			}
 		}
 	} else {
 		if userInfo.Email != "" {
@@ -125,8 +153,7 @@ func (u *AppleSignInUsecase) AppleSignIn(ctx context.Context, req *AppleSignInRe
 				if err = u.usersRepo.Save(ctx, newUser); err != nil {
 					return err
 				}
-				account := domain.NewOAuthAccount(newUser.ID, domain.OAuthProviderApple, userInfo.Sub)
-				return u.oauthAccountsRepo.Save(ctx, account)
+				return u.oauthAccountsRepo.Save(ctx, newAccount(newUser.ID))
 			})
 			if txErr != nil {
 				logger.ErrorContext(ctx, "failed to create apple user", txErr)
@@ -135,8 +162,7 @@ func (u *AppleSignInUsecase) AppleSignIn(ctx context.Context, req *AppleSignInRe
 			user = newUser
 			isNewUser = true
 		} else {
-			account := domain.NewOAuthAccount(user.ID, domain.OAuthProviderApple, userInfo.Sub)
-			if err = u.oauthAccountsRepo.Save(ctx, account); err != nil {
+			if err = u.oauthAccountsRepo.Save(ctx, newAccount(user.ID)); err != nil {
 				logger.ErrorContext(ctx, "failed to link oauth account", err)
 				return nil, err
 			}

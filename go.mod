@@ -18,6 +18,7 @@ require (
 	github.com/hibiken/asynq v0.26.0
 	github.com/jackc/pgx/v5 v5.8.0
 	github.com/joho/godotenv v1.5.1
+	github.com/lestrrat-go/jwx/v2 v2.1.6
 	github.com/minio/minio-go/v7 v7.0.100
 	github.com/nats-io/nats.go v1.49.0
 	github.com/redis/go-redis/v9 v9.18.0
@@ -28,6 +29,7 @@ require (
 	github.com/swaggo/swag v1.16.6
 	github.com/uptrace/bun v1.2.17
 	github.com/uptrace/bun/dialect/pgdialect v1.2.17
+	github.com/wneessen/go-mail v0.7.3
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.61.0
 	go.opentelemetry.io/contrib/propagators/b3 v1.40.0
 	go.opentelemetry.io/otel v1.41.0
@@ -39,6 +41,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.41.0
 	golang.org/x/crypto v0.50.0
 	google.golang.org/api v0.267.0
+	resty.dev/v3 v3.0.0-beta.3
 )
 
 require (
@@ -99,7 +102,6 @@ require (
 	github.com/lestrrat-go/httpcc v1.0.1 // indirect
 	github.com/lestrrat-go/httprc v1.0.6 // indirect
 	github.com/lestrrat-go/iter v1.0.2 // indirect
-	github.com/lestrrat-go/jwx/v2 v2.1.6 // indirect
 	github.com/lestrrat-go/option v1.0.1 // indirect
 	github.com/mailru/easyjson v0.7.6 // indirect
 	github.com/minio/crc64nvme v1.1.1 // indirect
@@ -125,7 +127,6 @@ require (
 	github.com/tmthrgd/go-hex v0.0.0-20190904060850-447a3041c3bc // indirect
 	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
-	github.com/wneessen/go-mail v0.7.3 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/detectors/gcp v1.38.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.61.0 // indirect
@@ -150,5 +151,4 @@ require (
 	google.golang.org/grpc v1.78.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	resty.dev/v3 v3.0.0-beta.3 // indirect
 )
