@@ -575,6 +575,17 @@ definitions:
           fall back to GET /attachments/{id}.
         type: string
     type: object
+  query.HistoryLocationResponse:
+    properties:
+      accuracy_m:
+        type: number
+      lat:
+        type: number
+      lng:
+        type: number
+      recorded_at:
+        type: string
+    type: object
   query.HistoryResponse:
     properties:
       attachments:
@@ -587,6 +598,12 @@ definitions:
         type: string
       id:
         type: integer
+      location:
+        allOf:
+        - $ref: '#/definitions/query.HistoryLocationResponse'
+        description: |-
+          Location is omitted for a status change the app sent no fix with, and
+          on GET /loads/active, whose caller is the driver's app.
       note:
         type: string
       to_status:

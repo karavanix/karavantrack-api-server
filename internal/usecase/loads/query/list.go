@@ -79,6 +79,9 @@ type HistoryResponse struct {
 	Note        string                       `json:"note,omitempty"`
 	CreatedAt   string                       `json:"created_at"`
 	Attachments []*HistoryAttachmentResponse `json:"attachments"`
+	// Location is omitted for a status change the app sent no fix with, and
+	// on GET /loads/active, whose caller is the driver's app.
+	Location *HistoryLocationResponse `json:"location,omitempty"`
 }
 
 // LoadDetailResponse is used for single-load GET endpoints.
@@ -118,7 +121,9 @@ func loadToResponse(l *domain.Load) *LoadResponse {
 	return r
 }
 
-func loadToDetailResponse(ctx context.Context, l *domain.Load, urlResolver *attachmentURLResolver) *LoadDetailResponse {
+// locations are the points sent with the status changes, by history id;
+// nil leaves the history without them.
+func loadToDetailResponse(ctx context.Context, l *domain.Load, urlResolver *attachmentURLResolver, locations map[int64]*domain.LoadLocationPoint) *LoadDetailResponse {
 	base := loadToResponse(l)
 
 	attachmentIDs := make([]uuid.UUID, 0)
@@ -138,6 +143,7 @@ func loadToDetailResponse(ctx context.Context, l *domain.Load, urlResolver *atta
 			Note:        h.Note,
 			CreatedAt:   h.CreatedAt.Format(time.RFC3339),
 			Attachments: make([]*HistoryAttachmentResponse, len(h.Attachments)),
+			Location:    historyLocationToResponse(locations[h.ID]),
 		}
 		if h.UserID != uuid.Nil {
 			hr.UserID = h.UserID.String()

@@ -2544,6 +2544,23 @@ const docTemplatecarrier = `{
                 }
             }
         },
+        "query.HistoryLocationResponse": {
+            "type": "object",
+            "properties": {
+                "accuracy_m": {
+                    "type": "number"
+                },
+                "lat": {
+                    "type": "number"
+                },
+                "lng": {
+                    "type": "number"
+                },
+                "recorded_at": {
+                    "type": "string"
+                }
+            }
+        },
         "query.HistoryResponse": {
             "type": "object",
             "properties": {
@@ -2561,6 +2578,14 @@ const docTemplatecarrier = `{
                 },
                 "id": {
                     "type": "integer"
+                },
+                "location": {
+                    "description": "Location is omitted for a status change the app sent no fix with, and\non GET /loads/active, whose caller is the driver's app.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/query.HistoryLocationResponse"
+                        }
+                    ]
                 },
                 "note": {
                     "type": "string"

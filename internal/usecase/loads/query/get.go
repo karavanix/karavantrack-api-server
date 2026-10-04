@@ -17,14 +17,16 @@ import (
 type GetUsecase struct {
 	contextDuration time.Duration
 	loadsRepo       domain.LoadRepository
+	pointsRepo      domain.LoadLocationPointRepository
 	rbacService     rbac.Service
 	urlResolver     *attachmentURLResolver
 }
 
-func NewGetUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository, rbacService rbac.Service, attachmentsRepo domain.AttachmentRepository, s3Client *s3.S3Client) *GetUsecase {
+func NewGetUsecase(contextDuration time.Duration, loadsRepo domain.LoadRepository, pointsRepo domain.LoadLocationPointRepository, rbacService rbac.Service, attachmentsRepo domain.AttachmentRepository, s3Client *s3.S3Client) *GetUsecase {
 	return &GetUsecase{
 		contextDuration: contextDuration,
 		loadsRepo:       loadsRepo,
+		pointsRepo:      pointsRepo,
 		rbacService:     rbacService,
 		urlResolver:     newAttachmentURLResolver(attachmentsRepo, s3Client),
 	}
@@ -63,5 +65,5 @@ func (u *GetUsecase) Get(ctx context.Context, loadID string, requesterID string)
 		return nil, inerr.ErrorPermissionDenied
 	}
 
-	return loadToDetailResponse(ctx, load, u.urlResolver), nil
+	return loadToDetailResponse(ctx, load, u.urlResolver, historyLocations(ctx, u.pointsRepo, load)), nil
 }
