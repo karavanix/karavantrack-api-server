@@ -18,17 +18,21 @@ import (
 // wired up; anything else panics if hit, so a test that reaches it fails
 // loudly instead of silently passing.
 type fakeLoadRepoForLocation struct {
-	load *domain.Load
+	loads     []*domain.Load
+	findCalls int
 }
 
 func (r *fakeLoadRepoForLocation) Save(ctx context.Context, load *domain.Load) error {
 	panic("not implemented")
 }
 func (r *fakeLoadRepoForLocation) FindByID(ctx context.Context, id uuid.UUID) (*domain.Load, error) {
-	if r.load == nil || r.load.ID != id {
-		return nil, inerr.NewErrNotFound("load")
+	r.findCalls++
+	for _, load := range r.loads {
+		if load.ID == id {
+			return load, nil
+		}
 	}
-	return r.load, nil
+	return nil, inerr.NewErrNotFound("load")
 }
 func (r *fakeLoadRepoForLocation) FindActiveByCarrierID(ctx context.Context, carrierID uuid.UUID) (*domain.Load, error) {
 	panic("not implemented")
@@ -61,7 +65,10 @@ func (r *fakeLoadLocationPointRepo) BatchSave(ctx context.Context, points []*dom
 	r.saved = points
 	return nil
 }
-func (r *fakeLoadLocationPointRepo) FindByLoadID(ctx context.Context, loadID uuid.UUID, limit, offset int) ([]*domain.LoadLocationPoint, int, error) {
+func (r *fakeLoadLocationPointRepo) FindByLoadIDAfter(ctx context.Context, loadID uuid.UUID, after time.Time) (domain.LoadLocationTrack, error) {
+	panic("not implemented")
+}
+func (r *fakeLoadLocationPointRepo) FindRecentByLoadID(ctx context.Context, loadID uuid.UUID, n int) (domain.LoadLocationTrack, error) {
 	panic("not implemented")
 }
 func (r *fakeLoadLocationPointRepo) FindLatestByLoadID(ctx context.Context, loadID uuid.UUID) (*domain.LoadLocationPoint, error) {
@@ -102,7 +109,7 @@ func TestRegisterLoadLocationBatch_SkipsInvalidPointsWithoutFailingTheBatch(t *t
 	loadID := uuid.New()
 	carrierID := uuid.New()
 
-	loadRepo := &fakeLoadRepoForLocation{load: &domain.Load{ID: loadID, CarrierID: carrierID}}
+	loadRepo := &fakeLoadRepoForLocation{loads: []*domain.Load{{ID: loadID, CarrierID: carrierID}}}
 	pointRepo := &fakeLoadLocationPointRepo{}
 	uc := command.NewRegisterLoadLocationBatchUsecase(
 		5*time.Second,
@@ -146,7 +153,7 @@ func TestRegisterLoadLocationBatch_AllInvalidPointsIsNotAnError(t *testing.T) {
 	loadID := uuid.New()
 	carrierID := uuid.New()
 
-	loadRepo := &fakeLoadRepoForLocation{load: &domain.Load{ID: loadID, CarrierID: carrierID}}
+	loadRepo := &fakeLoadRepoForLocation{loads: []*domain.Load{{ID: loadID, CarrierID: carrierID}}}
 	pointRepo := &fakeLoadLocationPointRepo{}
 	uc := command.NewRegisterLoadLocationBatchUsecase(
 		5*time.Second,

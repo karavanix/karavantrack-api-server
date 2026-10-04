@@ -177,6 +177,7 @@ func (u *TelegramOAuthUsecase) TelegramOAuth(ctx context.Context, req *TelegramO
 	return &TelegramSignInResponse{
 		AccessToken:  creds.AccessToken,
 		RefreshToken: creds.RefreshToken,
+		ExpiresIn:    int(creds.AccessTTL.Seconds()),
 		Role:         user.Role.String(),
 		IsNewUser:    isNewUser,
 	}, nil

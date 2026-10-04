@@ -45,7 +45,9 @@ type VerifyEmailRequest struct {
 type VerifyEmailResponse struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
-	Role         string `json:"role"`
+	// ExpiresIn is the access token's lifetime in seconds.
+	ExpiresIn int    `json:"expires_in"`
+	Role      string `json:"role"`
 }
 
 func (u *VerifyEmailUsecase) VerifyEmail(ctx context.Context, req *VerifyEmailRequest) (_ *VerifyEmailResponse, err error) {
@@ -99,6 +101,7 @@ func (u *VerifyEmailUsecase) VerifyEmail(ctx context.Context, req *VerifyEmailRe
 	return &VerifyEmailResponse{
 		AccessToken:  creds.AccessToken,
 		RefreshToken: creds.RefreshToken,
+		ExpiresIn:    int(creds.AccessTTL.Seconds()),
 		Role:         user.Role.String(),
 	}, nil
 }

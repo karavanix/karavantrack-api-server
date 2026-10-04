@@ -19,7 +19,7 @@ import (
 // MatcherVersion is stored with every track. Bump it when the matching
 // logic or its settings change, so tracks built the old way can be found
 // and rematched.
-const MatcherVersion = "valhalla-auto/v1"
+const MatcherVersion = "valhalla-auto/v2"
 
 // minSplitPoints: a failing piece this small isn't split further; it's kept
 // as a raw line instead.
@@ -29,6 +29,7 @@ type Config struct {
 	GapThreshold        time.Duration
 	StopRadiusM         float64
 	StopMinDuration     time.Duration
+	DepartureRadiusM    float64
 	MaxAccuracyM        float64
 	RadiusMultiplier    float64
 	MinRadiusM          float64
@@ -47,6 +48,7 @@ func ConfigFrom(cfg *config.Config) Config {
 		GapThreshold:        m.GapThreshold,
 		StopRadiusM:         m.StopRadiusM,
 		StopMinDuration:     m.StopMinDuration,
+		DepartureRadiusM:    m.DepartureRadiusM,
 		MaxAccuracyM:        m.MaxAccuracyM,
 		RadiusMultiplier:    m.RadiusMultiplier,
 		MinRadiusM:          m.MinRadiusM,
@@ -60,6 +62,17 @@ func ConfigFrom(cfg *config.Config) Config {
 			MaxInterval:   5 * time.Second,
 			Multiplier:    2,
 		},
+	}
+}
+
+// SplitParams is how tracks are cut into moving, stop and gap pieces.
+func (c Config) SplitParams() domain.TrackSplitParams {
+	return domain.TrackSplitParams{
+		MaxAccuracyM:     c.MaxAccuracyM,
+		GapThreshold:     c.GapThreshold,
+		StopRadiusM:      c.StopRadiusM,
+		StopMinDuration:  c.StopMinDuration,
+		DepartureRadiusM: c.DepartureRadiusM,
 	}
 }
 
@@ -100,15 +113,11 @@ func (s *service) Route(ctx context.Context, from, to geo.Point) (*Route, error)
 }
 
 func (s *service) MatchLoadTrack(ctx context.Context, loadID uuid.UUID, points domain.LoadLocationTrack) (*domain.LoadTrack, error) {
-	pieces := points.Clean(s.cfg.MaxAccuracyM).Split(domain.TrackSplitParams{
-		GapThreshold:    s.cfg.GapThreshold,
-		StopRadiusM:     s.cfg.StopRadiusM,
-		StopMinDuration: s.cfg.StopMinDuration,
-	})
+	pieces := points.Split(s.cfg.SplitParams())
 
 	m := &matching{sent: map[int64]bool{}, matched: map[int64]bool{}}
 	for _, piece := range pieces {
-		first, last := piece.Points[0], piece.Points[len(piece.Points)-1]
+		first, last := piece.First(), piece.Last()
 		switch piece.Kind {
 		case domain.TrackPieceGap:
 			if err := m.add(domain.LoadTrackSegmentGap, []geo.Point{first.Point(), last.Point()}, first, last); err != nil {

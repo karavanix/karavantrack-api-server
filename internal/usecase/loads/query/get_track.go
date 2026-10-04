@@ -50,13 +50,15 @@ type GetTrackResponse struct {
 	LoadID string `json:"load_id"`
 	// Points are oldest first.
 	Points []*TrackPointResponse `json:"points"`
-	Total  int                   `json:"total"`
 }
 
-// GetTrack returns the location history for a load. requesterID must be a company
-// member with read access or the assigned carrier; pass "" only when the caller has
-// already authorized access some other way (e.g. a public tracking-link token).
-func (u *GetTrackUsecase) GetTrack(ctx context.Context, loadID string, requesterID string, limit, offset int) (_ *GetTrackResponse, err error) {
+// GetTrack returns the location history for a load, oldest first: all of it,
+// or only the points recorded after `after` (RFC 3339, "" for all) — a map
+// that draws the matched route needs only the points past its matched_until.
+// requesterID must be a company member with read access or the assigned
+// carrier; pass "" only when the caller has already authorized access some
+// other way (e.g. a public tracking-link token).
+func (u *GetTrackUsecase) GetTrack(ctx context.Context, loadID string, requesterID string, after string) (_ *GetTrackResponse, err error) {
 	ctx, cancel := context.WithTimeout(ctx, u.contextDuration)
 	defer cancel()
 
@@ -68,11 +70,18 @@ func (u *GetTrackUsecase) GetTrack(ctx context.Context, loadID string, requester
 
 	var input struct {
 		loadID uuid.UUID
+		after  time.Time
 	}
 	{
 		input.loadID, err = uuid.Parse(loadID)
 		if err != nil {
 			return nil, inerr.NewErrValidation("load_id", "invalid load ID")
+		}
+		if after != "" {
+			input.after, err = time.Parse(time.RFC3339Nano, after)
+			if err != nil {
+				return nil, inerr.NewErrValidation("after", "must be an RFC 3339 time")
+			}
 		}
 	}
 
@@ -91,18 +100,7 @@ func (u *GetTrackUsecase) GetTrack(ctx context.Context, loadID string, requester
 		}
 	}
 
-	// A caller that omits limit gets a generous default rather than the old
-	// 100-point cap that silently truncated a whole day's track; a caller
-	// that asks for more than the ceiling gets clamped to it instead of
-	// being silently reset back down to the small default.
-	switch {
-	case limit <= 0:
-		limit = 500
-	case limit > 1000:
-		limit = 1000
-	}
-
-	points, total, err := u.loadLocationPointRepo.FindByLoadID(ctx, input.loadID, limit, offset)
+	points, err := u.loadLocationPointRepo.FindByLoadIDAfter(ctx, input.loadID, input.after)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +114,6 @@ func (u *GetTrackUsecase) GetTrack(ctx context.Context, loadID string, requester
 	result := &GetTrackResponse{
 		LoadID: loadID,
 		Points: make([]*TrackPointResponse, len(points)),
-		Total:  total,
 	}
 
 	for i, p := range points {

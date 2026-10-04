@@ -2,13 +2,9 @@ package delivery
 
 import (
 	"github.com/karavanix/karavantrack-api-server/internal/delivery/api/validation"
-	"github.com/karavanix/karavantrack-api-server/internal/events"
 	"github.com/karavanix/karavantrack-api-server/internal/service/broker"
-	"github.com/karavanix/karavantrack-api-server/internal/service/liveack"
 	"github.com/karavanix/karavantrack-api-server/internal/service/notification"
-	"github.com/karavanix/karavantrack-api-server/internal/service/presence"
 	"github.com/karavanix/karavantrack-api-server/internal/service/rbac"
-	"github.com/karavanix/karavantrack-api-server/internal/service/watcher"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/attachments"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/auth"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/companies"
@@ -32,14 +28,10 @@ type HandlerOptions struct {
 	Redis       *redis.RedisClient
 
 	// Services
-	PresenceService     presence.Service
 	NotificationService notification.Service
 	RbacService         rbac.Service
-	WatcherService      watcher.Service
-	LiveAckService      liveack.Service
 
 	// Factories
-	EventFactory *events.Factory
 
 	// Usecases
 	AuthUsecase        *auth.Usecase
