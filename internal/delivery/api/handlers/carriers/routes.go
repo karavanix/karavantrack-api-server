@@ -36,8 +36,6 @@ func RegisterRoutes(r chi.Router, opts *delivery.HandlerOptions) {
 		r.Post("/loads/{id}/start", loadsH.Start())
 		r.Post("/loads/{id}/dropoff/begin", loadsH.BeginDropoff())
 		r.Post("/loads/{id}/dropoff/confirm", loadsH.ConfirmDropoff())
-		r.Post("/loads/{id}/location", loadsH.RegisterLocation())
-		r.Post("/loads/{id}/location/batch", loadsH.RegisterLocationBatch())
 
 		// Tracking
 		r.Post("/tracking/locations", trackingH.RegisterLocations())

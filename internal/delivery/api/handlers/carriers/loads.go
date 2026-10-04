@@ -14,25 +14,21 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/loads"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/loads/command"
 	"github.com/karavanix/karavantrack-api-server/internal/usecase/loads/query"
-	"github.com/karavanix/karavantrack-api-server/internal/usecase/location"
-	locationcmd "github.com/karavanix/karavantrack-api-server/internal/usecase/location/command"
 	"github.com/karavanix/karavantrack-api-server/pkg/app"
 	"github.com/karavanix/karavantrack-api-server/pkg/config"
 )
 
 type loadsHandler struct {
-	cfg             *config.Config
-	validator       *validation.Validator
-	loadsUsecase    *loads.Usecase
-	locationUsecase *location.Usecase
+	cfg          *config.Config
+	validator    *validation.Validator
+	loadsUsecase *loads.Usecase
 }
 
 func NewLoadsHandler(opts *delivery.HandlerOptions) *loadsHandler {
 	return &loadsHandler{
-		cfg:             opts.Config,
-		validator:       opts.Validator,
-		loadsUsecase:    opts.LoadsUsecase,
-		locationUsecase: opts.LocationUsecase,
+		cfg:          opts.Config,
+		validator:    opts.Validator,
+		loadsUsecase: opts.LoadsUsecase,
 	}
 }
 
@@ -347,87 +343,5 @@ func (h *loadsHandler) ListHistory() http.HandlerFunc {
 
 		render.Status(r, http.StatusOK)
 		render.JSON(w, r, resp)
-	}
-}
-
-// RegisterLocation godoc
-// @Security     BearerAuth
-// @Summary      Register location point
-// @Description  Register a GPS location point for an in-transit load (MVP REST alternative to WebSocket)
-// @Tags         Loads
-// @Accept       json
-// @Produce      json
-// @Param        id   path      string  true  "Load ID"
-// @Param        body body locationcmd.RegisterLoadLocationRequest true "Location data"
-// @Success      200
-// @Failure      400  {object} outerr.Response
-// @Failure      401  {object} outerr.Response
-// @Router       /loads/{id}/location [post]
-func (h *loadsHandler) RegisterLocation() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		userID, ok := app.UserID[string](r.Context())
-		if !ok {
-			outerr.Forbidden(w, r, "missing user context")
-			return
-		}
-
-		loadID := chi.URLParam(r, "id")
-
-		var req locationcmd.RegisterLoadLocationRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			outerr.BadRequest(w, r, "invalid request body")
-			return
-		}
-
-		req.LoadID = loadID
-		req.CarrierID = userID
-
-		if err := h.locationUsecase.Command.RegisterLoadLocation(r.Context(), &req); err != nil {
-			outerr.HandleHTTP(w, r, err)
-			return
-		}
-
-		render.Status(r, http.StatusOK)
-	}
-}
-
-// RegisterLocationBatch godoc
-// @Security     BearerAuth
-// @Summary      Register a batch of location points
-// @Description  Flush GPS points buffered on the phone while offline; each keeps its original recorded_at so the track backfills instead of losing the gap
-// @Tags         Loads
-// @Accept       json
-// @Produce      json
-// @Param        id   path      string  true  "Load ID"
-// @Param        body body locationcmd.RegisterLoadLocationBatchRequest true "Buffered location points"
-// @Success      200
-// @Failure      400  {object} outerr.Response
-// @Failure      401  {object} outerr.Response
-// @Router       /loads/{id}/location/batch [post]
-func (h *loadsHandler) RegisterLocationBatch() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		userID, ok := app.UserID[string](r.Context())
-		if !ok {
-			outerr.Forbidden(w, r, "missing user context")
-			return
-		}
-
-		loadID := chi.URLParam(r, "id")
-
-		var req locationcmd.RegisterLoadLocationBatchRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			outerr.BadRequest(w, r, "invalid request body")
-			return
-		}
-
-		req.LoadID = loadID
-		req.CarrierID = userID
-
-		if err := h.locationUsecase.Command.RegisterLoadLocationBatch(r.Context(), &req); err != nil {
-			outerr.HandleHTTP(w, r, err)
-			return
-		}
-
-		render.Status(r, http.StatusOK)
 	}
 }
