@@ -32,8 +32,11 @@ type User struct {
 	PasswordHash string
 	Role         shared.Role
 	Status       UserStatus
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	// Language is what emails and push notifications to the user are
+	// written in.
+	Language  shared.Language
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 func NewUser(
@@ -61,6 +64,7 @@ func NewUser(
 		PasswordHash: password.Hash(),
 		Role:         role,
 		Status:       UserStatusActive,
+		Language:     shared.DefaultLanguage,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}, nil
@@ -85,6 +89,7 @@ func NewUserInvited(
 		Phone:     phone,
 		Role:      role,
 		Status:    UserStatusInvited,
+		Language:  shared.DefaultLanguage,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}, nil
@@ -115,6 +120,7 @@ func NewUserWithHashedPassword(
 		PasswordHash: passwordHash,
 		Role:         role,
 		Status:       UserStatusActive,
+		Language:     shared.DefaultLanguage,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}, nil
@@ -145,6 +151,7 @@ func NewPendingUser(
 		PasswordHash: passwordHash,
 		Role:         role,
 		Status:       UserStatusPending,
+		Language:     shared.DefaultLanguage,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}, nil
@@ -164,6 +171,7 @@ func NewUserFromTelegram(firstName, lastName string, phone shared.Phone, role sh
 		Phone:     phone,
 		Role:      role,
 		Status:    UserStatusActive,
+		Language:  shared.DefaultLanguage,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}, nil
@@ -180,6 +188,7 @@ func NewUserFromApple(firstName, lastName string, email shared.Email, role share
 		Email:     email,
 		Role:      role,
 		Status:    UserStatusActive,
+		Language:  shared.DefaultLanguage,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}, nil
@@ -192,6 +201,12 @@ func (u *User) Update(firstName, lastName string) {
 	if lastName != "" {
 		u.LastName = lastName
 	}
+	u.UpdatedAt = time.Now()
+}
+
+// ChangeLanguage switches the language of the user's emails and pushes.
+func (u *User) ChangeLanguage(language shared.Language) {
+	u.Language = language
 	u.UpdatedAt = time.Now()
 }
 

@@ -44,6 +44,9 @@ type RegisterRequest struct {
 	Phone     string `json:"phone"`
 	Password  string `json:"password" validate:"required"`
 	Role      string `json:"role" validate:"required,oneof=shipper carrier"`
+	// Language (ru, uz or en) the client is switched to; a new user's
+	// emails and pushes go in it. Default ru.
+	Language string `json:"language"`
 }
 
 func (r *RegisterUsecase) Register(ctx context.Context, req *RegisterRequest) (err error) {
@@ -62,6 +65,7 @@ func (r *RegisterUsecase) Register(ctx context.Context, req *RegisterRequest) (e
 		phone    shared.Phone
 		password shared.Password
 		role     shared.Role
+		language shared.Language
 	}
 
 	if req.Email != "" {
@@ -88,6 +92,11 @@ func (r *RegisterUsecase) Register(ctx context.Context, req *RegisterRequest) (e
 		return inerr.NewErrValidation("role", "invalid role")
 	}
 
+	input.language, err = parseLanguage(req.Language)
+	if err != nil {
+		return err
+	}
+
 	var user *domain.User
 
 	if input.email != "" {
@@ -111,6 +120,7 @@ func (r *RegisterUsecase) Register(ctx context.Context, req *RegisterRequest) (e
 		if err != nil {
 			return err
 		}
+		user.ChangeLanguage(input.language)
 		if err = r.usersRepo.Save(ctx, user); err != nil {
 			logger.ErrorContext(ctx, "failed to save pending user", err)
 			return err

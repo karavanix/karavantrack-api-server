@@ -53,6 +53,9 @@ type TelegramOAuthRequest struct {
 	State       string `json:"state"`
 	RedirectURI string `json:"redirect_uri"`
 	Role        string `json:"role"`
+	// Language (ru, uz or en) the client is switched to; a new user's
+	// emails and pushes go in it. Default ru.
+	Language string `json:"language"`
 }
 
 func (u *TelegramOAuthUsecase) TelegramOAuth(ctx context.Context, req *TelegramOAuthRequest) (_ *TelegramSignInResponse, err error) {
@@ -63,12 +66,18 @@ func (u *TelegramOAuthUsecase) TelegramOAuth(ctx context.Context, req *TelegramO
 	defer func() { end(err) }()
 
 	var input struct {
-		state uuid.UUID
+		state    uuid.UUID
+		language shared.Language
 	}
 	{
 		input.state, err = uuid.Parse(req.State)
 		if err != nil {
 			return nil, inerr.NewErrValidation("state", "invalid state format")
+		}
+
+		input.language, err = parseLanguage(req.Language)
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -153,6 +162,7 @@ func (u *TelegramOAuthUsecase) TelegramOAuth(ctx context.Context, req *TelegramO
 				if err != nil {
 					return err
 				}
+				newUser.ChangeLanguage(input.language)
 				if err = u.usersRepo.Save(ctx, newUser); err != nil {
 					return err
 				}
