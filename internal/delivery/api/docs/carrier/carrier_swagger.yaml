@@ -7,6 +7,12 @@ definitions:
     type: object
   command.AppleSignInRequest:
     properties:
+      attribution:
+        allOf:
+        - $ref: '#/definitions/command.AttributionRequest'
+        description: |-
+          Attribution is recorded only when this call creates the user; without
+          a source the user counts as come from the app.
       authorization_code:
         description: |-
           AuthorizationCode from the same sign-in: traded for Apple's refresh
@@ -35,6 +41,27 @@ definitions:
       refresh_token:
         type: string
       role:
+        type: string
+    type: object
+  command.AttributionRequest:
+    properties:
+      campaign:
+        type: string
+      content:
+        type: string
+      gclid:
+        type: string
+      landing_lang:
+        type: string
+      medium:
+        type: string
+      referrer:
+        type: string
+      source:
+        type: string
+      term:
+        type: string
+      yclid:
         type: string
     type: object
   command.GeneratePKCEResponse:
@@ -157,6 +184,12 @@ definitions:
     type: object
   command.RegisterRequest:
     properties:
+      attribution:
+        allOf:
+        - $ref: '#/definitions/command.AttributionRequest'
+        description: |-
+          Attribution is recorded only when this call creates the user; a
+          repeated registration on a pending email keeps the first one.
       email:
         type: string
       first_name:
@@ -178,6 +211,10 @@ definitions:
     type: object
   command.TelegramOAuthRequest:
     properties:
+      attribution:
+        allOf:
+        - $ref: '#/definitions/command.AttributionRequest'
+        description: Attribution is recorded only when this call creates the user.
       code:
         type: string
       redirect_uri:
@@ -189,6 +226,12 @@ definitions:
     type: object
   command.TelegramSignInRequest:
     properties:
+      attribution:
+        allOf:
+        - $ref: '#/definitions/command.AttributionRequest'
+        description: |-
+          Attribution is recorded only when this call creates the user; without
+          a source the user counts as come from the app.
       id_token:
         type: string
       role:

@@ -25,6 +25,7 @@ type TelegramOAuthUsecase struct {
 	txManager         postgres.TxManager
 	usersRepo         domain.UserRepository
 	oauthAccountsRepo domain.OAuthAccountRepository
+	attributionsRepo  domain.UserAttributionRepository
 	pkceRepo          domain.PKCERepository
 }
 
@@ -35,6 +36,7 @@ func NewTelegramOAuthUsecase(
 	txManager postgres.TxManager,
 	usersRepo domain.UserRepository,
 	oauthAccountsRepo domain.OAuthAccountRepository,
+	attributionsRepo domain.UserAttributionRepository,
 	pkceRepo domain.PKCERepository,
 ) *TelegramOAuthUsecase {
 	return &TelegramOAuthUsecase{
@@ -44,6 +46,7 @@ func NewTelegramOAuthUsecase(
 		txManager:         txManager,
 		usersRepo:         usersRepo,
 		oauthAccountsRepo: oauthAccountsRepo,
+		attributionsRepo:  attributionsRepo,
 		pkceRepo:          pkceRepo,
 	}
 }
@@ -53,6 +56,8 @@ type TelegramOAuthRequest struct {
 	State       string `json:"state"`
 	RedirectURI string `json:"redirect_uri"`
 	Role        string `json:"role"`
+	// Attribution is recorded only when this call creates the user.
+	Attribution *AttributionRequest `json:"attribution"`
 }
 
 func (u *TelegramOAuthUsecase) TelegramOAuth(ctx context.Context, req *TelegramOAuthRequest) (_ *TelegramSignInResponse, err error) {
@@ -157,7 +162,10 @@ func (u *TelegramOAuthUsecase) TelegramOAuth(ctx context.Context, req *TelegramO
 					return err
 				}
 				account := domain.NewOAuthAccount(newUser.ID, domain.OAuthProviderTelegram, providerAccountID)
-				return u.oauthAccountsRepo.Save(ctx, account)
+				if err = u.oauthAccountsRepo.Save(ctx, account); err != nil {
+					return err
+				}
+				return u.attributionsRepo.Save(ctx, req.Attribution.toDomain(newUser.ID, domain.AttributionSourceDirect))
 			})
 			if txErr != nil {
 				logger.ErrorContext(ctx, "failed to create telegram user", txErr)

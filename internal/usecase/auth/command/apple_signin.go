@@ -25,6 +25,7 @@ type AppleSignInUsecase struct {
 	txManager         postgres.TxManager
 	usersRepo         domain.UserRepository
 	oauthAccountsRepo domain.OAuthAccountRepository
+	attributionsRepo  domain.UserAttributionRepository
 }
 
 func NewAppleSignInUsecase(
@@ -34,6 +35,7 @@ func NewAppleSignInUsecase(
 	txManager postgres.TxManager,
 	usersRepo domain.UserRepository,
 	oauthAccountsRepo domain.OAuthAccountRepository,
+	attributionsRepo domain.UserAttributionRepository,
 ) *AppleSignInUsecase {
 	return &AppleSignInUsecase{
 		contextDuration:   contextDuration,
@@ -42,6 +44,7 @@ func NewAppleSignInUsecase(
 		txManager:         txManager,
 		usersRepo:         usersRepo,
 		oauthAccountsRepo: oauthAccountsRepo,
+		attributionsRepo:  attributionsRepo,
 	}
 }
 
@@ -53,6 +56,9 @@ type AppleSignInRequest struct {
 	// AuthorizationCode from the same sign-in: traded for Apple's refresh
 	// token, which is revoked when the account is deleted.
 	AuthorizationCode string `json:"authorization_code"`
+	// Attribution is recorded only when this call creates the user; without
+	// a source the user counts as come from the app.
+	Attribution *AttributionRequest `json:"attribution"`
 }
 
 type AppleSignInResponse struct {
@@ -153,7 +159,10 @@ func (u *AppleSignInUsecase) AppleSignIn(ctx context.Context, req *AppleSignInRe
 				if err = u.usersRepo.Save(ctx, newUser); err != nil {
 					return err
 				}
-				return u.oauthAccountsRepo.Save(ctx, newAccount(newUser.ID))
+				if err = u.oauthAccountsRepo.Save(ctx, newAccount(newUser.ID)); err != nil {
+					return err
+				}
+				return u.attributionsRepo.Save(ctx, req.Attribution.toDomain(newUser.ID, domain.AttributionSourceApp))
 			})
 			if txErr != nil {
 				logger.ErrorContext(ctx, "failed to create apple user", txErr)
