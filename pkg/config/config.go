@@ -52,6 +52,8 @@ type Config struct {
 		Region        string
 		PublicBucket  string
 		PrivateBucket string
+		// Secure means HTTPS. Hetzner Object Storage doesn't answer on port 80.
+		Secure bool
 	}
 
 	Redis struct {
@@ -269,6 +271,7 @@ func New() (*Config, error) {
 	c.S3.SecretKey = getEnv("S3_SECRET_KEY", "")
 	c.S3.PrivateBucket = getEnv("S3_PRIVATE_BUCKET", "app-private")
 	c.S3.PublicBucket = getEnv("S3_PUBLIC_BUCKET", "app-public")
+	c.S3.Secure = getEnvBool("S3_SECURE", true)
 
 	// Redis
 	c.Redis.Host = getEnv("REDIS_HOST", "localhost")

@@ -97,7 +97,27 @@ func (c *S3Client) PutObject(ctx context.Context, bucket, key string, r io.Reade
 		return "", fmt.Errorf("s3: nil reader")
 	}
 
-	info, err := retry.Retry(ctx, c.retryConfig, func(ctx context.Context) (minio.UploadInfo, error) {
+	// A retry must send the body again from the start: a reader left at EOF
+	// sends nothing while Content-Length promises size bytes, and the request
+	// hangs until the context gives up. Without a Seeker there is one attempt.
+	cfg := c.retryConfig
+	seeker, canSeek := r.(io.Seeker)
+	var start int64
+	if canSeek {
+		if start, err = seeker.Seek(0, io.SeekCurrent); err != nil {
+			canSeek = false
+		}
+	}
+	if !canSeek {
+		cfg.MaxAttempts = 1
+	}
+
+	info, err := retry.Retry(ctx, cfg, func(ctx context.Context) (minio.UploadInfo, error) {
+		if canSeek {
+			if _, err := seeker.Seek(start, io.SeekStart); err != nil {
+				return minio.UploadInfo{}, fmt.Errorf("s3: rewind body: %w", err)
+			}
+		}
 		info, err := c.client.PutObject(ctx, bucket, key, r, size, minio.PutObjectOptions{
 			ContentType:  opt.ContentType,
 			UserMetadata: opt.Metadata,

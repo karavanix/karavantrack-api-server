@@ -169,6 +169,7 @@ func (s *ServerApp) Run() error {
 		s3.WithRegion(s.config.S3.Region),
 		s3.WithAccessKey(s.config.S3.AccessKey),
 		s3.WithSecretKey(s.config.S3.SecretKey),
+		s3.WithSecure(s.config.S3.Secure),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create S3 client: %w", err)
