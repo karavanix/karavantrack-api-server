@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
@@ -17,6 +18,19 @@ import (
 	"github.com/karavanix/karavantrack-api-server/pkg/app"
 	"github.com/karavanix/karavantrack-api-server/pkg/config"
 )
+
+// uploadDeadline replaces the server-wide read/write timeouts (seconds, sized for
+// JSON requests) for one upload: a phone photo over a mobile network takes longer.
+const uploadDeadline = 2 * time.Minute
+
+// extendUploadDeadlines must run before the body is read. Best effort: it fails
+// only if a middleware's ResponseWriter can't be unwrapped down to the connection.
+func extendUploadDeadlines(w http.ResponseWriter) {
+	rc := http.NewResponseController(w)
+	at := time.Now().Add(uploadDeadline)
+	_ = rc.SetReadDeadline(at)
+	_ = rc.SetWriteDeadline(at)
+}
 
 type attachmentsHandler struct {
 	cfg                *config.Config
@@ -59,6 +73,7 @@ func (h *attachmentsHandler) UploadFile() http.HandlerFunc {
 			return
 		}
 
+		extendUploadDeadlines(w)
 		r.Body = http.MaxBytesReader(w, r.Body, 30<<20) // 30MB limit
 
 		if err := r.ParseForm(); err != nil {
@@ -123,6 +138,7 @@ func (h *attachmentsHandler) UploadImage() http.HandlerFunc {
 			outerr.Forbidden(w, r, "missing user context")
 			return
 		}
+		extendUploadDeadlines(w)
 		r.Body = http.MaxBytesReader(w, r.Body, 30<<20) // 30MB limit
 
 		if err := r.ParseForm(); err != nil {
