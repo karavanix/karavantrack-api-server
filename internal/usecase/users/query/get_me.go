@@ -32,6 +32,7 @@ type MeResponse struct {
 	Phone     string    `json:"phone,omitempty"`
 	Status    string    `json:"status"`
 	Role      string    `json:"role"`
+	Language  string    `json:"language"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -67,6 +68,7 @@ func (u *GetMeUsecase) GetMe(ctx context.Context, userID string) (_ *MeResponse,
 		Phone:     user.Phone.String(),
 		Status:    user.Status.String(),
 		Role:      user.Role.String(),
+		Language:  user.Language.String(),
 		CreatedAt: user.CreatedAt,
 	}, nil
 }

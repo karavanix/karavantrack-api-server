@@ -50,6 +50,9 @@ func NewTelegramSignInUsecase(
 type TelegramSignInRequest struct {
 	IDToken string `json:"id_token" validate:"required"`
 	Role    string `json:"role"`
+	// Language (ru, uz or en) the client is switched to; a new user's
+	// emails and pushes go in it. Default ru.
+	Language string `json:"language"`
 	// Attribution is recorded only when this call creates the user; without
 	// a source the user counts as come from the app.
 	Attribution *AttributionRequest `json:"attribution"`
@@ -70,6 +73,11 @@ func (u *TelegramSignInUsecase) TelegramSignIn(ctx context.Context, req *Telegra
 
 	ctx, end := otlp.Start(ctx, otel.Tracer("auth"), "TelegramSignIn")
 	defer func() { end(err) }()
+
+	language, err := parseLanguage(req.Language)
+	if err != nil {
+		return nil, err
+	}
 
 	userInfo, err := u.telegramClient.Verify(ctx, req.IDToken)
 	if err != nil {
@@ -127,6 +135,7 @@ func (u *TelegramSignInUsecase) TelegramSignIn(ctx context.Context, req *Telegra
 				if err != nil {
 					return err
 				}
+				newUser.ChangeLanguage(language)
 				if err = u.usersRepo.Save(ctx, newUser); err != nil {
 					return err
 				}

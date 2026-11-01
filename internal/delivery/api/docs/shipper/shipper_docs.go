@@ -2658,6 +2658,10 @@ const docTemplateshipper = `{
                 "id_token": {
                     "type": "string"
                 },
+                "language": {
+                    "description": "Language (ru, uz or en) the client is switched to; a new user's\nemails and pushes go in it. Default ru.",
+                    "type": "string"
+                },
                 "last_name": {
                     "type": "string"
                 },
@@ -2904,6 +2908,10 @@ const docTemplateshipper = `{
                 "first_name": {
                     "type": "string"
                 },
+                "language": {
+                    "description": "Language (ru, uz or en) the client is switched to; a new user's\nemails and pushes go in it. Default ru.",
+                    "type": "string"
+                },
                 "last_name": {
                     "type": "string"
                 },
@@ -2936,6 +2944,10 @@ const docTemplateshipper = `{
                 "code": {
                     "type": "string"
                 },
+                "language": {
+                    "description": "Language (ru, uz or en) the client is switched to; a new user's\nemails and pushes go in it. Default ru.",
+                    "type": "string"
+                },
                 "redirect_uri": {
                     "type": "string"
                 },
@@ -2962,6 +2974,10 @@ const docTemplateshipper = `{
                     ]
                 },
                 "id_token": {
+                    "type": "string"
+                },
+                "language": {
+                    "description": "Language (ru, uz or en) the client is switched to; a new user's\nemails and pushes go in it. Default ru.",
                     "type": "string"
                 },
                 "role": {
@@ -3198,6 +3214,10 @@ const docTemplateshipper = `{
             "type": "object",
             "properties": {
                 "first_name": {
+                    "type": "string"
+                },
+                "language": {
+                    "description": "Language (ru, uz or en) of the user's emails and pushes; the clients\nsend the one they are switched to. Empty keeps the current one.",
                     "type": "string"
                 },
                 "last_name": {
@@ -3746,6 +3766,9 @@ const docTemplateshipper = `{
                     "type": "string"
                 },
                 "id": {
+                    "type": "string"
+                },
+                "language": {
                     "type": "string"
                 },
                 "last_name": {

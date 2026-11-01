@@ -23,6 +23,7 @@ type Users struct {
 	PasswordHash string    `bun:"password_hash"`
 	Role         string    `bun:"role"`
 	Status       string    `bun:"status"`
+	Language     string    `bun:"language"`
 	CreatedAt    time.Time `bun:"created_at"`
 	UpdatedAt    time.Time `bun:"updated_at"`
 }
@@ -44,6 +45,7 @@ func (r *usersRepo) Update(ctx context.Context, user *domain.User) error {
 		Set("last_name = ?", model.LastName).
 		Set("role = ?", model.Role).
 		Set("status = ?", model.Status).
+		Set("language = ?", model.Language).
 		Set("updated_at = ?", model.UpdatedAt).
 		Where("id = ?", model.ID).
 		Exec(ctx)
@@ -225,6 +227,7 @@ func (r *usersRepo) toModel(e *domain.User) *Users {
 		PasswordHash: e.PasswordHash,
 		Role:         e.Role.String(),
 		Status:       e.Status.String(),
+		Language:     e.Language.String(),
 		CreatedAt:    e.CreatedAt,
 		UpdatedAt:    e.UpdatedAt,
 	}
@@ -248,6 +251,7 @@ func (r *usersRepo) toDomain(m *Users) *domain.User {
 		PasswordHash: m.PasswordHash,
 		Role:         shared.Role(m.Role),
 		Status:       domain.UserStatus(m.Status),
+		Language:     shared.Language(m.Language),
 		CreatedAt:    m.CreatedAt,
 		UpdatedAt:    m.UpdatedAt,
 	}
