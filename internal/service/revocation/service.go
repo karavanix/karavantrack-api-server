@@ -37,7 +37,11 @@ func key(userID string) string {
 }
 
 func (s *service) RevokeAllBefore(ctx context.Context, userID string, before time.Time) error {
-	return s.redis.Set(ctx, key(userID), strconv.FormatInt(before.UnixNano(), 10), s.ttl)
+	// A token's iat is whole seconds. A cutoff with a fraction would revoke a
+	// token issued in the same second right after it (sign-in just after a
+	// password reset), so the cutoff is cut to the second as well.
+	cutoff := before.Truncate(time.Second)
+	return s.redis.Set(ctx, key(userID), strconv.FormatInt(cutoff.UnixNano(), 10), s.ttl)
 }
 
 func (s *service) IsRevoked(ctx context.Context, userID string, issuedAt time.Time) (bool, error) {

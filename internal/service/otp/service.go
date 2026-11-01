@@ -25,6 +25,9 @@ type Config struct {
 	TTL         time.Duration
 	MaxAttempts int
 	Length      int
+	// Cooldown, when set, is how long a code must live before Generate
+	// replaces it with a new one for the same email.
+	Cooldown time.Duration
 }
 
 type Service struct {
@@ -37,7 +40,17 @@ func NewService(store Store, config Config) *Service {
 }
 
 // Generate creates a new OTP code, saves its hash to the store, and returns the plain code.
+// Returns ErrOTPTooSoon while the email's previous code is younger than Cooldown.
 func (s *Service) Generate(ctx context.Context, email string) (string, error) {
+	if s.config.Cooldown > 0 {
+		if prev, err := s.store.Get(ctx, email); err == nil {
+			issuedAt := prev.ExpiresAt.Add(-s.config.TTL)
+			if time.Since(issuedAt) < s.config.Cooldown {
+				return "", inerr.ErrOTPTooSoon
+			}
+		}
+	}
+
 	code, err := pkgotp.Generate(s.config.Length)
 	if err != nil {
 		return "", err

@@ -11,6 +11,7 @@ var (
 	ErrOTPExpired         = errors.New("otp expired")
 	ErrOTPMismatch        = errors.New("otp mismatch")
 	ErrOTPTooManyAttempts = errors.New("otp too many attempts")
+	ErrOTPTooSoon         = errors.New("otp requested too soon")
 )
 
 type ErrInvalidToken struct {

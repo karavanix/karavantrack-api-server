@@ -26,6 +26,10 @@ func RegisterRoutes(r chi.Router, opts *delivery.HandlerOptions) {
 		Post("/auth/register", authH.Register())
 	r.With(middleware.RateLimit(opts.Redis, "auth:verify-email", 5, time.Minute)).
 		Post("/auth/verify-email", authH.VerifyEmail())
+	r.With(middleware.RateLimit(opts.Redis, "auth:password-forgot", 5, time.Minute)).
+		Post("/auth/password/forgot", authH.ForgotPassword())
+	r.With(middleware.RateLimit(opts.Redis, "auth:password-reset", 5, time.Minute)).
+		Post("/auth/password/reset", authH.ResetPassword())
 	r.Post("/auth/refresh", authH.Refresh())
 	r.Post("/auth/apple", authH.AppleSignIn())
 	r.Post("/auth/telegram", authH.TelegramSignIn())
