@@ -17,15 +17,31 @@ func (h *Handler) SendPushNotificationTask(ctx context.Context, t *asynq.Task) e
 		return fmt.Errorf("failed to unmarshal push payload: %w", err)
 	}
 
+	push := payload.Notification
+
+	// A task enqueued before the catalog existed carries its text ready.
+	if push.Key == "" {
+		logger.InfoContext(ctx, "processing push notification task",
+			"user_id", payload.UserID,
+			"title", push.Title,
+		)
+		n := firebase.CreateNotificationWithMetadata(push.Title, push.Body, push.Metadata)
+		if err := h.notificationService.SendToUser(ctx, payload.UserID, n); err != nil {
+			logger.ErrorContext(ctx, "failed to send push notification", err, "user_id", payload.UserID)
+			return err
+		}
+		return nil
+	}
+
 	logger.InfoContext(ctx, "processing push notification task",
 		"user_id", payload.UserID,
-		"title", payload.Notification.Title,
+		"key", string(push.Key),
 	)
 
-	n := firebase.CreateNotificationWithMetadata(payload.Notification.Title, payload.Notification.Body, payload.Notification.Metadata)
-	if err := h.notificationService.SendToUser(ctx, payload.UserID, n); err != nil {
+	if err := h.notificationService.Notify(ctx, payload.UserID, push.Key, push.Params, push.Metadata); err != nil {
 		logger.ErrorContext(ctx, "failed to send push notification", err,
 			"user_id", payload.UserID,
+			"key", string(push.Key),
 		)
 		return err
 	}

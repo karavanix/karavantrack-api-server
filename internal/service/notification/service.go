@@ -2,27 +2,62 @@ package notification
 
 import (
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
+	"github.com/karavanix/karavantrack-api-server/internal/i18n"
+	"github.com/karavanix/karavantrack-api-server/internal/inerr"
 	"github.com/karavanix/karavantrack-api-server/pkg/firebase"
 	"github.com/karavanix/karavantrack-api-server/pkg/logger"
 )
 
 type Service interface {
+	// SendToUser delivers an already-worded notification to every device of
+	// the user.
 	SendToUser(ctx context.Context, userID string, notification *firebase.Notification) error
+	// Notify words the push text key in the user's language and delivers it.
+	// A user who no longer exists gets nothing and is not an error.
+	Notify(ctx context.Context, userID string, key i18n.Key, params map[string]string, metadata map[string]string) error
 }
 
 type service struct {
 	fcm            *firebase.FCM
 	fcmDevicesRepo domain.FCMDeviceRepository
+	usersRepo      domain.UserRepository
 }
 
-func NewService(fcm *firebase.FCM, fcmDevicesRepo domain.FCMDeviceRepository) Service {
+func NewService(fcm *firebase.FCM, fcmDevicesRepo domain.FCMDeviceRepository, usersRepo domain.UserRepository) Service {
 	return &service{
 		fcm:            fcm,
 		fcmDevicesRepo: fcmDevicesRepo,
+		usersRepo:      usersRepo,
 	}
+}
+
+func (s *service) Notify(ctx context.Context, userID string, key i18n.Key, params map[string]string, metadata map[string]string) error {
+	uid, err := uuid.Parse(userID)
+	if err != nil {
+		return err
+	}
+
+	user, err := s.usersRepo.FindByID(ctx, uid)
+	if err != nil {
+		if errors.Is(err, inerr.ErrNotFound{}) {
+			logger.InfoContext(ctx, "push recipient no longer exists, skipping push", "user_id", userID, "key", string(key))
+			return nil
+		}
+		logger.WarnContext(ctx, "failed to find push recipient", err, "user_id", userID)
+		return err
+	}
+
+	push, err := i18n.RenderPush(key, user.Language, params)
+	if err != nil {
+		logger.ErrorContext(ctx, "failed to render push notification", err, "user_id", userID, "key", string(key))
+		return err
+	}
+
+	return s.SendToUser(ctx, userID, firebase.CreateNotificationWithMetadata(push.Title, push.Body, metadata))
 }
 
 func (s *service) SendToUser(ctx context.Context, userID string, notification *firebase.Notification) error {

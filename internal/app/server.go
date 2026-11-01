@@ -217,7 +217,7 @@ func (s *ServerApp) Run() error {
 	}
 
 	// service
-	notificationService := notification.NewService(fcmClient, fcmDevicesRepo)
+	notificationService := notification.NewService(fcmClient, fcmDevicesRepo, usersRepo)
 	rbacService := rbac.NewService(s.config.Context.Timeout, companyMembersRepo)
 	revocationService := revocation.NewService(s.redis, s.config.JWT.RefreshTTL)
 	otpService := otp.NewService(otpStore, otp.Config{

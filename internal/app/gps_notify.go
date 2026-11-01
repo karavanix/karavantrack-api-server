@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"time"
 
-	pkgapp "github.com/karavanix/karavantrack-api-server/pkg/app"
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
+	"github.com/karavanix/karavantrack-api-server/internal/i18n"
 	"github.com/karavanix/karavantrack-api-server/internal/infrastructure/persistence/repository"
 	"github.com/karavanix/karavantrack-api-server/internal/service/notification"
+	pkgapp "github.com/karavanix/karavantrack-api-server/pkg/app"
 	"github.com/karavanix/karavantrack-api-server/pkg/config"
 	"github.com/karavanix/karavantrack-api-server/pkg/database/postgres"
 	"github.com/karavanix/karavantrack-api-server/pkg/firebase"
@@ -46,7 +47,7 @@ func NewGpsNotifyApp(cfg *config.Config) (*GpsNotifyApp, error) {
 	}
 
 	fcmDevicesRepo := repository.NewFCMDevicesRepo(db)
-	notificationService := notification.NewService(fcmClient, fcmDevicesRepo)
+	notificationService := notification.NewService(fcmClient, fcmDevicesRepo, repository.NewUsersRepo(db))
 
 	return &GpsNotifyApp{
 		config:              cfg,
@@ -67,14 +68,13 @@ func (a *GpsNotifyApp) Run(ctx context.Context) error {
 	logger.Info("stale GPS loads found", "count", len(loads))
 
 	for _, load := range loads {
-		notifyErr := a.notificationService.SendToUser(ctx, load.CarrierID.String(), &firebase.Notification{
-			Title: "GPS не получен",
-			Body:  "Нет обновления местоположения более 15 минут: " + load.Title,
-			Metadata: map[string]string{
+		notifyErr := a.notificationService.Notify(ctx, load.CarrierID.String(), i18n.PushGPSDriver,
+			map[string]string{i18n.ParamTitle: load.Title},
+			map[string]string{
 				"load_id": load.ID.String(),
 				"action":  "gps_timeout",
 			},
-		})
+		)
 		if notifyErr != nil {
 			logger.Error("failed to send GPS timeout notification", notifyErr,
 				"load_id", load.ID.String(),
@@ -85,14 +85,13 @@ func (a *GpsNotifyApp) Run(ctx context.Context) error {
 		// The driver already knows their GPS is stuck (notified above) — the
 		// shipper paying for the trip has no other way to find out tracking
 		// went dark, so notify them too.
-		shipperNotifyErr := a.notificationService.SendToUser(ctx, load.MemberID.String(), &firebase.Notification{
-			Title: "Пропала связь с водителем",
-			Body:  "Трекинг груза «" + load.Title + "» не обновляется более 15 минут",
-			Metadata: map[string]string{
+		shipperNotifyErr := a.notificationService.Notify(ctx, load.MemberID.String(), i18n.PushGPSShipper,
+			map[string]string{i18n.ParamTitle: load.Title},
+			map[string]string{
 				"load_id": load.ID.String(),
 				"action":  "gps_timeout",
 			},
-		})
+		)
 		if shipperNotifyErr != nil {
 			logger.Error("failed to send GPS timeout notification to shipper", shipperNotifyErr,
 				"load_id", load.ID.String(),

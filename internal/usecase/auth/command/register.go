@@ -120,8 +120,16 @@ func (r *RegisterUsecase) Register(ctx context.Context, req *RegisterRequest) (e
 			if existing.Status != domain.UserStatusPending {
 				return inerr.NewErrConflict("email")
 			}
-			// Pending user exists — re-send OTP without recreating the user.
+			// Pending user exists — re-send OTP without recreating the user,
+			// in the language the client is switched to now.
 			user = existing
+			if user.Language != input.language {
+				user.ChangeLanguage(input.language)
+				if err := r.usersRepo.Update(ctx, user); err != nil {
+					logger.ErrorContext(ctx, "failed to update pending user language", err)
+					return err
+				}
+			}
 		}
 	}
 
@@ -130,7 +138,7 @@ func (r *RegisterUsecase) Register(ctx context.Context, req *RegisterRequest) (e
 		if err != nil {
 			return err
 		}
-    
+
 		user.ChangeLanguage(input.language)
 		err = r.txManager.WithTx(ctx, func(ctx context.Context) error {
 			if err := r.usersRepo.Save(ctx, user); err != nil {
@@ -150,7 +158,7 @@ func (r *RegisterUsecase) Register(ctx context.Context, req *RegisterRequest) (e
 		return err
 	}
 
-	if err = r.emailSvc.SendVerificationCode(ctx, user.ID, input.email.String(), code); err != nil {
+	if err = r.emailSvc.SendVerificationCode(ctx, user.ID, input.email.String(), code, user.Language); err != nil {
 		logger.ErrorContext(ctx, "failed to send verification email", err)
 		return err
 	}

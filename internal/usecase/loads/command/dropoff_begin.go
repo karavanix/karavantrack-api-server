@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
+	"github.com/karavanix/karavantrack-api-server/internal/i18n"
 	"github.com/karavanix/karavantrack-api-server/internal/inerr"
 	"github.com/karavanix/karavantrack-api-server/internal/tasks"
 	"github.com/karavanix/karavantrack-api-server/pkg/logger"
@@ -102,8 +103,8 @@ func (u *BeginDropoffUsecase) BeginDropoff(ctx context.Context, loadID string, u
 	}
 
 	enqueueOwnerSidePush(ctx, u.taskQueue, u.companyMembersRepo, load, tasks.PushNotification{
-		Title: "Прибытие на выгрузку",
-		Body:  "Водитель прибыл на выгрузку: " + load.Title,
+		Key:    i18n.PushLoadDropoffBegin,
+		Params: map[string]string{i18n.ParamTitle: load.Title},
 		Metadata: map[string]string{
 			"load_id": load.ID.String(),
 			"action":  "dropping_off",
