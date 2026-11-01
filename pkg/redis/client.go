@@ -73,7 +73,6 @@ func (c *RedisClient) Set(ctx context.Context, key, value string, ttl ...time.Du
 }
 
 func (c *RedisClient) Delete(ctx context.Context, key string) error {
-	fmt.Println("Delete: ", c.prefixer(key))
 	return c.client.Del(ctx, c.prefixer(key)).Err()
 }
 
@@ -90,8 +89,7 @@ func (c *RedisClient) SetBytes(ctx context.Context, key string, value []byte, tt
 }
 
 func (c *RedisClient) GetStruct(ctx context.Context, key string, dest any) error {
-	fmt.Println("Get: ", c.prefixer(key))
-	data, err := c.Get(ctx, c.prefixer(key))
+	data, err := c.Get(ctx, key)
 	if err == redis.Nil {
 		return inerr.NewErrNotFound(key)
 	} else if err != nil {
@@ -109,8 +107,7 @@ func (c *RedisClient) SetStruct(ctx context.Context, key string, src any, ttl ..
 	if err != nil {
 		return fmt.Errorf("redis: failed to marshal struct: %w", err)
 	}
-	fmt.Println("Set: ", c.prefixer(key), string(data))
-	return c.Set(ctx, c.prefixer(key), string(data), ttl[0])
+	return c.Set(ctx, key, string(data), ttl[0])
 }
 
 func (c *RedisClient) Exists(ctx context.Context, key string) (bool, error) {
