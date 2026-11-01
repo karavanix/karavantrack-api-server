@@ -1921,6 +1921,17 @@ const docTemplatecarrier = `{
                 }
             }
         },
+        "command.ForgotPasswordRequest": {
+            "type": "object",
+            "required": [
+                "email"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                }
+            }
+        },
         "command.GeneratePKCEResponse": {
             "type": "object",
             "properties": {

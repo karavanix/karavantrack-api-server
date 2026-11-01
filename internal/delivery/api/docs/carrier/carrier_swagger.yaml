@@ -69,6 +69,13 @@ definitions:
       yclid:
         type: string
     type: object
+  command.ForgotPasswordRequest:
+    properties:
+      email:
+        type: string
+    required:
+    - email
+    type: object
   command.GeneratePKCEResponse:
     properties:
       code_challenge:
