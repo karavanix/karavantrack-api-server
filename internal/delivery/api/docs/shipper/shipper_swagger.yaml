@@ -28,6 +28,12 @@ definitions:
     type: object
   command.AppleSignInRequest:
     properties:
+      attribution:
+        allOf:
+        - $ref: '#/definitions/command.AttributionRequest'
+        description: |-
+          Attribution is recorded only when this call creates the user; without
+          a source the user counts as come from the app.
       authorization_code:
         description: |-
           AuthorizationCode from the same sign-in: traded for Apple's refresh
@@ -36,6 +42,11 @@ definitions:
       first_name:
         type: string
       id_token:
+        type: string
+      language:
+        description: |-
+          Language (ru, uz or en) the client is switched to; a new user's
+          emails and pushes go in it. Default ru.
         type: string
       last_name:
         type: string
@@ -70,6 +81,27 @@ definitions:
         type: string
     required:
     - carrier_id
+    type: object
+  command.AttributionRequest:
+    properties:
+      campaign:
+        type: string
+      content:
+        type: string
+      gclid:
+        type: string
+      landing_lang:
+        type: string
+      medium:
+        type: string
+      referrer:
+        type: string
+      source:
+        type: string
+      term:
+        type: string
+      yclid:
+        type: string
     type: object
   command.CreateInviteLinkResponse:
     properties:
@@ -174,9 +206,20 @@ definitions:
     type: object
   command.RegisterRequest:
     properties:
+      attribution:
+        allOf:
+        - $ref: '#/definitions/command.AttributionRequest'
+        description: |-
+          Attribution is recorded only when this call creates the user; a
+          repeated registration on a pending email keeps the first one.
       email:
         type: string
       first_name:
+        type: string
+      language:
+        description: |-
+          Language (ru, uz or en) the client is switched to; a new user's
+          emails and pushes go in it. Default ru.
         type: string
       last_name:
         type: string
@@ -208,7 +251,16 @@ definitions:
     type: object
   command.TelegramOAuthRequest:
     properties:
+      attribution:
+        allOf:
+        - $ref: '#/definitions/command.AttributionRequest'
+        description: Attribution is recorded only when this call creates the user.
       code:
+        type: string
+      language:
+        description: |-
+          Language (ru, uz or en) the client is switched to; a new user's
+          emails and pushes go in it. Default ru.
         type: string
       redirect_uri:
         type: string
@@ -219,7 +271,18 @@ definitions:
     type: object
   command.TelegramSignInRequest:
     properties:
+      attribution:
+        allOf:
+        - $ref: '#/definitions/command.AttributionRequest'
+        description: |-
+          Attribution is recorded only when this call creates the user; without
+          a source the user counts as come from the app.
       id_token:
+        type: string
+      language:
+        description: |-
+          Language (ru, uz or en) the client is switched to; a new user's
+          emails and pushes go in it. Default ru.
         type: string
       role:
         type: string
@@ -380,6 +443,11 @@ definitions:
   github_com_karavanix_karavantrack-api-server_internal_usecase_users_command.UpdateRequest:
     properties:
       first_name:
+        type: string
+      language:
+        description: |-
+          Language (ru, uz or en) of the user's emails and pushes; the clients
+          send the one they are switched to. Empty keeps the current one.
         type: string
       last_name:
         type: string
@@ -756,6 +824,8 @@ definitions:
       first_name:
         type: string
       id:
+        type: string
+      language:
         type: string
       last_name:
         type: string

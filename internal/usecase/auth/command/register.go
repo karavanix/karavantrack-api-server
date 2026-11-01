@@ -10,6 +10,7 @@ import (
 	"github.com/karavanix/karavantrack-api-server/internal/inerr"
 	"github.com/karavanix/karavantrack-api-server/internal/service/email"
 	"github.com/karavanix/karavantrack-api-server/internal/service/otp"
+	"github.com/karavanix/karavantrack-api-server/pkg/database/postgres"
 	"github.com/karavanix/karavantrack-api-server/pkg/logger"
 	"github.com/karavanix/karavantrack-api-server/pkg/otlp"
 	"go.opentelemetry.io/otel"
@@ -18,20 +19,26 @@ import (
 
 type RegisterUsecase struct {
 	contextTDuration time.Duration
+	txManager        postgres.TxManager
 	usersRepo        domain.UserRepository
+	attributionsRepo domain.UserAttributionRepository
 	otpSvc           *otp.Service
 	emailSvc         *email.Service
 }
 
 func NewRegisterUsecase(
 	contextTDuration time.Duration,
+	txManager postgres.TxManager,
 	usersRepo domain.UserRepository,
+	attributionsRepo domain.UserAttributionRepository,
 	otpSvc *otp.Service,
 	emailSvc *email.Service,
 ) *RegisterUsecase {
 	return &RegisterUsecase{
 		contextTDuration: contextTDuration,
+		txManager:        txManager,
 		usersRepo:        usersRepo,
+		attributionsRepo: attributionsRepo,
 		otpSvc:           otpSvc,
 		emailSvc:         emailSvc,
 	}
@@ -44,6 +51,12 @@ type RegisterRequest struct {
 	Phone     string `json:"phone"`
 	Password  string `json:"password" validate:"required"`
 	Role      string `json:"role" validate:"required,oneof=shipper carrier"`
+	// Language (ru, uz or en) the client is switched to; a new user's
+	// emails and pushes go in it. Default ru.
+	Language string `json:"language"`
+	// Attribution is recorded only when this call creates the user; a
+	// repeated registration on a pending email keeps the first one.
+	Attribution *AttributionRequest `json:"attribution"`
 }
 
 func (r *RegisterUsecase) Register(ctx context.Context, req *RegisterRequest) (err error) {
@@ -62,6 +75,7 @@ func (r *RegisterUsecase) Register(ctx context.Context, req *RegisterRequest) (e
 		phone    shared.Phone
 		password shared.Password
 		role     shared.Role
+		language shared.Language
 	}
 
 	if req.Email != "" {
@@ -88,6 +102,11 @@ func (r *RegisterUsecase) Register(ctx context.Context, req *RegisterRequest) (e
 		return inerr.NewErrValidation("role", "invalid role")
 	}
 
+	input.language, err = parseLanguage(req.Language)
+	if err != nil {
+		return err
+	}
+
 	var user *domain.User
 
 	if input.email != "" {
@@ -111,7 +130,15 @@ func (r *RegisterUsecase) Register(ctx context.Context, req *RegisterRequest) (e
 		if err != nil {
 			return err
 		}
-		if err = r.usersRepo.Save(ctx, user); err != nil {
+    
+		user.ChangeLanguage(input.language)
+		err = r.txManager.WithTx(ctx, func(ctx context.Context) error {
+			if err := r.usersRepo.Save(ctx, user); err != nil {
+				return err
+			}
+			return r.attributionsRepo.Save(ctx, req.Attribution.toDomain(user.ID, domain.AttributionSourceDirect))
+		})
+		if err != nil {
 			logger.ErrorContext(ctx, "failed to save pending user", err)
 			return err
 		}

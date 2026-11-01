@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
+	"github.com/karavanix/karavantrack-api-server/internal/domain/shared"
 	"github.com/karavanix/karavantrack-api-server/internal/inerr"
 	"github.com/karavanix/karavantrack-api-server/pkg/logger"
 	"github.com/karavanix/karavantrack-api-server/pkg/otlp"
@@ -28,6 +29,9 @@ func NewUpdateUsecase(contextDuration time.Duration, usersRepo domain.UserReposi
 type UpdateRequest struct {
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
+	// Language (ru, uz or en) of the user's emails and pushes; the clients
+	// send the one they are switched to. Empty keeps the current one.
+	Language string `json:"language"`
 }
 
 func (u *UpdateUsecase) Update(ctx context.Context, userIDStr string, req *UpdateRequest) (err error) {
@@ -39,17 +43,33 @@ func (u *UpdateUsecase) Update(ctx context.Context, userIDStr string, req *Updat
 	)
 	defer func() { end(err) }()
 
-	userID, err := uuid.Parse(userIDStr)
-	if err != nil {
-		return inerr.NewErrValidation("user_id", "invalid user ID")
+	var input struct {
+		userID   uuid.UUID
+		language shared.Language
+	}
+	{
+		input.userID, err = uuid.Parse(userIDStr)
+		if err != nil {
+			return inerr.NewErrValidation("user_id", "invalid user ID")
+		}
+
+		if req.Language != "" {
+			input.language, err = shared.NewLanguage(req.Language)
+			if err != nil {
+				return inerr.NewErrValidation("language", err.Error())
+			}
+		}
 	}
 
-	user, err := u.usersRepo.FindByID(ctx, userID)
+	user, err := u.usersRepo.FindByID(ctx, input.userID)
 	if err != nil {
 		return err
 	}
 
 	user.Update(req.FirstName, req.LastName)
+	if input.language != "" {
+		user.ChangeLanguage(input.language)
+	}
 
 	if err := u.usersRepo.Update(ctx, user); err != nil {
 		logger.ErrorContext(ctx, "failed to update user", err)

@@ -25,6 +25,7 @@ type AppleSignInUsecase struct {
 	txManager         postgres.TxManager
 	usersRepo         domain.UserRepository
 	oauthAccountsRepo domain.OAuthAccountRepository
+	attributionsRepo  domain.UserAttributionRepository
 }
 
 func NewAppleSignInUsecase(
@@ -34,6 +35,7 @@ func NewAppleSignInUsecase(
 	txManager postgres.TxManager,
 	usersRepo domain.UserRepository,
 	oauthAccountsRepo domain.OAuthAccountRepository,
+	attributionsRepo domain.UserAttributionRepository,
 ) *AppleSignInUsecase {
 	return &AppleSignInUsecase{
 		contextDuration:   contextDuration,
@@ -42,6 +44,7 @@ func NewAppleSignInUsecase(
 		txManager:         txManager,
 		usersRepo:         usersRepo,
 		oauthAccountsRepo: oauthAccountsRepo,
+		attributionsRepo:  attributionsRepo,
 	}
 }
 
@@ -53,6 +56,12 @@ type AppleSignInRequest struct {
 	// AuthorizationCode from the same sign-in: traded for Apple's refresh
 	// token, which is revoked when the account is deleted.
 	AuthorizationCode string `json:"authorization_code"`
+	// Language (ru, uz or en) the client is switched to; a new user's
+	// emails and pushes go in it. Default ru.
+	Language string `json:"language"`
+	// Attribution is recorded only when this call creates the user; without
+	// a source the user counts as come from the app.
+	Attribution *AttributionRequest `json:"attribution"`
 }
 
 type AppleSignInResponse struct {
@@ -70,6 +79,11 @@ func (u *AppleSignInUsecase) AppleSignIn(ctx context.Context, req *AppleSignInRe
 
 	ctx, end := otlp.Start(ctx, otel.Tracer("auth"), "AppleSignIn")
 	defer func() { end(err) }()
+
+	language, err := parseLanguage(req.Language)
+	if err != nil {
+		return nil, err
+	}
 
 	userInfo, err := u.appleClient.Verify(ctx, req.IDToken)
 	if err != nil {
@@ -150,10 +164,14 @@ func (u *AppleSignInUsecase) AppleSignIn(ctx context.Context, req *AppleSignInRe
 				if err != nil {
 					return err
 				}
+				newUser.ChangeLanguage(language)
 				if err = u.usersRepo.Save(ctx, newUser); err != nil {
 					return err
 				}
-				return u.oauthAccountsRepo.Save(ctx, newAccount(newUser.ID))
+				if err = u.oauthAccountsRepo.Save(ctx, newAccount(newUser.ID)); err != nil {
+					return err
+				}
+				return u.attributionsRepo.Save(ctx, req.Attribution.toDomain(newUser.ID, domain.AttributionSourceApp))
 			})
 			if txErr != nil {
 				logger.ErrorContext(ctx, "failed to create apple user", txErr)

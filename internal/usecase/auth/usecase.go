@@ -49,6 +49,7 @@ func NewUsecase(
 	txManager postgres.TxManager,
 	usersRepo domain.UserRepository,
 	oauthAccountsRepo domain.OAuthAccountRepository,
+	attributionsRepo domain.UserAttributionRepository,
 	appleClient ports.AppleProvider,
 	telegramClient ports.TelegramProvider,
 	pkceRepo domain.PKCERepository,
@@ -57,13 +58,13 @@ func NewUsecase(
 ) *Usecase {
 	return &Usecase{
 		Command: Command{
-			RegisterUsecase:       command.NewRegisterUsecase(contextDuration, usersRepo, cfg.OTPService, cfg.EmailService),
+			RegisterUsecase:       command.NewRegisterUsecase(contextDuration, txManager, usersRepo, attributionsRepo, cfg.OTPService, cfg.EmailService),
 			LoginUsecase:          command.NewLoginUsecase(contextDuration, jwtProvider, usersRepo),
 			RefreshTokenUsecase:   command.NewRefreshTokenUsecase(contextDuration, jwtProvider, usersRepo, revocationService),
 			LogoutUsecase:         command.NewLogoutUsecase(contextDuration, revocationService),
-			AppleSignInUsecase:    command.NewAppleSignInUsecase(contextDuration, jwtProvider, appleClient, txManager, usersRepo, oauthAccountsRepo),
-			TelegramSignInUsecase: command.NewTelegramSignInUsecase(contextDuration, jwtProvider, telegramClient, txManager, usersRepo, oauthAccountsRepo),
-			TelegramOAuthUsecase:  command.NewTelegramOAuthUsecase(contextDuration, jwtProvider, telegramClient, txManager, usersRepo, oauthAccountsRepo, pkceRepo),
+			AppleSignInUsecase:    command.NewAppleSignInUsecase(contextDuration, jwtProvider, appleClient, txManager, usersRepo, oauthAccountsRepo, attributionsRepo),
+			TelegramSignInUsecase: command.NewTelegramSignInUsecase(contextDuration, jwtProvider, telegramClient, txManager, usersRepo, oauthAccountsRepo, attributionsRepo),
+			TelegramOAuthUsecase:  command.NewTelegramOAuthUsecase(contextDuration, jwtProvider, telegramClient, txManager, usersRepo, oauthAccountsRepo, attributionsRepo, pkceRepo),
 			VerifyEmailUsecase:    command.NewVerifyEmailUsecase(contextDuration, jwtProvider, usersRepo, cfg.OTPService),
 			GeneratePKCEUsecase:   command.NewGeneratePKCEUsecase(contextDuration, pkceRepo),
 			ForgotPasswordUsecase: command.NewForgotPasswordUsecase(contextDuration, usersRepo, cfg.ResetOTPService, cfg.EmailService),

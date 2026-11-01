@@ -158,6 +158,7 @@ func (s *ServerApp) Run() error {
 	loadTracksRepo := repository.NewLoadTracksRepo(s.db)
 	fcmDevicesRepo := repository.NewFCMDevicesRepo(s.db)
 	oauthAccountsRepo := repository.NewOAuthAccountsRepo(s.db)
+	userAttributionsRepo := repository.NewUserAttributionsRepo(s.db)
 	emailsRepo := repository.NewEmailsRepo(s.db)
 	loadInvitesRepo := repository.NewLoadInvitesRepo(s.db)
 	loadTrackingLinksRepo := repository.NewLoadTrackingLinksRepo(s.db)
@@ -243,6 +244,7 @@ func (s *ServerApp) Run() error {
 		txManager,
 		usersRepo,
 		oauthAccountsRepo,
+		userAttributionsRepo,
 		appleSignInClient,
 		telegramClient,
 		pkceStore,
