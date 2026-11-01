@@ -23,6 +23,8 @@ type Command struct {
 	*command.TelegramOAuthUsecase
 	*command.VerifyEmailUsecase
 	*command.GeneratePKCEUsecase
+	*command.ForgotPasswordUsecase
+	*command.ResetPasswordUsecase
 }
 
 type Query struct {
@@ -36,6 +38,9 @@ type Usecase struct {
 type Config struct {
 	OTPService   *otp.Service
 	EmailService *email.Service
+	// ResetOTPService issues password reset codes, kept apart from the
+	// email verification codes of OTPService.
+	ResetOTPService *otp.Service
 }
 
 func NewUsecase(
@@ -61,6 +66,8 @@ func NewUsecase(
 			TelegramOAuthUsecase:  command.NewTelegramOAuthUsecase(contextDuration, jwtProvider, telegramClient, txManager, usersRepo, oauthAccountsRepo, pkceRepo),
 			VerifyEmailUsecase:    command.NewVerifyEmailUsecase(contextDuration, jwtProvider, usersRepo, cfg.OTPService),
 			GeneratePKCEUsecase:   command.NewGeneratePKCEUsecase(contextDuration, pkceRepo),
+			ForgotPasswordUsecase: command.NewForgotPasswordUsecase(contextDuration, usersRepo, cfg.ResetOTPService, cfg.EmailService),
+			ResetPasswordUsecase:  command.NewResetPasswordUsecase(contextDuration, usersRepo, cfg.ResetOTPService, revocationService),
 		},
 		Query: Query{},
 	}

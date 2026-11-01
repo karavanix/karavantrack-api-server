@@ -37,6 +37,13 @@ definitions:
       role:
         type: string
     type: object
+  command.ForgotPasswordRequest:
+    properties:
+      email:
+        type: string
+    required:
+    - email
+    type: object
   command.GeneratePKCEResponse:
     properties:
       code_challenge:
@@ -175,6 +182,19 @@ definitions:
     required:
     - password
     - role
+    type: object
+  command.ResetPasswordRequest:
+    properties:
+      code:
+        type: string
+      email:
+        type: string
+      new_password:
+        type: string
+    required:
+    - code
+    - email
+    - new_password
     type: object
   command.TelegramOAuthRequest:
     properties:
@@ -968,6 +988,59 @@ paths:
       security:
       - BearerAuth: []
       summary: Logout
+      tags:
+      - Auth
+  /auth/password/forgot:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Mail a password reset code to the email. Answers 200 whether or not the
+        email is registered. An Apple account without a password sets one this way.
+        A repeated request within a minute sends no new code: the first is still good.
+      parameters:
+      - description: Email
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/command.ForgotPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/outerr.Response'
+      summary: Forgot password
+      tags:
+      - Auth
+  /auth/password/reset:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Set a new password with the code from /auth/password/forgot. Signs the user
+        out on every device; returns no tokens, the user signs in with the new password.
+      parameters:
+      - description: Email, code and new password
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/command.ResetPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/outerr.Response'
+      summary: Reset password
       tags:
       - Auth
   /auth/pkce:

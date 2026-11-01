@@ -157,6 +157,73 @@ func (h *authHander) VerifyEmail() http.HandlerFunc {
 	}
 }
 
+// ForgotPassword godoc
+// @Summary      Forgot password
+// @Description  Mail a password reset code to the email. Answers 200 whether or not the
+// @Description  email is registered. An Apple account without a password sets one this way.
+// @Description  A repeated request within a minute sends no new code: the first is still good.
+// @Tags         Auth
+// @Accept       json
+// @Produce      json
+// @Param        body body command.ForgotPasswordRequest true "Email"
+// @Success      200
+// @Failure      400  {object} outerr.Response
+// @Router       /auth/password/forgot [post]
+func (h *authHander) ForgotPassword() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req command.ForgotPasswordRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			outerr.BadRequest(w, r, "invalid request body")
+			return
+		}
+
+		if err := h.validator.Validate(req); err != nil {
+			outerr.HandleHTTP(w, r, err)
+			return
+		}
+
+		if err := h.authUsecase.Command.ForgotPassword(r.Context(), &req); err != nil {
+			outerr.HandleHTTP(w, r, err)
+			return
+		}
+
+		render.Status(r, http.StatusOK)
+	}
+}
+
+// ResetPassword godoc
+// @Summary      Reset password
+// @Description  Set a new password with the code from /auth/password/forgot. Signs the user
+// @Description  out on every device; returns no tokens, the user signs in with the new password.
+// @Tags         Auth
+// @Accept       json
+// @Produce      json
+// @Param        body body command.ResetPasswordRequest true "Email, code and new password"
+// @Success      200
+// @Failure      400  {object} outerr.Response
+// @Router       /auth/password/reset [post]
+func (h *authHander) ResetPassword() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req command.ResetPasswordRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			outerr.BadRequest(w, r, "invalid request body")
+			return
+		}
+
+		if err := h.validator.Validate(req); err != nil {
+			outerr.HandleHTTP(w, r, err)
+			return
+		}
+
+		if err := h.authUsecase.Command.ResetPassword(r.Context(), &req); err != nil {
+			outerr.HandleHTTP(w, r, err)
+			return
+		}
+
+		render.Status(r, http.StatusOK)
+	}
+}
+
 // Logout godoc
 // @Security     BearerAuth
 // @Summary      Logout

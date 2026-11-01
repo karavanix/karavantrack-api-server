@@ -42,6 +42,7 @@ func (r *usersRepo) Update(ctx context.Context, user *domain.User) error {
 	_, err := db.NewUpdate().Model(model).
 		Set("first_name = ?", model.FirstName).
 		Set("last_name = ?", model.LastName).
+		Set("password_hash = ?", model.PasswordHash).
 		Set("role = ?", model.Role).
 		Set("status = ?", model.Status).
 		Set("updated_at = ?", model.UpdatedAt).

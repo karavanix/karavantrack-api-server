@@ -144,7 +144,8 @@ func (s *ServerApp) Run() error {
 	}
 
 	// cache
-	otpStore := cache.NewOTPStore(s.redis)
+	otpStore := cache.NewOTPStore(s.redis, cache.OTPPrefixVerification)
+	resetOTPStore := cache.NewOTPStore(s.redis, cache.OTPPrefixPasswordReset)
 	pkceStore := cache.NewPKCEStore(s.config, s.redis)
 
 	// repository
@@ -206,7 +207,10 @@ func (s *ServerApp) Run() error {
 	}
 
 	// email template
-	emailTmpl, err := template.ParseFiles("templates/email_verification.html")
+	emailTmpl, err := template.ParseFiles(
+		"templates/"+email.TemplateVerification,
+		"templates/"+email.TemplatePasswordReset,
+	)
 	if err != nil {
 		return fmt.Errorf("failed to load email template: %w", err)
 	}
@@ -220,6 +224,13 @@ func (s *ServerApp) Run() error {
 		TTL:         s.config.OTP.TTL,
 		MaxAttempts: s.config.OTP.MaxAttempts,
 		Length:      s.config.OTP.Length,
+	})
+	resetOTPService := otp.NewService(resetOTPStore, otp.Config{
+		Secret:      []byte(s.config.OTP.Secret),
+		TTL:         s.config.OTP.TTL,
+		MaxAttempts: s.config.OTP.MaxAttempts,
+		Length:      s.config.OTP.Length,
+		Cooldown:    s.config.OTP.ResendCooldown,
 	})
 	routingService := routingsvc.NewService(valhallaClient, routingsvc.ConfigFrom(s.config))
 	matchScheduler := tasks.NewMatchLoadTrackScheduler(s.taskQueue, s.config.Matching.Enabled, s.config.Matching.Debounce)
@@ -237,8 +248,9 @@ func (s *ServerApp) Run() error {
 		pkceStore,
 		revocationService,
 		auth.Config{
-			OTPService:   otpService,
-			EmailService: emailService,
+			OTPService:      otpService,
+			EmailService:    emailService,
+			ResetOTPService: resetOTPService,
 		},
 	)
 	usersUsecase := users.NewUsecase(s.config.Context.Timeout, usersRepo, loadsRepo, fcmDevicesRepo, oauthAccountsRepo, appleSignInClient, revocationService)

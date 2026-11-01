@@ -108,6 +108,9 @@ type Config struct {
 		TTL         time.Duration
 		Secret      string
 		MaxAttempts int
+		// ResendCooldown is how long a password reset code must live before
+		// another one is sent to the same email.
+		ResendCooldown time.Duration
 	}
 
 	Firebase struct {
@@ -316,6 +319,9 @@ func New() (*Config, error) {
 	c.OTP.Secret = getEnv("OTP_SECRET", "")
 	if c.OTP.TTL, err = getEnvDuration("OTP_TTL", "15m"); err != nil {
 		return nil, fmt.Errorf("OTP_TTL: %w", err)
+	}
+	if c.OTP.ResendCooldown, err = getEnvDuration("OTP_RESEND_COOLDOWN", "1m"); err != nil {
+		return nil, fmt.Errorf("OTP_RESEND_COOLDOWN: %w", err)
 	}
 
 	// Firebase
