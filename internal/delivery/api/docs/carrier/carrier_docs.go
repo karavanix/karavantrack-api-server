@@ -1764,6 +1764,14 @@ const docTemplatecarrier = `{
                 "id_token"
             ],
             "properties": {
+                "attribution": {
+                    "description": "Attribution is recorded only when this call creates the user; without\na source the user counts as come from the app.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/command.AttributionRequest"
+                        }
+                    ]
+                },
                 "authorization_code": {
                     "description": "AuthorizationCode from the same sign-in: traded for Apple's refresh\ntoken, which is revoked when the account is deleted.",
                     "type": "string"
@@ -1803,6 +1811,38 @@ const docTemplatecarrier = `{
                     "type": "string"
                 },
                 "role": {
+                    "type": "string"
+                }
+            }
+        },
+        "command.AttributionRequest": {
+            "type": "object",
+            "properties": {
+                "campaign": {
+                    "type": "string"
+                },
+                "content": {
+                    "type": "string"
+                },
+                "gclid": {
+                    "type": "string"
+                },
+                "landing_lang": {
+                    "type": "string"
+                },
+                "medium": {
+                    "type": "string"
+                },
+                "referrer": {
+                    "type": "string"
+                },
+                "source": {
+                    "type": "string"
+                },
+                "term": {
+                    "type": "string"
+                },
+                "yclid": {
                     "type": "string"
                 }
             }
@@ -1981,6 +2021,14 @@ const docTemplatecarrier = `{
                 "role"
             ],
             "properties": {
+                "attribution": {
+                    "description": "Attribution is recorded only when this call creates the user; a\nrepeated registration on a pending email keeps the first one.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/command.AttributionRequest"
+                        }
+                    ]
+                },
                 "email": {
                     "type": "string"
                 },
@@ -2012,6 +2060,14 @@ const docTemplatecarrier = `{
         "command.TelegramOAuthRequest": {
             "type": "object",
             "properties": {
+                "attribution": {
+                    "description": "Attribution is recorded only when this call creates the user.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/command.AttributionRequest"
+                        }
+                    ]
+                },
                 "code": {
                     "type": "string"
                 },
@@ -2036,6 +2092,14 @@ const docTemplatecarrier = `{
                 "id_token"
             ],
             "properties": {
+                "attribution": {
+                    "description": "Attribution is recorded only when this call creates the user; without\na source the user counts as come from the app.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/command.AttributionRequest"
+                        }
+                    ]
+                },
                 "id_token": {
                     "type": "string"
                 },

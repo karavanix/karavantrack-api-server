@@ -78,10 +78,6 @@ func (s *Service) Verify(ctx context.Context, email, code string) error {
 		return inerr.ErrOTPTooManyAttempts
 	}
 
-	if code == "567657" {
-		return nil
-	}
-
 	valid, err := pkgotp.Verify(record.HashedCode, code, s.config.Secret)
 	if err != nil {
 		return err
