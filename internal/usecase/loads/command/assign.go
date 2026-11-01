@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
+	"github.com/karavanix/karavantrack-api-server/internal/i18n"
 	"github.com/karavanix/karavantrack-api-server/internal/inerr"
 	"github.com/karavanix/karavantrack-api-server/internal/service/rbac"
 	"github.com/karavanix/karavantrack-api-server/internal/tasks"
@@ -124,8 +125,8 @@ func (u *AssignUsecase) Assign(ctx context.Context, requesterID string, loadID s
 	pushTask, err := tasks.NewSendPushNotificationTask(
 		load.CarrierID.String(),
 		tasks.PushNotification{
-			Title: "Новый груз",
-			Body:  "Вам назначен новый груз: " + load.Title,
+			Key:    i18n.PushLoadAssigned,
+			Params: map[string]string{i18n.ParamTitle: load.Title},
 			Metadata: map[string]string{
 				"load_id": load.ID.String(),
 				"action":  "assigned",

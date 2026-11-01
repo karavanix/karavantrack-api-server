@@ -88,7 +88,7 @@ func (u *ForgotPasswordUsecase) ForgotPassword(ctx context.Context, req *ForgotP
 		return err
 	}
 
-	if err = u.emailSvc.SendPasswordResetCode(ctx, user.ID, input.email.String(), code); err != nil {
+	if err = u.emailSvc.SendPasswordResetCode(ctx, user.ID, input.email.String(), code, user.Language); err != nil {
 		logger.ErrorContext(ctx, "failed to send password reset email", err)
 		return err
 	}

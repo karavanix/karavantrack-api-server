@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
+	"github.com/karavanix/karavantrack-api-server/internal/i18n"
 	"github.com/karavanix/karavantrack-api-server/internal/inerr"
 	"github.com/karavanix/karavantrack-api-server/internal/tasks"
 	"github.com/karavanix/karavantrack-api-server/pkg/logger"
@@ -102,8 +103,8 @@ func (u *BeginPickupUsecase) BeginPickup(ctx context.Context, loadID string, use
 	}
 
 	enqueueOwnerSidePush(ctx, u.taskQueue, u.companyMembersRepo, load, tasks.PushNotification{
-		Title: "Начало погрузки",
-		Body:  "Водитель выезжает на погрузку: " + load.Title,
+		Key:    i18n.PushLoadPickupBegin,
+		Params: map[string]string{i18n.ParamTitle: load.Title},
 		Metadata: map[string]string{
 			"load_id": load.ID.String(),
 			"action":  "picking_up",

@@ -8,6 +8,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
+	"github.com/karavanix/karavantrack-api-server/internal/domain/shared"
+	"github.com/karavanix/karavantrack-api-server/internal/i18n"
 	"github.com/karavanix/karavantrack-api-server/pkg/logger"
 )
 
@@ -45,22 +47,22 @@ func NewService(mailer Mailer, emailRepo domain.EmailRepository, tmpl *template.
 	}
 }
 
-// SendVerificationCode renders the OTP email template, logs it to the DB, and delivers it via SMTP.
-func (s *Service) SendVerificationCode(ctx context.Context, userID uuid.UUID, to, code string) error {
-	body, err := s.renderCode(TemplateVerification, code)
+// SendVerificationCode renders the OTP email in the user's language, logs it to the DB, and delivers it via SMTP.
+func (s *Service) SendVerificationCode(ctx context.Context, userID uuid.UUID, to, code string, lang shared.Language) error {
+	subject, body, err := s.renderCode(TemplateVerification, i18n.EmailVerification, lang, code)
 	if err != nil {
 		return err
 	}
-	return s.send(ctx, userID, emailTypeVerification, to, "Подтверждение почты — Yool", body)
+	return s.send(ctx, userID, emailTypeVerification, to, subject, body)
 }
 
 // SendPasswordResetCode mails the code that lets the user set a new password.
-func (s *Service) SendPasswordResetCode(ctx context.Context, userID uuid.UUID, to, code string) error {
-	body, err := s.renderCode(TemplatePasswordReset, code)
+func (s *Service) SendPasswordResetCode(ctx context.Context, userID uuid.UUID, to, code string, lang shared.Language) error {
+	subject, body, err := s.renderCode(TemplatePasswordReset, i18n.EmailPasswordReset, lang, code)
 	if err != nil {
 		return err
 	}
-	return s.send(ctx, userID, emailTypePasswordReset, to, "Сброс пароля — Yool", body)
+	return s.send(ctx, userID, emailTypePasswordReset, to, subject, body)
 }
 
 // send logs the email to the DB, delivers it via SMTP and records the outcome.
@@ -97,17 +99,25 @@ func (s *Service) send(ctx context.Context, userID uuid.UUID, emailType, to, sub
 	return nil
 }
 
-func (s *Service) renderCode(name, code string) (string, error) {
+// renderCode fills the template name with the code and the wording of kind
+// in lang; it returns the subject and the HTML body.
+func (s *Service) renderCode(name string, kind i18n.EmailKind, lang shared.Language, code string) (string, string, error) {
+	text, err := i18n.RenderEmail(kind, lang, int(s.otpTTL.Minutes()))
+	if err != nil {
+		return "", "", err
+	}
 	data := struct {
-		Code             string
-		ExpiresInMinutes int
+		Lang string
+		Code string
+		T    i18n.EmailText
 	}{
-		Code:             code,
-		ExpiresInMinutes: int(s.otpTTL.Minutes()),
+		Lang: lang.String(),
+		Code: code,
+		T:    text,
 	}
 	var buf bytes.Buffer
 	if err := s.tmpl.ExecuteTemplate(&buf, name, data); err != nil {
-		return "", err
+		return "", "", err
 	}
-	return buf.String(), nil
+	return text.Subject, buf.String(), nil
 }
