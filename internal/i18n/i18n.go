@@ -1,8 +1,8 @@
-// Package i18n holds every text the server sends to a person — push
-// notifications and emails — in the three languages a user can pick
-// (users.language). Code refers to a text by its Key and renders it in the
-// recipient's language at the moment of sending, so a usecase that enqueues
-// a push never has to know who reads it in what language.
+// Package i18n holds the push notification texts in every language a user
+// can pick (users.language). Code refers to a text by its Key and renders it
+// in the recipient's language at the moment of sending, so a usecase that
+// enqueues a push never has to know who reads it in what language. Emails
+// are whole HTML templates per language instead, in templates/<lang>/.
 package i18n
 
 import (
@@ -47,11 +47,6 @@ func RenderPush(key Key, lang shared.Language, params map[string]string) (Push, 
 		return Push{}, err
 	}
 	return Push{Title: title, Body: body}, nil
-}
-
-// Languages lists every language the catalog is kept in.
-func Languages() []shared.Language {
-	return []shared.Language{shared.LanguageRussian, shared.LanguageUzbek, shared.LanguageEnglish}
 }
 
 // render executes text as a text/template over params. A reference to a

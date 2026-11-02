@@ -3,7 +3,6 @@ package command_test
 import (
 	"context"
 	"errors"
-	"html/template"
 	"regexp"
 	"testing"
 	"time"
@@ -84,7 +83,8 @@ func (r *resetRevocation) IsRevoked(ctx context.Context, userID string, issuedAt
 
 const resetEmail = "ali@example.com"
 
-var sixDigits = regexp.MustCompile(`\d{6}`)
+// sixDigits finds the code in the email's code block.
+var sixDigits = regexp.MustCompile(`code-text[^>]*>(\d{6})<`)
 
 type resetFixture struct {
 	users      *resetUsers
@@ -106,7 +106,10 @@ func newResetFixture(t *testing.T, user *domain.User) *resetFixture {
 	otpSvc := otp.NewService(f.store, otp.Config{
 		Secret: []byte("test-secret"), TTL: 15 * time.Minute, MaxAttempts: 3, Length: 6, Cooldown: time.Minute,
 	})
-	tmpl := template.Must(template.New(email.TemplatePasswordReset).Parse("{{.Code}}"))
+	tmpl, err := email.LoadTemplates("../../../../templates")
+	if err != nil {
+		panic(err)
+	}
 	emailSvc := email.NewService(f.mailer, resetEmails{}, tmpl, "no-reply@example.com", 15*time.Minute)
 	f.forgot = command.NewForgotPasswordUsecase(time.Second, f.users, otpSvc, emailSvc)
 	f.reset = command.NewResetPasswordUsecase(time.Second, f.users, otpSvc, f.revocation)
@@ -129,7 +132,11 @@ func (f *resetFixture) mailedCode(t *testing.T) string {
 	if len(f.mailer.bodies) == 0 {
 		t.Fatal("no email was sent")
 	}
-	return sixDigits.FindString(f.mailer.bodies[len(f.mailer.bodies)-1])
+	m := sixDigits.FindStringSubmatch(f.mailer.bodies[len(f.mailer.bodies)-1])
+	if m == nil {
+		return ""
+	}
+	return m[1]
 }
 
 func TestResetPasswordWithMailedCode(t *testing.T) {

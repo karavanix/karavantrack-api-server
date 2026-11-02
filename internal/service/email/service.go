@@ -1,27 +1,18 @@
 package email
 
 import (
-	"bytes"
 	"context"
-	"html/template"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/karavanix/karavantrack-api-server/internal/domain"
 	"github.com/karavanix/karavantrack-api-server/internal/domain/shared"
-	"github.com/karavanix/karavantrack-api-server/internal/i18n"
 	"github.com/karavanix/karavantrack-api-server/pkg/logger"
 )
 
 const (
 	emailTypeVerification  = "verification"
 	emailTypePasswordReset = "password_reset"
-)
-
-// Template names, as html/template names files parsed with ParseFiles.
-const (
-	TemplateVerification  = "email_verification.html"
-	TemplatePasswordReset = "email_password_reset.html"
 )
 
 type Mailer interface {
@@ -31,13 +22,13 @@ type Mailer interface {
 type Service struct {
 	mailer    Mailer
 	emailRepo domain.EmailRepository
-	tmpl      *template.Template
+	tmpl      *Templates
 	from      string
 	otpTTL    time.Duration
 }
 
-// NewService takes tmpl holding every template named above.
-func NewService(mailer Mailer, emailRepo domain.EmailRepository, tmpl *template.Template, from string, otpTTL time.Duration) *Service {
+// NewService takes the templates LoadTemplates parsed.
+func NewService(mailer Mailer, emailRepo domain.EmailRepository, tmpl *Templates, from string, otpTTL time.Duration) *Service {
 	return &Service{
 		mailer:    mailer,
 		emailRepo: emailRepo,
@@ -49,7 +40,7 @@ func NewService(mailer Mailer, emailRepo domain.EmailRepository, tmpl *template.
 
 // SendVerificationCode renders the OTP email in the user's language, logs it to the DB, and delivers it via SMTP.
 func (s *Service) SendVerificationCode(ctx context.Context, userID uuid.UUID, to, code string, lang shared.Language) error {
-	subject, body, err := s.renderCode(TemplateVerification, i18n.EmailVerification, lang, code)
+	subject, body, err := s.renderCode(TemplateVerification, lang, code)
 	if err != nil {
 		return err
 	}
@@ -58,7 +49,7 @@ func (s *Service) SendVerificationCode(ctx context.Context, userID uuid.UUID, to
 
 // SendPasswordResetCode mails the code that lets the user set a new password.
 func (s *Service) SendPasswordResetCode(ctx context.Context, userID uuid.UUID, to, code string, lang shared.Language) error {
-	subject, body, err := s.renderCode(TemplatePasswordReset, i18n.EmailPasswordReset, lang, code)
+	subject, body, err := s.renderCode(TemplatePasswordReset, lang, code)
 	if err != nil {
 		return err
 	}
@@ -99,25 +90,15 @@ func (s *Service) send(ctx context.Context, userID uuid.UUID, emailType, to, sub
 	return nil
 }
 
-// renderCode fills the template name with the code and the wording of kind
-// in lang; it returns the subject and the HTML body.
-func (s *Service) renderCode(name string, kind i18n.EmailKind, lang shared.Language, code string) (string, string, error) {
-	text, err := i18n.RenderEmail(kind, lang, int(s.otpTTL.Minutes()))
-	if err != nil {
-		return "", "", err
-	}
+// renderCode fills the template name in lang with the code and its
+// lifetime; it returns the subject and the HTML body.
+func (s *Service) renderCode(name string, lang shared.Language, code string) (string, string, error) {
 	data := struct {
-		Lang string
-		Code string
-		T    i18n.EmailText
+		Code             string
+		ExpiresInMinutes int
 	}{
-		Lang: lang.String(),
-		Code: code,
-		T:    text,
+		Code:             code,
+		ExpiresInMinutes: int(s.otpTTL.Minutes()),
 	}
-	var buf bytes.Buffer
-	if err := s.tmpl.ExecuteTemplate(&buf, name, data); err != nil {
-		return "", "", err
-	}
-	return text.Subject, buf.String(), nil
+	return s.tmpl.render(name, lang, data)
 }

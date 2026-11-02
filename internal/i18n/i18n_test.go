@@ -12,7 +12,7 @@ import (
 func TestPushesCompleteInEveryLanguage(t *testing.T) {
 	params := map[string]string{ParamTitle: "Хлопок в Фергану"}
 	for key := range pushes {
-		for _, lang := range Languages() {
+		for _, lang := range shared.Languages() {
 			if _, ok := pushes[key][lang]; !ok {
 				t.Errorf("%s has no %s text", key, lang)
 				continue
@@ -53,35 +53,5 @@ func TestRenderPushFallsBackToRussian(t *testing.T) {
 	}
 	if got.Title != "Новый груз" {
 		t.Errorf("title = %q, want the Russian one", got.Title)
-	}
-}
-
-func TestEmailsCompleteInEveryLanguage(t *testing.T) {
-	for kind := range emails {
-		for _, lang := range Languages() {
-			if _, ok := emails[kind][lang]; !ok {
-				t.Errorf("%s has no %s text", kind, lang)
-				continue
-			}
-			text, err := RenderEmail(kind, lang, 15)
-			if err != nil {
-				t.Errorf("%s/%s: %v", kind, lang, err)
-				continue
-			}
-			for name, s := range map[string]string{
-				"Subject": text.Subject, "Heading": text.Heading, "BodyBefore": text.BodyBefore,
-				"BodyStrong": text.BodyStrong, "BodyAfter": text.BodyAfter, "Footnote": text.Footnote, "Footer": text.Footer,
-			} {
-				if s == "" {
-					t.Errorf("%s/%s: %s is empty", kind, lang, name)
-				}
-				if strings.Contains(s, "{{") {
-					t.Errorf("%s/%s: %s left template syntax: %q", kind, lang, name, s)
-				}
-			}
-			if !strings.Contains(text.BodyStrong, "15") {
-				t.Errorf("%s/%s: BodyStrong lacks the minutes: %q", kind, lang, text.BodyStrong)
-			}
-		}
 	}
 }

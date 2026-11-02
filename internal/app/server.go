@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"fmt"
-	"html/template"
 	"net/http"
 
 	"github.com/golang-jwt/jwt/v4"
@@ -207,13 +206,10 @@ func (s *ServerApp) Run() error {
 		return fmt.Errorf("failed to create SMTP client: %w", err)
 	}
 
-	// email template
-	emailTmpl, err := template.ParseFiles(
-		"templates/"+email.TemplateVerification,
-		"templates/"+email.TemplatePasswordReset,
-	)
+	// email templates, one copy per language: templates/<lang>/
+	emailTmpl, err := email.LoadTemplates("templates")
 	if err != nil {
-		return fmt.Errorf("failed to load email template: %w", err)
+		return fmt.Errorf("failed to load email templates: %w", err)
 	}
 
 	// service
