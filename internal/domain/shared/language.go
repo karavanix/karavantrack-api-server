@@ -33,6 +33,12 @@ func NewLanguage(language string) (Language, error) {
 	return l, nil
 }
 
+// Languages lists every language a user can pick; each one needs its own
+// email templates (templates/<lang>/) and push texts (internal/i18n).
+func Languages() []Language {
+	return []Language{LanguageRussian, LanguageUzbek, LanguageEnglish}
+}
+
 func (l Language) IsValid() bool {
 	switch l {
 	case LanguageRussian, LanguageUzbek, LanguageEnglish:

@@ -3,7 +3,6 @@ package command_test
 import (
 	"context"
 	"errors"
-	"html/template"
 	"testing"
 	"time"
 
@@ -79,8 +78,11 @@ func newRegister(users *fakeUsers, attributions *fakeAttributions) *command.Regi
 	otpSvc := otp.NewService(memOTPStore{}, otp.Config{
 		Secret: []byte("test-secret"), TTL: 15 * time.Minute, MaxAttempts: 3, Length: 6,
 	})
-	// Named like the file internal/app/server.go parses it from.
-	tmpl := template.Must(template.New("email_verification.html").Parse("{{.Code}}"))
+	// The real templates, loaded the way internal/app/server.go loads them.
+	tmpl, err := email.LoadTemplates("../../../../templates")
+	if err != nil {
+		panic(err)
+	}
 	emailSvc := email.NewService(nopMailer{}, nopEmails{}, tmpl, "no-reply@example.com", 15*time.Minute)
 	return command.NewRegisterUsecase(time.Second, noTx{}, users, attributions, otpSvc, emailSvc)
 }
